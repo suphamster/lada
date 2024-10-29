@@ -35,6 +35,11 @@ class MainWindow(Adw.ApplicationWindow):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # todo: Do not enforce dark theme. Added as a quick workaround as some buttons are not properly visible on a light color scheme.
+        style_manager = self.get_property('application').get_property("style-manager")
+        style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+
         drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
         def on_connect_drop(drop_target, file: Gio.File, x, y):
             self.open_file(file)
