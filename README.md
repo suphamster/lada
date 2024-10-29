@@ -61,16 +61,17 @@ If you have issues installing mmcv (dependency of MMagic) check their official d
 
 Download the models
 ```shell
-wget -P model_weights/ <todo github release page lada_mosaic_restoration_model_generic>
-wget -P model_weights/ <todo github release page  lada_mosaic_restoration_model_bj_pov>
-wget -P model_weights/ <todo github release page  lada_mosaic_detection_model>
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_detection_model.pt'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_generic.pth'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth'
 ```
 
 To train the models you'll also need those
 ```shell
 wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
 wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
-wget -P model_weights/ <todo github release page  lada_nsfw_detection_model>
+wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_nsfw_detection_model.pt'
 ```
 
 Now you should be able to run the GUI via `lada` or the CLI via `lada-cli`
