@@ -16,6 +16,15 @@ lada-cli --input <input video path> --output <output video path>
 ```
 <img src="assets/screenshot_cli_1.png" alt="screenshot showing video export" width="300">
 
+> If you've installed the app via flathub then the command would look like this (instead of *host* permissions you could also use `--file-forwarding` option)
+>  ```shell
+>  flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada --input <input video path> --output <output video path>
+>  ```
+> But you can also set an alias and use as the short command shown above
+> ```shell
+> alias lada-cli="flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada"
+>  ```
+
 ## Status
 Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Others scenes will be rather meh or show worse artifacts than the original mosaics.
 
@@ -33,6 +42,15 @@ There is also a `bj_pov` model which was trained only on such specific clips and
 > For folks that currently use [DeepMosaics](https://github.com/HypoX64/DeepMosaics): You can also run their `clean_you_know_video model` if you prefer
 
 You can select the model to use in the GUI by an option in the sidepanel.
+
+## Installation
+For Linux there is a ready-to-use option to install it via flatpak. For other systems you can try to follow the developer installation steps below but no promises (contributions welcome)
+> Note: I will try to get this app submitted on flathub so it can be easily installed. Until then, you need to build and install it yourself via flatpak builder
+> ```shell
+> flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+> flatpak install --user -y flathub org.flatpak.Builder
+> flatpak run org.flatpak.Builder --force-clean --sandbox --user --install --install-deps-from=flathub flatpak/build flatpak/io.github.ladaapp.lada.yaml
+> ```
 
 ## Developer Installation
 The GUI/Video preview functionality uses Gstreamer (gst-plugins-base, gst-plugins-bad, gst-plugins-good, gst-plugins-rs/gst-plugin-gtk4)
