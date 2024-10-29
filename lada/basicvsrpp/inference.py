@@ -1,0 +1,93 @@
+import os.path
+
+import numpy as np
+import torch
+from mmagic.registry import MODELS
+from mmagic.utils import register_all_modules
+from mmengine.config import Config
+from mmengine.runner import load_checkpoint
+
+from lada.basicvsrpp.basicvsrpp_gan import BasicVSRPlusPlusGan, BasicVSRPlusPlusGanNet
+from lada.lib.image_utils import img2tensor, tensor2img
+
+def get_default_gan_inference_config() -> dict:
+    return dict(
+        type='BasicVSRPlusPlusGan',
+        generator=dict(
+            type='BasicVSRPlusPlusGanNet',
+            mid_channels=64,
+            num_blocks=15,
+            is_low_res_input=False,
+            cpu_cache_length=1000, # otherwise for videos with more frames they will land on cpu which will crash datapreprocessor step as std/mean tensors are on gpu
+            spynet_pretrained=None),
+        pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'),
+        is_use_ema=True,
+        data_preprocessor=dict(
+            type='DataPreprocessor',
+            mean=[0., 0., 0.],
+            std=[255., 255., 255.],
+        ))
+
+
+def load_model(config: str | dict | None, checkpoint_path, device):
+    register_all_modules()
+    #MODELS.register_module(name='BasicVSRPlusPlusGan', module=BasicVSRPlusPlusGan, force=False)
+    #MODELS.register_module(name='BasicVSRPlusPlusGanNet', module=BasicVSRPlusPlusGanNet, force=False)
+    if device and type(device) == str:
+        device = torch.device(device)
+    if type(config) == str:
+        config = Config.fromfile(config).model
+    elif type(config) == dict:
+        pass
+    else:
+        raise Exception("unsupported value for 'config', Must be either be a file path to a config file or a dict definition of the model")
+    model = MODELS.build(config)
+    load_checkpoint(model, checkpoint_path, map_location='cpu')
+    model.cfg = config
+    model.to(device)
+    model.eval()
+    return model
+
+
+def inference(model, video: list, device, max_frames=-1):
+    input_frame_count = len(video)
+    input_frame_shape = video[0].shape
+    if device and type(device) == str:
+        device = torch.device(device)
+    with torch.no_grad():
+        result = []
+        input = torch.stack(img2tensor(video, bgr2rgb=False, float32=True), dim=0)
+        input = torch.unsqueeze(input, dim=0)  # TCHW -> BTCHW
+        if max_frames > 0:
+            for i in range(0, input.shape[1], max_frames):
+                output = model(inputs=input[:, i:i + max_frames].to(device))
+                result.append(output)
+            result = torch.cat(result, dim=1)
+        else:
+            result = model(inputs=input.to(device))
+        result = torch.squeeze(result, dim=0)  # BTCHW -> TCHW
+        result = list(torch.unbind(result, 0))
+        output = tensor2img(result, rgb2bgr=False, out_type=np.uint8, min_max=(0, 1))
+        output_frame_count = len(output)
+        output_frame_shape = output[0].shape
+        assert input_frame_count == output_frame_count and input_frame_shape == output_frame_shape
+        return output
+
+
+def test():
+    device = "cuda:1"
+
+    model = load_model("configs/basicvsrpp/mosaic_restoration_generic.py",
+                       "experiments/basicvsrpp/mosaic_restoration/iter_100000.pth", device)
+
+    frame1 = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
+    frame2 = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
+    frame3 = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
+    frame4 = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
+    video = [frame1, frame2, frame3, frame4]
+    result = inference(model, video, device)
+    print(len(result), result[0].shape)
+
+
+if __name__ == '__main__':
+    test()

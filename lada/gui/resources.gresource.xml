@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/github/ladaapp/lada/icons/scalable/actions">
+    <file alias="cafe-symbolic.svg">icons/cafe-symbolic.svg</file>
+    <file alias="check-round-outline2-symbolic.svg">icons/check-round-outline2-symbolic.svg</file>
+  </gresource>
+</gresources>

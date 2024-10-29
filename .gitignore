@@ -1,0 +1,12 @@
+flatpak/build/
+flatpak/repo/
+flatpak/state/
+.venv/
+experiments/
+*.egg-info/
+*.pth
+*.pt
+*.pyc
+.idea
+.flatpak-builder
+__pycache__

@@ -1,0 +1,17 @@
+--- old/.venv/lib/python3.12/site-packages/mmagic/models/losses/perceptual_loss.py	2024-10-26 15:12:16.096477200 +0200
++++ new/.venv/lib/python3.12/site-packages/mmagic/models/losses/perceptual_loss.py	2024-10-26 15:15:39.802670087 +0200
+@@ -44,8 +44,12 @@
+ 
+         # get vgg model and load pretrained vgg weight
+         # remove _vgg from attributes to avoid `find_unused_parameters` bug
+-        _vgg = getattr(vgg, vgg_type)(pretrained=True)
+-        # self.init_weights(_vgg, pretrained) #TODO urlopen error
++        if pretrained.startswith('torchvision://'):
++            _vgg = getattr(vgg, vgg_type)(pretrained=True)
++        else:
++            _vgg = getattr(vgg, vgg_type)(pretrained=False)
++            self.init_weights(_vgg, pretrained)
++
+         num_layers = max(map(int, layer_name_list)) + 1
+         assert len(_vgg.features) >= num_layers
+         # only borrow layers that will be used from _vgg to avoid unused params

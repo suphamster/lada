@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <requires lib="gtk" version="4.0"/>
+    <requires lib="Adw" version="1.0"/>
+
+    <template class="VideoPreview" parent="GtkWidget">
+        <property name="layout-manager">
+            <object class="GtkBoxLayout">
+                <property name="orientation">vertical</property>
+            </object>
+        </property>
+
+        <child>
+            <object class="GtkOverlay">
+                <child>
+                    <object class="GtkPicture" id="picture_video_preview"></object>
+                </child>
+                <child type="overlay">
+                    <object class="AdwSpinner" id="spinner_video_preview">
+                        <property name="width-request">64</property>
+                        <property name="height-request">64</property>
+                        <property name="halign">center</property>
+                        <property name="valign">center</property>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkBox" id="box_playback_controls">
+                <property name="margin-start">18</property>
+                <property name="margin-end">18</property>
+                <property name="margin-top">12</property>
+                <property name="margin-bottom">12</property>
+
+                <child>
+                    <object class="GtkButton" id="button_play_pause">
+                        <property name="receives-default">true</property>
+                        <property name="margin-end">8</property>
+                        <child>
+                            <object class="GtkImage" id="button_image_play_pause">
+                                <property name="icon-name">media-playback-start-symbolic</property>
+                            </object>
+                        </child>
+
+                        <signal name="clicked" handler="button_play_pause_callback"/>
+                    </object>
+                </child>
+
+                <child>
+                    <object class="GtkLabel" id="label_current_time">
+                        <property name="margin-end">8</property>
+                        <property name="label">0:00</property>
+                        <property name="width-chars">5</property>
+                        <style>
+                            <class name="numeric"/>
+                        </style>
+                    </object>
+
+                </child>
+
+                <child>
+                    <object class="Timeline" id="widget_timeline">
+                        <property name="application" bind-source="VideoPreview" bind-property="application"/>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+
+    </template>
+</interface>

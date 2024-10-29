@@ -1,0 +1,76 @@
+from mmengine.runner import load_checkpoint
+import torch
+from mmengine.registry import MODELS
+
+from lada.basicvsrpp.basicvsrpp_gan import BasicVSRPlusPlusGan, BasicVSRPlusPlusGanNet
+from mmagic.models.editors.basicvsr import BasicVSR
+from mmagic.utils import register_all_modules
+
+MODELS.register_module(name='BasicVSRPlusPlusGan', module=BasicVSRPlusPlusGan, force=False)
+MODELS.register_module(name='BasicVSRPlusPlusGanNet', module=BasicVSRPlusPlusGanNet, force=False)
+register_all_modules()
+
+BASICVSRPP_WEIGHTS_PATH = 'experiments/basicvsrpp/mosaic_restoration/iter_10000.pth'
+BASICVSRPP_GAN_WEIGHTS_PATH = 'tmp/mosaic_restoration_iter_10000.pth'
+
+gan_model = BasicVSRPlusPlusGan(
+    generator=dict(
+        type='BasicVSRPlusPlusGanNet',
+        mid_channels=64,
+        num_blocks=15,
+        is_low_res_input=False,
+        cpu_cache_length=1000, # otherwise for videos with more frames they will land on cpu which will crash datapreprocessor step as std/mean tensors are on gpu
+        spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'),
+    discriminator=dict(
+        type='UNetDiscriminatorWithSpectralNorm',
+        in_channels=3,
+        mid_channels=64,
+        skip_connection=True),
+    pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'),
+
+    perceptual_loss=dict(
+        type='PerceptualLoss',
+        layer_weights={
+            '2': 0.1,
+            '7': 0.1,
+            '16': 1.0,
+            '25': 1.0,
+            '34': 1.0,
+        },
+        vgg_type='vgg19',
+        perceptual_weight=0.2,  # was 1.0
+        style_weight=0,
+        norm_img=False),
+    gan_loss=dict(
+        type='GANLoss',
+        gan_type='vanilla',
+        loss_weight=5e-2,
+        real_label_val=1.0,
+        fake_label_val=0),
+    is_use_sharpened_gt_in_pixel=False,
+    is_use_sharpened_gt_in_percep=False,
+    is_use_sharpened_gt_in_gan=False,
+    is_use_ema=True,
+    data_preprocessor=dict(
+        type='DataPreprocessor',
+        mean=[0., 0., 0.],
+        std=[255., 255., 255.],
+    )
+)
+
+basicvsr = BasicVSR(dict(
+    type='BasicVSRPlusPlusGanNet',
+    mid_channels=64,
+    num_blocks=15,
+    is_low_res_input=False,
+    cpu_cache_length=1000,
+    spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/'
+                      'basicvsr/spynet_20210409-c6c1bd09.pth'),
+    dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'))
+
+load_checkpoint(basicvsr, BASICVSRPP_WEIGHTS_PATH, strict=True)
+
+gan_model.generator = basicvsr.generator
+gan_model.generator_ema = basicvsr.generator
+
+torch.save(gan_model.state_dict(), BASICVSRPP_GAN_WEIGHTS_PATH)
