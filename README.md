@@ -60,12 +60,11 @@ For Linux there is a ready-to-use option to install it via flatpak. For other sy
 1) Install Python
    > I haven't tested compatibility with latest version. Would recommend you stick to <= 3.12
 
+2) Install FFmpeg according to their [official docs](https://ffmpeg.org/download.html)
+
 2) Install Gstreamer according to their [official docs](https://gstreamer.freedesktop.org/documentation/installing/index.html)
-   > On Linux, depending on your distro, Gstreamer plugins are probably broken up in separate packages:
-   > Look for these: `gst-plugins-base`, `gst-plugins-bad`, `gst-plugins-good`, `gst-plugin-gtk4` from `gst-plugins-rs`
 
-3) Install FFmpeg according to their [official docs](https://ffmpeg.org/download.html)
-
+4) Install GTK according to their [official docs](https://www.gtk.org/docs/installations/)
 
 ### Python dependencies
 This is a Python project so let's install our dependencies from PyPy:
