@@ -35,4 +35,11 @@
             <caption>Exporting restored video via CLI</caption>
         </screenshot>
     </screenshots>
+    <releases>
+        <release date="2022-10-29" version="0.1.0">
+            <description>
+                <p>Initial release of this project including all trained models</p>
+            </description>
+        </release>
+    </releases>
 </component>

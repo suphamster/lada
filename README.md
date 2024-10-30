@@ -54,38 +54,62 @@ For Linux there is a ready-to-use option to install it via flatpak. For other sy
 > ```
 
 ## Developer Installation
-The GUI/Video preview functionality uses Gstreamer (gst-plugins-base, gst-plugins-bad, gst-plugins-good, gst-plugins-rs/gst-plugin-gtk4)
-For video export ffmpeg is used. You'll have to install these with you system package manager first.
 
-You'll also need Python 3.12 (haven't tested it with other versions).
+### System dependencies
 
+1) Install Python
+   > I haven't tested compatibility with latest version. Would recommend you stick to <= 3.12
+
+2) Install Gstreamer according to their [official docs](https://gstreamer.freedesktop.org/documentation/installing/index.html)
+   > On Linux, depending on your distro, Gstreamer plugins are probably broken up in separate packages:
+   > Look for these: `gst-plugins-base`, `gst-plugins-bad`, `gst-plugins-good`, `gst-plugin-gtk4` from `gst-plugins-rs`
+
+3) Install FFmpeg according to their [official docs](https://ffmpeg.org/download.html)
+
+
+### Python dependencies
 This is a Python project so let's install our dependencies from PyPy:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -f https://download.openmmlab.com/mmcv/dist/cu121/torch2.4/index.html -e '.[basicvsrpp,gui]'
-```
 
-These extras are enough to run the model, GUI and CLI but if you want to train the model(s) or work on the dataset(s) install additional extras `training,dataset-creation`.
+1) Create a new virtual environment
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
 
-The current mosaic removal modal is based on BasicVSR++ provided via MMagic. You'll have to patch some files to fix some issues not currently fixed in their released version.
-```bash
-patch -u ./.venv/lib/python3.12/site-packages/mmagic/__init__.py  -i patches/bump_mmagic_mmcv_dependency_bound.patch
-patch -u ./.venv/lib/python3.12/site-packages/mmagic/models/editors/vico/vico_utils.py -i patches/fix_diffusers_import.patch
-patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
-patch -u ./.venv/lib/python3.12/site-packages/mmagic/models/losses/perceptual_loss.py -i patches/enable_loading_vgg19_from_local_file.patch
-```
+2) Install PyTorch **2.4.x** as described in their [official documentation](https://pytorch.org/get-started/locally)
 
-If you have issues installing mmcv (dependency of MMagic) check their official docs. This can be a bit tricky as it includes custom cuda/C++ kernels so you need to install the right version for your system.
 
-Download the models
+3) Install MMCV version as described in their [official documentation](https://mmcv.readthedocs.io/en/latest/get_started/installation.html)
+   > You can install it either with their own installer `mim` or via `pip`.
+   > I've had issues installing via `mim` but `pip` worked. Just make sure to select the correct command depending on your system and PyTorch installation 
+
+
+4) Install this project together with the remaining dependencies
+    ```bash
+    python -m pip install -e '.[basicvsrpp,gui]'
+    ````
+    These extras are enough to run the model, GUI and CLI but if you want to train the model(s) or work on the dataset(s) install additional extras `training,dataset-creation`.
+
+
+5) Apply patches
+
+    The current mosaic removal modal is based on BasicVSR++ provided via MMagic. You'll have to patch some files to fix some issues not currently fixed in their released version.
+    ```bash
+    patch -u ./.venv/lib/python3.12/site-packages/mmagic/__init__.py  -i patches/bump_mmagic_mmcv_dependency_bound.patch
+    patch -u ./.venv/lib/python3.12/site-packages/mmagic/models/editors/vico/vico_utils.py -i patches/fix_diffusers_import.patch
+    patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
+    patch -u ./.venv/lib/python3.12/site-packages/mmagic/models/losses/perceptual_loss.py -i patches/enable_loading_vgg19_from_local_file.patch
+    ```
+
+### Install models
+Download the models from the Github Release page into the `model_weights` directory. The following command to just that
 ```shell
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_detection_model.pt'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_generic.pth'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth'
 ```
 
-To train the models you'll also need those
+To train the models you'll also need these
 ```shell
 wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
 wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
