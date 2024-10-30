@@ -1,8 +1,8 @@
 # Lada
 
 ## Features
-* Removes and restored mosaic/pixelated regions of your adult videos
-* Watch and convert your videos via CLI or GUI
+* Remove and recover pixelated content in adult videos
+* Watch or convert your videos via CLI or GUI
 
 ## Use
 After opening a file you can either watch a restored version of the provided video in the app (make sure you've enabled the Preview toggle) or you can export it to a new file.
@@ -33,6 +33,7 @@ If your GPU is not fast enough to watch the video in real-time you'll have to ex
 > Note from the field: Laptop GPU Nvidia RTX 3050 is not quite fast enough for real-time playback but export works fine. RTX 3090 doesn't sweat.
 > 
 I've only tested it on my Linux machine. I'd expect it to work on other x86_64 Linux machines as well.
+> Note: It should be able to run on other OS and with other GPU vendors or CPU but probably needs some changes. Patches welcome :)
 
 It may or may not work on Windows and Mac and other GPUs. You'll have to try to follow Developer Installation below and see how far you get.
 
@@ -112,8 +113,7 @@ These restored clips will replace the original content when they're reassembled 
 
 The mosaic detection model is a YOLO-v11, the mosaic removal model is a BasicVSR++ trained via GAN.
 
-The data used to train these models was scraped from the web.
-Afaik there are no public datasets for such purpose and I'll not provide one either. But creating a dataset for training mosaic removal models is pretty easy:
+AFAIK, there are no public datasets for such purpose and I'll not provide one either. But you can create your own dataset for training mosaic removal models this way:
 ```shell
 python create_mosaic_removal_video_dataset.py --input <input dir> --output-root <output dir>
 ```
@@ -126,7 +126,7 @@ The data to train the nsfw detection model was hand-labeled using [labelme](http
 
 
 ## Contribute
-The software currently is not very polished but it worked for me and maybe works for you. If you want to make it better you probably don't have to look far to find things to improve :)
+The software currently is not very polished, but it worked for me and maybe works for you. If you want to make it better you probably don't have to look far to find things to improve :)
 
 ## Credits (not exhaustive)
 This project builds on work done by these fantastic people
