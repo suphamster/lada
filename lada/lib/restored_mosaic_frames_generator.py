@@ -20,12 +20,8 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
         mosaic_restoration_model = rvrt_inferencer.get_model(model_path=mosaic_restoration_model_path, device=device)
         pad_mode = 'zero'
     elif mosaic_restoration_model_name == "deepmosaics":
-        from lada.deepmosaics.models import loadmodel
-        opts = {
-            "gpu_id": '0',
-            "model_path": mosaic_restoration_model_path
-        }
-        mosaic_restoration_model = loadmodel.video(opts)
+        from lada.deepmosaics.models import loadmodel, model_util
+        mosaic_restoration_model = loadmodel.video(model_util.device_to_gpu_id(device), mosaic_restoration_model_path)
         pad_mode = 'reflect'
     elif mosaic_restoration_model_name.startswith("basicvsrpp"):
         from lada.basicvsrpp.inference import load_model, get_default_gan_inference_config
@@ -70,7 +66,8 @@ class FrameRestorer:
             restored_clip_images = rvrt_inferencer.inference(images, self.mosaic_restoration_model)
         elif self.mosaic_restoration_model_name == "deepmosaics":
             from lada.deepmosaics.inference import restore_video_frames
-            restored_clip_images = restore_video_frames(str(0), self.mosaic_restoration_model, images)
+            from lada.deepmosaics.models import model_util
+            restored_clip_images = restore_video_frames(model_util.device_to_gpu_id(self.device), self.mosaic_restoration_model, images)
         elif self.mosaic_restoration_model_name.startswith("basicvsrpp"):
             from lada.basicvsrpp.inference import inference
             restored_clip_images = inference(self.mosaic_restoration_model, images, self.device)

@@ -213,7 +213,7 @@
                                                             <object class="GtkAdjustment">
                                                                 <property name="lower">4</property>
                                                                 <property name="upper">30</property>
-                                                                <property name="value">10</property>
+                                                                <property name="value">8</property>
                                                                 <property name="step-increment">2</property>
                                                             </object>
                                                         </property>
@@ -260,24 +260,35 @@
                                             </object>
                                         </property>
                                         <property name="content">
-                                            <object class="GtkStack" id="stack_video_preview">
-                                                <property name="vexpand">true</property>
-                                                <property name="visible-child">spinner_video_preview</property>
+                                            <object class="GtkBox">
+                                                <property name="orientation">vertical</property>
                                                 <child>
-                                                    <object class="VideoPreview" id="widget_video_preview">
-                                                        <property name="application" bind-source="MainWindow"
-                                                                  bind-property="application"/>
+                                                    <object class="AdwBanner" id="banner_no_gpu">
+                                                        <property name="title">No GPU detected! Running the app on CPU will be painfully slow</property>
+                                                        <property name="revealed">False</property>
                                                     </object>
                                                 </child>
                                                 <child>
-                                                    <object class="AdwSpinner" id="spinner_video_preview">
-                                                        <property name="width-request">64</property>
-                                                        <property name="height-request">64</property>
-                                                        <property name="halign">center</property>
-                                                        <property name="valign">center</property>
-                                                        <style>
-                                                            <class name="dim-label"/>
-                                                        </style>
+                                                    <object class="GtkStack" id="stack_video_preview">
+                                                        <property name="vexpand">true</property>
+                                                        <property name="visible-child">spinner_video_preview</property>
+                                                        <child>
+                                                            <object class="VideoPreview" id="widget_video_preview">
+                                                                <property name="application" bind-source="MainWindow"
+                                                                          bind-property="application"/>
+                                                            </object>
+                                                        </child>
+                                                        <child>
+                                                            <object class="AdwSpinner" id="spinner_video_preview">
+                                                                <property name="width-request">64</property>
+                                                                <property name="height-request">64</property>
+                                                                <property name="halign">center</property>
+                                                                <property name="valign">center</property>
+                                                                <style>
+                                                                    <class name="dim-label"/>
+                                                                </style>
+                                                            </object>
+                                                        </child>
                                                     </object>
                                                 </child>
                                             </object>

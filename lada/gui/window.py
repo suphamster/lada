@@ -32,6 +32,7 @@ class MainWindow(Adw.ApplicationWindow):
     combo_row_export_codec = Gtk.Template.Child()
     progress_bar_file_export = Gtk.Template.Child()
     status_page_export_video = Gtk.Template.Child()
+    banner_no_gpu = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -46,8 +47,14 @@ class MainWindow(Adw.ApplicationWindow):
         drop_target.connect("drop", on_connect_drop)
         self.stack.add_controller(drop_target)
         combo_row_gpu_list = self.combo_row_gpu.get_model()
-        for device_id, device_name in self.get_available_gpus():
+        available_gpus = self.get_available_gpus()
+        for device_id, device_name in available_gpus:
             combo_row_gpu_list.append(device_name)
+
+        no_gpu_available = len(available_gpus) == 0
+        if no_gpu_available:
+            self.banner_no_gpu.set_revealed(True)
+        self.widget_video_preview.set_property('device', "cpu" if no_gpu_available else f"cuda:{available_gpus[0][0]}")
 
     @Gtk.Template.Callback()
     def button_open_file_callback(self, button_clicked):

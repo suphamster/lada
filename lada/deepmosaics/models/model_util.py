@@ -10,6 +10,9 @@ import torch.nn.utils.spectral_norm as SpectralNorm
 from torchvision import models
 import torch.utils.model_zoo as model_zoo
 
+def device_to_gpu_id(device):
+    return str(-1 if device == 'cpu' else device.split(1))
+
 ################################## IO ##################################
 def save(net,path,gpu_id):
     if isinstance(net, nn.DataParallel):
