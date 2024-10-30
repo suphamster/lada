@@ -14,7 +14,7 @@ model = loadmodel.video(opts)
 for video_path in glob.glob(os.path.join(MOSAIC_REMOVAL_VAL_MOSAIC_DIR, '*')):
     video_metadata = get_video_meta_data(video_path)
     images = read_video_frames(video_path, float32=False)
-    restored_images = restore_video_frames(opts, model, images)
+    restored_images = restore_video_frames(str(0), model, images)
     filename = os.path.basename(video_path)
     out_path = os.path.join(OUT_DIR, filename)
     fps = video_metadata.video_fps

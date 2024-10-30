@@ -9,45 +9,52 @@ from lada.lib.video_utils import VideoReader
 from lada.pidinet import pidinet_inference
 
 
-def load_models(args):
+def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_path, mosaic_restoration_config_path,
+                mosaic_detection_model_path, mosaic_cleaning_edge_detection_model_path=None):
     mosaic_edge_detection_model = None
-    if args.mosaic_cleaning and args.mosaic_cleaning_edge_detection_method == "pidinet":
-        mosaic_edge_detection_model = pidinet_inference.load_model(args.mosaic_cleaning_edge_detection_model_path, model_type="tiny")
+    if mosaic_cleaning_edge_detection_model_path:
+        mosaic_edge_detection_model = pidinet_inference.load_model(mosaic_cleaning_edge_detection_model_path, model_type="tiny")
 
-    if args.mosaic_restoration_model == "rvrt":
+    if mosaic_restoration_model_name == "rvrt":
         from lada.rvrt import rvrt_inferencer
-        mosaic_restoration_model = rvrt_inferencer.get_model(model_path=args.mosaic_restoration_model_path, device=args.device)
+        mosaic_restoration_model = rvrt_inferencer.get_model(model_path=mosaic_restoration_model_path, device=device)
         pad_mode = 'zero'
-    elif args.mosaic_restoration_model == "deepmosaics":
+    elif mosaic_restoration_model_name == "deepmosaics":
         from lada.deepmosaics.models import loadmodel
         opts = {
             "gpu_id": '0',
-            "model_path": args.mosaic_restoration_model_path
+            "model_path": mosaic_restoration_model_path
         }
         mosaic_restoration_model = loadmodel.video(opts)
         pad_mode = 'reflect'
-    elif args.mosaic_restoration_model.startswith("basicvsrpp"):
+    elif mosaic_restoration_model_name.startswith("basicvsrpp"):
         from lada.basicvsrpp.inference import load_model, get_default_gan_inference_config
-        if args.mosaic_restoration_config_path:
-            config = args.mosaic_restoration_config_path
+        if mosaic_restoration_config_path:
+            config = mosaic_restoration_config_path
         else:
             config = get_default_gan_inference_config()
-        mosaic_restoration_model = load_model(config, args.mosaic_restoration_model_path, args.device)
+        mosaic_restoration_model = load_model(config, mosaic_restoration_model_path, device)
         pad_mode = 'reflect'
-    elif args.mosaic_restoration_model == "tecogan":
+    elif mosaic_restoration_model_name == "tecogan":
         from lada.tecogan.tecogan_inferencer import load_model
-        mosaic_restoration_model = load_model(args.mosaic_restoration_config_path)
+        mosaic_restoration_model = load_model(mosaic_restoration_config_path)
         pad_mode = 'reflect'
     else:
         raise NotImplementedError()
 
-    mosaic_detection_model = YOLO(args.mosaic_detection_model_path)
+    mosaic_detection_model = YOLO(mosaic_detection_model_path)
     return mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, pad_mode
 
 
 class FrameRestorer:
-    def __init__(self, args, mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode, start_frame=0, passthrough=False, mosaic_detection=False, mosaic_cleaning=False):
-        self.args = args
+    def __init__(self, device, video_file, preserve_relative_scale, max_clip_length, mosaic_restoration_model_name,
+                 mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode,
+                 start_frame=0, passthrough=False, mosaic_detection=False, mosaic_cleaning=False):
+        self.device = device
+        self.mosaic_restoration_model_name = mosaic_restoration_model_name
+        self.max_clip_length = max_clip_length
+        self.preserve_relative_scale = preserve_relative_scale
+        self.video_file = video_file
         self.mosaic_detection_model = mosaic_detection_model
         self.mosaic_restoration_model = mosaic_restoration_model
         self.mosaic_edge_detection_model = mosaic_edge_detection_model
@@ -58,20 +65,16 @@ class FrameRestorer:
         self.mosaic_detection = mosaic_detection
 
     def restore_clip(self, images):
-        if self.args.mosaic_restoration_model == "rvrt":
+        if self.mosaic_restoration_model_name == "rvrt":
             from lada.rvrt import rvrt_inferencer
             restored_clip_images = rvrt_inferencer.inference(images, self.mosaic_restoration_model)
-        elif self.args.mosaic_restoration_model == "deepmosaics":
+        elif self.mosaic_restoration_model_name == "deepmosaics":
             from lada.deepmosaics.inference import restore_video_frames
-            opts = {
-                "gpu_id": '0',
-                "model_path": self.args.mosaic_restoration_model_path
-            }
-            restored_clip_images = restore_video_frames(opts, self.mosaic_restoration_model, images)
-        elif self.args.mosaic_restoration_model.startswith("basicvsrpp"):
+            restored_clip_images = restore_video_frames(str(0), self.mosaic_restoration_model, images)
+        elif self.mosaic_restoration_model_name.startswith("basicvsrpp"):
             from lada.basicvsrpp.inference import inference
-            restored_clip_images = inference(self.mosaic_restoration_model, images, self.args.device)
-        elif self.args.mosaic_restoration_model == "tecogan":
+            restored_clip_images = inference(self.mosaic_restoration_model, images, self.device)
+        elif self.mosaic_restoration_model_name == "tecogan":
             from lada.tecogan.tecogan_inferencer import inference
             restored_clip_images = inference(images, self.mosaic_restoration_model)
         else:
@@ -109,7 +112,7 @@ class FrameRestorer:
         return mosaic_detection_images
 
     def __call__(self):
-        with VideoReader(self.args.input) as video_reader:
+        with VideoReader(self.video_file) as video_reader:
             frame_count = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
             frame_num = self.start_frame
 
@@ -123,9 +126,9 @@ class FrameRestorer:
                     frame_num += 1
 
             else:
-                mosaic_generator = MosaicFramesGenerator(self.mosaic_detection_model, self.args.input, max_clip_length=self.args.max_clip_length,
-                                                         pad_mode=self.preferred_pad_mode, preserve_relative_scale=self.args.preserve_relative_scale,
-                                                         dont_preserve_relative_scale=(not self.args.preserve_relative_scale), start_frame=self.start_frame)
+                mosaic_generator = MosaicFramesGenerator(self.mosaic_detection_model, self.video_file, max_clip_length=self.max_clip_length,
+                                                         pad_mode=self.preferred_pad_mode, preserve_relative_scale=self.preserve_relative_scale,
+                                                         dont_preserve_relative_scale=(not self.preserve_relative_scale), start_frame=self.start_frame)
                 clip_buffer = []
 
                 for clip_idx, clip in enumerate(mosaic_generator()):

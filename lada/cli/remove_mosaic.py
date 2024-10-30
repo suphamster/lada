@@ -14,7 +14,7 @@ def parse_args():
     parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on')
     parser.add_argument('--codec', type=str, default="h264", help='ffmpeg video codec. You probably want to use "h264" or "hevc" here')
     parser.add_argument('--crf', type=int, default=20, help='codec quality setting. The lower the better with the caveat of larger files size and CPU usage')
-    parser.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp")
+    parser.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic")
     parser.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model.pt'))
     parser.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'))
     parser.add_argument('--mosaic-restoration-config-path', type=str)
@@ -32,11 +32,17 @@ def parse_args():
 def cli():
     args = parse_args()
 
-    mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode = load_models(args)
+    mosaic_cleaning_edge_detection_model_path = args.mosaic_cleaning_edge_detection_model_path if args.mosaic_cleaning and args.mosaic_cleaning_edge_detection_method == 'pidinet' else None
+
+    mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode = load_models(
+        args.device, args.mosaic_restoration_model, args.mosaic_restoration_model_path, args.mosaic_restoration_config_path,
+        args.mosaic_detection_model_path, mosaic_cleaning_edge_detection_model_path
+    )
 
     video_metadata = get_video_meta_data(args.input)
 
-    frame_restorer = FrameRestorer(args, mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode)
+    frame_restorer = FrameRestorer(args.device, args.input, args.preserve_relative_scale, args.max_clip_length, args.mosaic_restoration_model,
+                 mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode, mosaic_cleaning=args.mosaic_cleaning)
 
     video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
     video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front)

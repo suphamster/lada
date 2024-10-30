@@ -3,7 +3,7 @@ import torch
 
 from lada.deepmosaics.util import data
 
-def restore_video_clip(opt,netG, clip) -> list[np.ndarray[np.uint8]]:
+def restore_video_clip(gpu_id,netG, clip) -> list[np.ndarray[np.uint8]]:
     """
     T is numer of frames processed in a single step (center frame + N previous/next frames that come before/after it):
      T = 2N + 1. The paper authors use N = 2 in their network (T = 5).
@@ -42,10 +42,10 @@ def restore_video_clip(opt,netG, clip) -> list[np.ndarray[np.uint8]]:
             if init_flag:
                 init_flag = False
                 previous_frame = input_stream[N]
-                previous_frame = data.im2tensor(previous_frame,bgr2rgb=True,gpu_id=opt['gpu_id'])
+                previous_frame = data.im2tensor(previous_frame,bgr2rgb=True,gpu_id=gpu_id)
 
             input_stream = np.array(input_stream).reshape(1,T,INPUT_SIZE,INPUT_SIZE,3).transpose((0,4,1,2,3))
-            input_stream = data.to_tensor(data.normalize(input_stream),gpu_id=opt['gpu_id'])
+            input_stream = data.to_tensor(data.normalize(input_stream),gpu_id=gpu_id)
 
             with torch.no_grad():
                 unmosaic_pred = netG(input_stream,previous_frame)
@@ -59,7 +59,7 @@ def restore_video_clip(opt,netG, clip) -> list[np.ndarray[np.uint8]]:
 
 
 
-def restore_video_frames(opt,netG, frames) -> list[np.ndarray[np.uint8]]:
+def restore_video_frames(gpu_id,netG, frames) -> list[np.ndarray[np.uint8]]:
     """
     T is numer of frames processed in a single step (center frame + N previous/next frames that come before/after it):
      T = 2N + 1. The paper authors use N = 2 in their network (T = 5).
@@ -93,10 +93,10 @@ def restore_video_frames(opt,netG, frames) -> list[np.ndarray[np.uint8]]:
         if init_flag:
             init_flag = False
             previous_frame = input_stream[N]
-            previous_frame = data.im2tensor(previous_frame,bgr2rgb=True,gpu_id=opt['gpu_id'])
+            previous_frame = data.im2tensor(previous_frame,bgr2rgb=True,gpu_id=gpu_id)
 
         input_stream = np.array(input_stream).reshape(1,T,INPUT_SIZE,INPUT_SIZE,3).transpose((0,4,1,2,3))
-        input_stream = data.to_tensor(data.normalize(input_stream),gpu_id=opt['gpu_id'])
+        input_stream = data.to_tensor(data.normalize(input_stream),gpu_id=gpu_id)
 
         with torch.no_grad():
             unmosaic_pred = netG(input_stream,previous_frame)

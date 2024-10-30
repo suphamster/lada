@@ -66,8 +66,7 @@
                                     <object class="AdwHeaderBar">
                                         <property name="title-widget">
                                             <object class="AdwWindowTitle">
-                                                <property name="title" bind-source="MainWindow"
-                                                          bind-property="title"></property>
+                                                <property name="title" bind-source="MainWindow" bind-property="title"/>
                                             </object>
                                         </property>
                                         <child type="start">
@@ -92,8 +91,7 @@
                                             <object class="GtkToggleButton" id="toggle_button_preview_video">
                                                 <property name="label">Preview</property>
                                                 <property name="sensitive">True</property>
-                                                <property name="tooltip-text">Preview mosaic video restoration
-                                                </property>
+                                                <property name="tooltip-text">Preview mosaic video restoration</property>
                                                 <property name="active">True</property>
                                                 <signal name="clicked" handler="toggle_button_preview_video_callback"/>
                                                 <style>
@@ -135,9 +133,7 @@
                                                                     id="toggle_button_mosaic_detection">
                                                                 <property name="label">Mosaic&#xA;Detection</property>
                                                                 <property name="sensitive">True</property>
-                                                                <property name="tooltip-text">Preview
-                                                                    mosaic detection
-                                                                </property>
+                                                                <property name="tooltip-text">Preview mosaic detection</property>
                                                                 <signal name="clicked"
                                                                         handler="toggle_button_mosaic_detection_callback"/>
                                                                 <style>
@@ -255,7 +251,7 @@
                                                 </child>
                                                 <child>
                                                     <object class="AdwSwitchRow">
-                                                        <property name="title">Mosaic Cleaning
+                                                        <property name="title">Mosaic Pre-Cleaning
                                                         </property>
                                                         <signal name="notify::active"
                                                                 handler="switch_row_mosaic_cleaning_active_callback"/>
@@ -270,7 +266,7 @@
                                                 <child>
                                                     <object class="VideoPreview" id="widget_video_preview">
                                                         <property name="application" bind-source="MainWindow"
-                                                                  bind-property="application"></property>
+                                                                  bind-property="application"/>
                                                     </object>
                                                 </child>
                                                 <child>

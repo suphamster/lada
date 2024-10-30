@@ -36,7 +36,7 @@ class MainWindow(Adw.ApplicationWindow):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # todo: Do not enforce dark theme. Added as a quick workaround as some buttons are not properly visible on a light color scheme.
+        # todo: Added enforcing dark theme as a quick workaround as some buttons are not properly visible on a light color scheme.
         style_manager = self.get_property('application').get_property("style-manager")
         style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
 
@@ -136,8 +136,8 @@ class MainWindow(Adw.ApplicationWindow):
         def show_video_preview(obj):
             self.stack_video_preview.set_visible_child(self.widget_video_preview)
 
-        self.widget_video_preview.connect("video_file_ready", show_video_preview)
-        self.widget_video_preview.open_video_file_gstreamer(file)
+        self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
+        self.widget_video_preview.open_video_file(file)
 
     def start_export(self, file: Gio.File):
         self.stack.set_visible_child_name("file-export")
@@ -150,10 +150,9 @@ class MainWindow(Adw.ApplicationWindow):
         def on_video_export_progress(obj, progress):
             self.progress_bar_file_export.set_fraction(progress)
 
-        self.widget_video_preview.connect("video_export_finished", show_video_export_success)
-        self.widget_video_preview.connect("video_export_progress", on_video_export_progress)
+        self.widget_video_preview.connect("video-export-finished", show_video_export_success)
+        self.widget_video_preview.connect("video-export-progress", on_video_export_progress)
         self.widget_video_preview.export_video(file.get_path(), self.combo_row_export_codec.get_property("selected_item").get_string(), self.spin_row_export_crf.get_property("value"))
-        print("returned from start export")
 
     def switch_to_main_view(self):
         self.stack.set_visible_child_name("page_main")
