@@ -10,14 +10,8 @@ Represented as X/Y coordinate tuple: top-left (Y), top-left (X), bottom-right (Y
 type Box = tuple[int, int, int, int]
 
 """
-A bounding box of a detected object defined by center point and width and height of the bounding box.
-Represented as X/Y coordinate and width and height: center (X), center (Y), width, height
-"""
-type BoxXYWH = tuple[int, int, int, int]
-
-"""
 A segmentation mask of a detected object. Pixel values of 0 indicate that the pixel is not part of the object.
-Shape: (H, W)
+Shape: (H, W, 1)
 """
 type Mask = np.ndarray[np.uint8]
 

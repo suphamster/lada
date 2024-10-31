@@ -47,6 +47,8 @@ def _to_mask_img(masks, class_val=0, pixel_val=255) -> Mask:
 def convert_yolo_mask(yolo_mask: ultralytics.engine.results.Masks, img_shape) -> Mask:
     mask_img = _to_mask_img(yolo_mask.data)
     mask_img = scale_image(mask_img, img_shape)
+    if mask_img.ndim == 2:
+        mask_img = np.expand_dims(mask_img, axis=-1)
     mask_img = np.where(mask_img > 127, 255, 0).astype(np.uint8)
     return mask_img
 
