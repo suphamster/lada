@@ -165,13 +165,7 @@
                                                         <signal name="notify::selected"
                                                                 handler="combo_row_mosaic_removal_models_selected_callback"/>
                                                         <property name="model">
-                                                            <object class="GtkStringList">
-                                                                <items>
-                                                                    <item>basicvsrpp-generic</item>
-                                                                    <item>basicvsrpp-bj-pov</item>
-                                                                    <item>deepmosaics</item>
-                                                                </items>
-                                                            </object>
+                                                            <object class="GtkStringList"/>
                                                         </property>
                                                     </object>
                                                 </child>

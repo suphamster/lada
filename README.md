@@ -10,6 +10,10 @@ After opening a file you can either watch a restored version of the provided vid
 <img src="assets/screenshot_gui_1.png" alt="screenshot showing video preview" width="300">
 <img src="assets/screenshot_gui_2.png" alt="screenshot showing video export" width="300">
 
+> If you've installed the flatpak then it should be available in your regular application launcher. You can also run it via `flatpak run io.github.ladaapp.lada`
+> 
+> Otherwise, if you've followed the Developer Installation section run the command `lada` to open the app (Make sure you are in the root directory of this proejct)
+
 You can also use the CLI to convert the video
 ```shell
 lada-cli --input <input video path> --output <output video path>
@@ -45,13 +49,14 @@ There is also a `bj_pov` model which was trained only on such specific clips and
 You can select the model to use in the GUI by an option in the sidepanel.
 
 ## Installation
-For Linux there is a ready-to-use option to install it via flatpak. For other systems you can try to follow the developer installation steps below but no promises (contributions welcome)
-> Note: I will try to get this app submitted on flathub so it can be easily installed. Until then, you need to build and install it yourself via flatpak builder
+The submission to flathub is in-process. Until then, you can try to flatpak yourself via:
 > ```shell
 > flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 > flatpak install --user -y flathub org.flatpak.Builder
 > flatpak run org.flatpak.Builder --force-clean --sandbox --user --install --install-deps-from=flathub flatpak/build flatpak/io.github.ladaapp.lada.yaml
 > ```
+If you don't want to use flatpak or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
+Contributions welcome if someone is able to package the app for other systems.
 
 ## Developer Installation
 

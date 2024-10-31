@@ -1,9 +1,10 @@
+import glob
 import os.path
 import pathlib
 
 import torch
 from gi.repository import Adw, Gtk, Gio, Gdk
-
+from lada import MODEL_WEIGHTS_DIR
 import lada.gui.video_preview
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -41,11 +42,14 @@ class MainWindow(Adw.ApplicationWindow):
         style_manager = self.get_property('application').get_property("style-manager")
         style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
 
+        # init drag-drop files
         drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
         def on_connect_drop(drop_target, file: Gio.File, x, y):
             self.open_file(file)
         drop_target.connect("drop", on_connect_drop)
         self.stack.add_controller(drop_target)
+
+        # init device
         combo_row_gpu_list = self.combo_row_gpu.get_model()
         available_gpus = self.get_available_gpus()
         for device_id, device_name in available_gpus:
@@ -54,7 +58,19 @@ class MainWindow(Adw.ApplicationWindow):
         no_gpu_available = len(available_gpus) == 0
         if no_gpu_available:
             self.banner_no_gpu.set_revealed(True)
-        self.widget_video_preview.set_property('device', "cpu" if no_gpu_available else f"cuda:{available_gpus[0][0]}")
+            device = "cpu"
+        else:
+            device = f"cuda:{available_gpus[0][0]}"
+            self.combo_row_gpu.set_selected(0)
+        self.widget_video_preview.set_property('device', device)
+
+        # init models
+        combo_row_models_list = self.combo_row_mosaic_removal_models.get_model()
+        available_models = self.get_available_models()
+        for model_name in available_models:
+            combo_row_models_list.append(model_name)
+        idx = available_models.index("basicvsrpp-generic")
+        self.combo_row_mosaic_removal_models.set_selected(idx)
 
     @Gtk.Template.Callback()
     def button_open_file_callback(self, button_clicked):
@@ -116,6 +132,18 @@ class MainWindow(Adw.ApplicationWindow):
 
     def get_available_gpus(self):
         return [(i, torch.cuda.get_device_properties(i).name) for i in range(torch.cuda.device_count())]
+
+    def get_available_models(self):
+        available_models = []
+        for file_path in glob.glob(os.path.join(MODEL_WEIGHTS_DIR, '**/*.pth'), recursive=True):
+            file_name = os.path.basename(file_path)
+            if file_name == 'lada_mosaic_restoration_model_generic.pth':
+                available_models.append("basicvsrpp-generic")
+            elif file_name == 'lada_mosaic_restoration_model_bj_pov.pth':
+                available_models.append("basicvsrpp-bj-pov")
+            elif file_name == 'clean_youknow_video.pth':
+                available_models.append("deepmosaics")
+        return available_models
 
     def show_open_dialog(self):
         file_dialog = Gtk.FileDialog()
