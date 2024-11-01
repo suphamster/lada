@@ -3,7 +3,7 @@ from mmengine.config import read_base
 with read_base():
     from ._base_.default_runtime import *
 
-experiment_name = 'basicvsr-pp_c64n15_100k_x'
+experiment_name = 'mosaic_restoration_generic_stage1'
 work_dir = f'./experiments/basicvsrpp/{experiment_name}'
 save_dir = './experiments/basicvsrpp'
 
@@ -15,8 +15,7 @@ model = dict(
         num_blocks=15,
         is_low_res_input=False,
         cpu_cache_length=1000, # otherwise for videos with more frames they will land on cpu which will crash datapreprocessor step as std/mean tensors are on gpu
-        spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/'
-        'basicvsr/spynet_20210409-c6c1bd09.pth'),
+        spynet_pretrained='model_weights/3rd_party/spynet_20210409-c6c1bd09.pth'),
     pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'),
     train_cfg=dict(fix_iter=5000),
     data_preprocessor=dict(
@@ -41,7 +40,6 @@ train_dataloader = dict(
         num_frame=30,
         degrade=True,
         use_hflip=True,
-        use_rot=False,
         lq_size=256),
     collate_fn=dict(type='default_collate'))
 
@@ -72,7 +70,6 @@ train_cfg = dict(
     type='IterBasedTrainLoop', max_iters=100_000, val_interval=5000)
 val_cfg = dict(type='MultiValLoop')
 
-# optimizer
 optim_wrapper = dict(
     constructor='DefaultOptimWrapperConstructor',
     type='OptimWrapper',
@@ -93,5 +90,3 @@ custom_hooks = [dict(type='BasicVisualizationHook', interval=5)]
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', by_epoch=False, interval=2000, out_dir=save_dir),
     logger=dict(type='LoggerHook', interval=100, log_metric_by_epoch=False))
-
-find_unused_parameters = True

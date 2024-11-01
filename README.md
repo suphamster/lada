@@ -127,10 +127,17 @@ Now you should be able to run the GUI via `lada` or the CLI via `lada-cli`
 You can find training scripts in the root of the project and related configuration files in the `config` directory.
 To train the mosaic removal model after you've created the dataset you'll have to run it in two steps.
 Train a regular BasicVSR++ model without GAN first. Then convert its weights to the GAN version and continue training.
-python train_basicvsrpp.py configs/basicvsr-pp_c64n15_100k_x_v2.py
-python train_basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_gan.py --load-from converted_basicvsrpp_checkpoint.pth
+```shell
+python train_basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_stage1.py
+python lada/basicvsrpp/convert_weights_to_basicvsrpp_gan.py
+python train_basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_stage2.py --load-from experiments/basicvsrpp/mosaic_restoration_generic_stage1/iter_10000_converted.pth
+```
+> You can continue an interrupted run by adding `--resume` to the command line.
 
-You can continue an interrupted run by adding '--resume' to the command line.
+If you're happy with your model you can export it for inference and remove the discriminator model via:
+```shell
+python lada/basicvsrpp/export_gan_inference_model_weights.py
+```
 
 Training the nsfw and mosaic detection models should be straight forward. Check out the official docs of [Ultralytics](https://docs.ultralytics.com/).
 

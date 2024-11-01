@@ -10,8 +10,8 @@ MODELS.register_module(name='BasicVSRPlusPlusGan', module=BasicVSRPlusPlusGan, f
 MODELS.register_module(name='BasicVSRPlusPlusGanNet', module=BasicVSRPlusPlusGanNet, force=False)
 register_all_modules()
 
-BASICVSRPP_WEIGHTS_PATH = 'experiments/basicvsrpp/mosaic_restoration/iter_10000.pth'
-BASICVSRPP_GAN_WEIGHTS_PATH = 'tmp/mosaic_restoration_iter_10000.pth'
+BASICVSRPP_WEIGHTS_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage1/iter_10000.pth'
+BASICVSRPP_GAN_WEIGHTS_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage1/iter_10000_converted.pth'
 
 gan_model = BasicVSRPlusPlusGan(
     generator=dict(
@@ -20,7 +20,7 @@ gan_model = BasicVSRPlusPlusGan(
         num_blocks=15,
         is_low_res_input=False,
         cpu_cache_length=1000, # otherwise for videos with more frames they will land on cpu which will crash datapreprocessor step as std/mean tensors are on gpu
-        spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'),
+        spynet_pretrained='model_weights/3rd_party/spynet_20210409-c6c1bd09.pth'),
     discriminator=dict(
         type='UNetDiscriminatorWithSpectralNorm',
         in_channels=3,
@@ -38,6 +38,7 @@ gan_model = BasicVSRPlusPlusGan(
             '34': 1.0,
         },
         vgg_type='vgg19',
+        pretrained='model_weights/3rd_party/vgg19-dcbb9e9d.pth',
         perceptual_weight=0.2,  # was 1.0
         style_weight=0,
         norm_img=False),
@@ -47,9 +48,6 @@ gan_model = BasicVSRPlusPlusGan(
         loss_weight=5e-2,
         real_label_val=1.0,
         fake_label_val=0),
-    is_use_sharpened_gt_in_pixel=False,
-    is_use_sharpened_gt_in_percep=False,
-    is_use_sharpened_gt_in_gan=False,
     is_use_ema=True,
     data_preprocessor=dict(
         type='DataPreprocessor',

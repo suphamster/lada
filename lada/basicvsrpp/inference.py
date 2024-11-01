@@ -31,8 +31,6 @@ def get_default_gan_inference_config() -> dict:
 
 def load_model(config: str | dict | None, checkpoint_path, device):
     register_all_modules()
-    #MODELS.register_module(name='BasicVSRPlusPlusGan', module=BasicVSRPlusPlusGan, force=False)
-    #MODELS.register_module(name='BasicVSRPlusPlusGanNet', module=BasicVSRPlusPlusGanNet, force=False)
     if device and type(device) == str:
         device = torch.device(device)
     if type(config) == str:
@@ -75,10 +73,10 @@ def inference(model, video: list, device, max_frames=-1):
 
 
 def test():
-    device = "cuda:1"
+    device = "cuda:0"
 
-    model = load_model("configs/basicvsrpp/mosaic_restoration_generic.py",
-                       "experiments/basicvsrpp/mosaic_restoration/iter_100000.pth", device)
+    model = load_model("configs/basicvsrpp/mosaic_restoration_generic_stage2.py",
+                       "experiments/basicvsrpp/mosaic_restoration_generic_stage2/iter_100000.pth", device)
 
     frame1 = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)
     frame2 = np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8)

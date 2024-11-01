@@ -3,7 +3,7 @@ from mmengine.config import read_base
 with read_base():
     from ._base_.default_runtime import *
 
-experiment_name = 'mosaic_restoration_generic'
+experiment_name = 'mosaic_restoration_generic_stage2'
 work_dir = f'./experiments/basicvsrpp/{experiment_name}'
 save_dir = './experiments/basicvsrpp'
 
@@ -15,8 +15,7 @@ model = dict(
         num_blocks=15,
         is_low_res_input=False,
         cpu_cache_length=1000, # otherwise for videos with more frames they will land on cpu which will crash datapreprocessor step as std/mean tensors are on gpu
-        spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/'
-        'basicvsr/spynet_20210409-c6c1bd09.pth'),
+        spynet_pretrained='model_weights/3rd_party/spynet_20210409-c6c1bd09.pth'),
     discriminator=dict(
         type='UNetDiscriminatorWithSpectralNorm',
         in_channels=3,
@@ -33,6 +32,7 @@ model = dict(
             '34': 1.0,
         },
         vgg_type='vgg19',
+        pretrained='model_weights/3rd_party/vgg19-dcbb9e9d.pth',
         perceptual_weight=0.2, # was 1.0
         style_weight=0,
         norm_img=False),
@@ -65,7 +65,6 @@ train_dataloader = dict(
         num_frame=16,
         degrade=True,
         use_hflip=True,
-        use_rot=False,
         lq_size=256),
     collate_fn=dict(type='default_collate'))
 
@@ -133,5 +132,3 @@ default_hooks = dict(
     logger=dict(type='LoggerHook', interval=100, log_metric_by_epoch=False),
     param_scheduler=dict(type='ParamSchedulerHook'),
 )
-
-#find_unused_parameters = True
