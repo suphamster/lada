@@ -30,6 +30,7 @@ class MosaicVideoDataset(data.Dataset):
         self.mask_root = opt.get('dataroot_mask')
         self.max_frame_count = opt['num_frame']
         self.min_frame_count = opt['min_num_frame'] if 'min_num_frame' in opt else opt['num_frame']
+        self.random_mosaic_block_size = opt.get('random_mosaic_block_size', True)
         self.repad = False
 
         self.clip_names = []
@@ -37,6 +38,7 @@ class MosaicVideoDataset(data.Dataset):
         self.total_num_frames = []
         self.pads = []
         self.mosaic_params = []
+        self.base_mosaic_block_sizes = []
         for meta_path in glob.glob(os.path.join(self.meta_root, '*')):
             with open(meta_path, 'r') as meta_file:
                 meta_json = json.load(meta_file)
@@ -50,7 +52,15 @@ class MosaicVideoDataset(data.Dataset):
                 self.total_num_frames.append(frame_num)
                 self.pads.append(meta_json["pad"])
                 self.mosaic_params.append(meta_json.get("mosaic"))
+                self.base_mosaic_block_sizes.append(meta_json.get("base_mosaic_block_size"))
 
+    def get_block_size(self, index):
+        base_mosaic_block_size = self.base_mosaic_block_sizes[index]
+        if self.random_mosaic_block_size and base_mosaic_block_size:
+            mosaic_size = int(base_mosaic_block_size["mosaic_size_v1_normal"] * random.uniform(0.8, 2.2))
+        else:
+            mosaic_size = self.mosaic_params[index]["mosaic_size"]
+        return mosaic_size
 
     def __getitem__(self, index):
         clip_name = self.clip_names[index]
@@ -82,12 +92,13 @@ class MosaicVideoDataset(data.Dataset):
             vid_mask_gt_path = os.path.join(self.mask_root, clip_name + ".mkv")
             mask_gts = video_utils.read_video_frames(vid_mask_gt_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx, binary_frames=True)
             mosaic_params = self.mosaic_params[index]
+            mosaic_size = self.get_block_size(index)
 
             img_lqs = []
             for img_gt, mask_gt, pad in zip(img_gts, mask_gts, pads):
                 img_lq, mask_lq = addmosaic_base(unpad_image(img_gt, pad),
                                                  unpad_image(mask_gt, pad),
-                                                 mosaic_params["mosaic_size"],
+                                                 mosaic_size,
                                                  model=mosaic_params["mod"],
                                                  rect_ratio=mosaic_params["rect_ratio"],
                                                  feather=mosaic_params["feather_size"])

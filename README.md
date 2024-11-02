@@ -5,6 +5,7 @@
 * Watch or convert your videos via CLI or GUI
 
 ## Use
+### GUI
 After opening a file you can either watch a restored version of the provided video in the app (make sure you've enabled the Preview toggle) or you can export it to a new file.
 
 <img src="assets/screenshot_gui_1.png" alt="screenshot showing video preview" width="300">
@@ -14,6 +15,9 @@ After opening a file you can either watch a restored version of the provided vid
 > 
 > Otherwise, if you've followed the Developer Installation section run the command `lada` to open the app (Make sure you are in the root directory of this proejct)
 
+You can find some additional settings in the left sidebar.
+
+### CLI
 You can also use the CLI to convert the video
 ```shell
 lada-cli --input <input video path> --output <output video path>
@@ -28,6 +32,8 @@ lada-cli --input <input video path> --output <output video path>
 > ```shell
 > alias lada-cli="flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada"
 >  ```
+
+You can find out more about additional options by using the `--help` argument.
 
 ## Status
 Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Others scenes will be rather meh or show worse artifacts than the original mosaics.

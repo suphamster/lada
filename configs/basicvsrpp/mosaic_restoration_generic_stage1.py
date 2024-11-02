@@ -40,6 +40,7 @@ train_dataloader = dict(
         num_frame=30,
         degrade=True,
         use_hflip=True,
+        random_mosaic_block_size=True,
         lq_size=256),
     collate_fn=dict(type='default_collate'))
 
@@ -56,7 +57,7 @@ val_dataloader = dict(
         num_frame=-1,
         degrade=False,
         use_hflip=False,
-        use_rot=False,
+        random_mosaic_block_size=False,
         lq_size=256),
     collate_fn=dict(type='default_collate'))
 
