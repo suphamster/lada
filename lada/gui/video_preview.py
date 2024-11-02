@@ -403,7 +403,7 @@ class VideoPreview(Gtk.Widget):
 
             mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, mosaic_restoration_model_preferred_pad_mode = load_models(
                 self._device, self._mosaic_restoration_model_name, mosaic_restoration_model_path, None,
-                os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model.pt'),None
+                os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'),None
             )
 
             self.models_cache = dict(mosaic_restoration_model_name=self._mosaic_restoration_model_name,

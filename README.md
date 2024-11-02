@@ -108,7 +108,7 @@ This is a Python project so let's install our dependencies from PyPy:
 ### Install models
 Download the models from the Github Release page into the `model_weights` directory. The following command to just that
 ```shell
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_detection_model.pt'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_generic.pth'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth'
 ```

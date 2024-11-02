@@ -41,5 +41,10 @@
                 <p>Initial release of this project including all trained models</p>
             </description>
         </release>
+        <release date="2022-10-29" version="0.2.0">
+            <description>
+                <p>New mosaic detection model</p>
+            </description>
+        </release>
     </releases>
 </component>

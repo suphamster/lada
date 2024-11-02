@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('--codec', type=str, default="h264", help='ffmpeg video codec. You probably want to use "h264" or "hevc" here')
     parser.add_argument('--crf', type=int, default=20, help='codec quality setting. The lower the better with the caveat of larger files size and CPU usage')
     parser.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic")
-    parser.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model.pt'))
+    parser.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'))
     parser.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'))
     parser.add_argument('--mosaic-restoration-config-path', type=str)
     parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering')
