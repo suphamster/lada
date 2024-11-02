@@ -392,7 +392,7 @@ class VideoPreview(Gtk.Widget):
 
 
     def setup_frame_restorer(self, start_frame=0):
-        if self.models_cache is None or self.models_cache["mosaic_detection_model_name"] != self._mosaic_restoration_model_name:
+        if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             if self._mosaic_restoration_model_name == 'deepmosaics':
                 mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth')
@@ -406,7 +406,7 @@ class VideoPreview(Gtk.Widget):
                 os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model.pt'),None
             )
 
-            self.models_cache = dict(mosaic_detection_model_name=self._mosaic_restoration_model_name,
+            self.models_cache = dict(mosaic_restoration_model_name=self._mosaic_restoration_model_name,
                                      mosaic_detection_model=mosaic_detection_model,
                                      mosaic_restoration_model=mosaic_restoration_model,
                                      mosaic_edge_detection_model=mosaic_edge_detection_model,

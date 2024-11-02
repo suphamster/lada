@@ -1,4 +1,5 @@
 import math
+import os
 
 import cv2
 import numpy as np
@@ -174,3 +175,9 @@ def resize_simple(img,size,interpolation=cv2.INTER_LINEAR):
     else:
         res = cv2.resize(img,(size, int(size*h/w)),interpolation=interpolation)
     return res
+
+def is_image_file(file_path):
+    SUPPORTED_IMAGE_FILE_EXTENSIONS = {".jpg", ".jpeg", "png", ".bmp"}
+
+    file_ext = os.path.splitext(file_path)[1]
+    return file_ext in SUPPORTED_IMAGE_FILE_EXTENSIONS

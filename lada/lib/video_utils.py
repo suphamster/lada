@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import random
 import subprocess
 from contextlib import contextmanager
@@ -470,3 +471,10 @@ class VideoWriter:
         out_packet = self.video_stream.encode(None)
         self.output_container.mux(out_packet)
         self.output_container.close()
+
+def is_video_file(file_path):
+    SUPPORTED_VIDEO_FILE_EXTENSIONS = {".asf", ".avi", "m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".wmv",
+                                       ".webm"}
+
+    file_ext = os.path.splitext(file_path)[1]
+    return file_ext in SUPPORTED_VIDEO_FILE_EXTENSIONS

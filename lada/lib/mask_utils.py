@@ -22,6 +22,13 @@ def morph(mask: Mask, iterations=1) -> Mask:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
     return cv2.morphologyEx(mask, cv2.MORPH_DILATE, kernel, iterations=iterations)
 
+def dilate_mask(mask: Mask, dilatation_size=11, iterations=2):
+    if iterations == 0:
+        return mask
+    element = np.ones((dilatation_size, dilatation_size), np.uint8)
+    mask_img = cv2.dilate(mask, element, iterations=iterations).reshape(mask.shape)
+    return mask_img
+
 def extend_mask(mask: Mask, value) -> Mask:
     # value between 0 and 3 -> higher values mean more extension of mask area. 0 does not change mask at all
     if value == 0:

@@ -1,3 +1,7 @@
+###
+# todo: currently broken / outdated
+###
+
 import argparse
 import glob
 import json
@@ -10,21 +14,12 @@ import cv2
 import numpy as np
 from ultralytics import settings
 
-from lada.lib.degradations import  random_add_gaussian_noise, random_mixed_kernels, random_add_jpg_compression
+from lada.lib import visualization, degradation_utils
+from lada.lib.image_utils import resize, pad_image
 from lada.lib.mosaic_utils import addmosaic_base
-from lada.lib import visualization
-from create_mosaic_removal_video_dataset import resize, fill
 
 # Disable analytics and crash reporting
 settings.update({'sync': False})
-
-def get_video_file_frame_count(file_path):
-        video_capture = cv2.VideoCapture(str(file_path))
-        if not video_capture.isOpened():
-            raise Exception(f"Unable to open video file: {file_path}")
-        frame_count = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        video_capture.release()
-        return frame_count
 
 def read_video_frames(path: str, indices: list[int], mask: bool) -> list[np.ndarray]:
     cap = cv2.VideoCapture(path)
@@ -70,50 +65,6 @@ def crop_to_box(img, box):
     cropped_img = img[t:b + 1, l:r + 1]
     return cropped_img
 
-def dilate_mask_img(mask_img, dilatation_size=11, iterations=2):
-    if iterations == 0:
-        return mask_img
-    element = np.ones((dilatation_size, dilatation_size), np.uint8)
-    mask_img = cv2.dilate(mask_img, element, iterations=iterations)
-    return mask_img
-
-def random_degrade_img(img):
-    # degrade mosaic img
-    h, w = img.shape[:2]
-    img_lq = img.astype(np.float32) / 255.
-    blur_kernel_size = 21
-    kernel_list = ['iso', 'aniso']
-    kernel_prob = [0.5, 0.5]
-    blur_sigma = [0., 2]
-    downsample_range = [0.5, 2]
-    noise_range = [0, 5]
-    jpeg_range = [65, 90]
-    # blur
-    if random.random()<0.5:
-        kernel = random_mixed_kernels(
-            kernel_list,
-            kernel_prob,
-            blur_kernel_size,
-            blur_sigma,
-            blur_sigma,
-            noise_range=None)
-        img_lq = cv2.filter2D(img_lq, -1, kernel)
-    # downsample
-    should_scale = random.random()<0.7
-    if should_scale:
-        scale = np.random.uniform(downsample_range[0], downsample_range[1])
-        img_lq = cv2.resize(img_lq, (int(w // scale), int(h // scale)), interpolation=cv2.INTER_LINEAR)
-    # noise
-    if noise_range is not None and random.random()<0.7:
-        img_lq = random_add_gaussian_noise(img_lq, noise_range)
-    # jpeg compression
-    if jpeg_range is not None and random.random()<0.7:
-        img_lq = random_add_jpg_compression(img_lq, jpeg_range)
-    # resize to original size
-    if should_scale:
-        img_lq = cv2.resize(img_lq, (w, h), interpolation=cv2.INTER_LINEAR)
-    return (img_lq * 255.).astype(np.uint8)
-
 def draw_grid(mosaic_block_corner_points, canvas_shape, block_size, color=255):
     h, w = canvas_shape[:2]
     canvas = np.zeros(canvas_shape, dtype=np.uint8)
@@ -149,14 +100,20 @@ def process_clip(clip_name, input_root, output_root, show, frame_count_per_clip=
         cropped_mask = crop_to_box(mask, box)
 
         cropped_img_mosaic, cropped_mask_mosaic, mosaic_block_corner_points = addmosaic_base(cropped_img,
-                                                                 np.expand_dims(cropped_mask, axis=-1),
+                                                                 cropped_mask,
                                                                  meta_json["mosaic"]["mosaic_size"],
                                                                  model=meta_json["mosaic"]["mod"],
                                                                  rect_ratio=meta_json["mosaic"]["rect_ratio"],
                                                                  feather=meta_json["mosaic"]["feather_size"],
                                                                  return_mosaic_edges=True)
 
-        img_mosaic = random_degrade_img(cropped_img_mosaic)
+        degradation_params = degradation_utils.MosaicRandomDegradationParams(should_down_sample=True,
+                                                                             should_add_noise=True,
+                                                                             should_add_image_compression=True,
+                                                                             should_add_video_compression=True,
+                                                                             should_add_blur=False)
+
+        img_mosaic = degradation_utils.apply_video_degradation([cropped_img], degradation_params)[0]
 
 
         y_unscaled, x_unscaled = img_mosaic.shape[:2]
@@ -166,8 +123,8 @@ def process_clip(clip_name, input_root, output_root, show, frame_count_per_clip=
         x_scale_factor = x_scaled / x_unscaled
         scaled_mosaic_block_corner_points = [((int(l*x_scale_factor),int(t*y_scale_factor)), (int(r*x_scale_factor),int(b*y_scale_factor))) for (l,t),(r,b) in mosaic_block_corner_points]
         cropped_mosaic_edges = draw_grid(scaled_mosaic_block_corner_points, [y_scaled, x_scaled, 1], int(round(meta_json["mosaic"]["mosaic_size"])))
-        cropped_mosaic_edges, _ = fill(cropped_mosaic_edges, out_size)
-        img_mosaic, final_mosaic_image_pad = fill(img_mosaic, out_size)
+        cropped_mosaic_edges, _ = pad_image(cropped_mosaic_edges, out_size, out_size)
+        img_mosaic, final_mosaic_image_pad = pad_image(img_mosaic, out_size, out_size)
 
         if show:
             show_img = visualization.overlay_edges(img_mosaic, cropped_mosaic_edges, color=(0, 255, 0))

@@ -2,7 +2,6 @@ import argparse
 import json
 import os
 import pathlib
-import random
 from concurrent import futures
 from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -15,15 +14,14 @@ import ultralytics.engine.results
 from ultralytics import YOLO
 from ultralytics import settings
 
-from lada.lib import VideoMetadata
-from lada.lib.degradations_video import apply_video_compression
-from lada.lib import video_utils
-from lada.lib.scene_generator import SceneGenerator, Scene, CroppedScene
+from lada.lib import VideoMetadata, Mask, mask_utils
+from lada.lib import video_utils, image_utils
 from lada.lib.clean_frames_generator import CleanFramesGenerator
-from lada.lib.degradations import generate_gaussian_noise, add_jpg_compression
+from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.lib.dover.evaluate import VideoQualityEvaluator
-from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size, get_mosaic_block_size_v2
 from lada.lib.image_utils import pad_image
+from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size, get_mosaic_block_size_v2
+from lada.lib.scene_generator import SceneGenerator, Scene, CroppedScene
 
 # Disable analytics and crash reporting
 settings.update({'sync': False})
@@ -60,31 +58,6 @@ class SceneProcessingData:
         self.mosaic_pads = []
         self.meta = {}
         self.quality_score = None
-
-class MosaicRandomDegradationParams:
-    def __init__(self, should_down_sample=True, should_add_noise=True, should_add_image_compression=True, should_add_video_compression=False):
-        # down sample
-        self.should_down_sample = should_down_sample and random.random()<0.5
-        down_sample_range = [0.5, 2.0]
-        self.scale = np.random.uniform(down_sample_range[0], down_sample_range[1])
-        # noise
-        self.should_add_noise = should_add_noise and random.random()<0.3
-        sigma_range = [0,2]
-        self.sigma = np.random.uniform(sigma_range[0], sigma_range[1])
-        # jpeg compression
-        self.should_add_jpeg_compression = should_add_image_compression and random.random()<0.5
-        jpeg_range = [70, 90]
-        self.jpeg_quality = np.random.uniform(jpeg_range[0], jpeg_range[1])
-        # video compression
-        codecs = {
-            "libx264": (15_000, 100_000),
-            "libx265": (10_000, 60_000),
-            "libvpx-vp9": (10_000, 60_000),
-            "mpeg4": (15_000, 100_000)
-        }
-        self.video_codec = random.choice(list(codecs.keys()))
-        self.video_bitrate = np.random.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
-        self.should_add_video_compression = should_add_video_compression and random.random()<0.5
 
 
 def get_base_mosaic_block_size(scene: Scene):
@@ -158,56 +131,6 @@ def save_imgs(frame_dir: pathlib.Path, fileprefix: str, file_ext: str, imgs: np.
         except Exception as e:
             print(e)
 
-def dilate_mask_img(mask_img, dilation_size=11, iterations=2):
-    if iterations == 0:
-        return mask_img
-    element = np.ones((dilation_size, dilation_size), np.uint8)
-    mask_img = cv2.dilate(mask_img, element, iterations=iterations)
-    return np.expand_dims(mask_img, axis=-1)
-
-
-def resize(img, size, interpolation=cv2.INTER_LINEAR):
-    h, w = img.shape[:2]
-    if max(w, h) == size:
-        return img
-    if w >= h:
-        scale_factor = size / w
-        res = cv2.resize(img, (size, int(h * scale_factor)), interpolation=interpolation)
-    else:
-        scale_factor = size / h
-        res = cv2.resize(img, (int(w * scale_factor), size), interpolation=interpolation)
-    return res
-
-
-def fill(img, size, fill_value=0):
-    h, w = img.shape[:2]
-    assert h == size or w == size, "ERR(fill): either x or y of given image should already match specified size"
-    border_value = [fill_value, fill_value, fill_value] if img.ndim == 3 else fill_value
-    if min(w, h) == size:
-        pad = (0,0,0,0)
-        return img, pad
-    if w >= h:
-        border_h = 0
-        border_v_t = int((w - h) / 2)
-        border_v_b = size - border_v_t - h
-        pad = border_v_t, border_v_b, border_h, border_h,
-        res = cv2.copyMakeBorder(img, border_v_t, border_v_b, border_h, border_h, cv2.BORDER_CONSTANT, None,
-                                 border_value)
-    else:
-        border_h_l = int((h - w) / 2)
-        border_h_r = size - border_h_l - w
-        border_v = 0
-        pad = border_v, border_v, border_h_l, border_h_r,
-        res = cv2.copyMakeBorder(img, border_v, border_v, border_h_l, border_h_r, cv2.BORDER_CONSTANT, None,
-                                 border_value)
-    return res, pad
-
-def invert_mask_img(mask_image):
-    inverted_img = mask_image.astype(bool)
-    inverted_img = np.invert(inverted_img)
-    inverted_img = inverted_img.astype(np.uint8) * 255
-    return inverted_img
-
 
 def get_dir_and_file_prefix(output_dir, name, file_name, scene_id, save_flat=False, file_suffix="-", video=False):
     if save_flat:
@@ -223,76 +146,27 @@ def get_dir_and_file_prefix(output_dir, name, file_name, scene_id, save_flat=Fal
     return frame_dir, file_prefix
 
 
-def get_mosaic_parameters(scene_mask_img):
-    mosaic_size, mod, rect_rat, feather_size = get_random_parameter(scene_mask_img)
-    return mod, rect_rat, mosaic_size, feather_size
-
-
-def get_random_degradation_params():
-    params = {}
-    # downsample
-    params["should_downsample"] = random.random()<0.5
-    downsample_range = [0.5, 2.0]
-    params["scale"] = np.random.uniform(downsample_range[0], downsample_range[1])
-    # noise
-    params["should_add_noise"] = random.random()<0.3
-    sigma_range = [0,2]
-    params["sigma"] = np.random.uniform(sigma_range[0], sigma_range[1])
-    # jpeg compression
-    params["should_add_jpeg_compression"] = random.random()<0.5
-    jpeg_range = [65, 90]
-    params["jpeg_quality"] = np.random.uniform(jpeg_range[0], jpeg_range[1])
-    return params
-
-def apply_frame_degradation(img, degradation_params: MosaicRandomDegradationParams):
-    h, w = img.shape[:2]
-    img_lq = img.astype(np.float32) / 255.
-    # downsample
-    if degradation_params.should_down_sample:
-        img_lq = cv2.resize(img_lq, (int(w // degradation_params.scale), int(h // degradation_params.scale)), interpolation=cv2.INTER_LINEAR)
-    # noise
-    if degradation_params.should_add_noise:
-        noise = generate_gaussian_noise(img_lq, degradation_params.sigma, False)
-        img_lq = np.clip(img_lq + noise, 0, 1)
-    # jpeg compression
-    if degradation_params.should_add_jpeg_compression:
-        img_lq = add_jpg_compression(img_lq, degradation_params.jpeg_quality)
-    # scale back up
-    if degradation_params.should_down_sample:
-        img_lq = cv2.resize(img_lq, (w, h), interpolation=cv2.INTER_LINEAR)
-    img_lq = (img_lq * 255.).astype(np.uint8)
-    return img_lq
-
-def apply_video_degradation(imgs: list[np.ndarray], degradation_params: MosaicRandomDegradationParams):
-    imgs_lq = []
-    for img in imgs:
-        imgs_lq.append(apply_frame_degradation(img, degradation_params))
-    # video_compression
-    if degradation_params.should_add_video_compression:
-        imgs_lq = apply_video_compression(imgs_lq, degradation_params.video_codec, degradation_params.video_bitrate)
-    return imgs_lq
-
 def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_processing_options: SceneProcessingOptions, data: SceneProcessingDataContainer, scene_max_height, scene_max_width, start_idx=0, end_exclusive_idx=None):
     if end_exclusive_idx is None:
         end_exclusive_idx = len(cropped_scene)
     for i, (cropped_image, cropped_mask_image, cropped_box) in enumerate(cropped_scene[start_idx:end_exclusive_idx], start=start_idx):
         if scene_processing_options.save_mosaic:
-            cropped_mask_mosaic = dilate_mask_img(cropped_mask_image, iterations=data.mosaic_params.mosaic_mask_dilation_iterations)
+            cropped_mask_mosaic = mask_utils.dilate_mask(cropped_mask_image, iterations=data.mosaic_params.mosaic_mask_dilation_iterations)
             cropped_mosaic_image, cropped_mask_mosaic = addmosaic_base(cropped_image, cropped_mask_mosaic, data.mosaic_params.mosaic_size,
                                                                        model=data.mosaic_params.mosaic_mod, rect_ratio=data.mosaic_params.mosaic_rectangle_ratio,
                                                                        feather=data.mosaic_params.mosaic_feather_size)
             if scene_processing_options.save_cropped:
                 if scene_processing_options.resize_crops:
-                    resized_rectangle_mask_mosaic_image = resize(cropped_mask_mosaic, scene_processing_options.out_size,
+                    resized_rectangle_mask_mosaic_image = image_utils.resize(cropped_mask_mosaic, scene_processing_options.out_size,
                                                                  interpolation=cv2.INTER_NEAREST)
                     if scene_processing_options.degrade_mosaic:
                         resize_me = apply_frame_degradation(cropped_mosaic_image, data.mosaic_degradation_params)
                     else:
                         resize_me = cropped_mosaic_image
-                    resized_rectangle_mosaic_image = resize(resize_me, scene_processing_options.out_size,
+                    resized_rectangle_mosaic_image = image_utils.resize(resize_me, scene_processing_options.out_size,
                                                             interpolation=cv2.INTER_CUBIC)
-                    final_mask_mosaic_image, _ = fill(resized_rectangle_mask_mosaic_image, scene_processing_options.out_size)
-                    final_mosaic_image, final_mosaic_image_pad = fill(resized_rectangle_mosaic_image, scene_processing_options.out_size)
+                    final_mask_mosaic_image, _ = pad_image(resized_rectangle_mask_mosaic_image, scene_processing_options.out_size, scene_processing_options.out_size)
+                    final_mosaic_image, final_mosaic_image_pad = pad_image(resized_rectangle_mosaic_image, scene_processing_options.out_size)
                     data.cropped_scaled.mosaic_images.append(final_mosaic_image)
                     data.cropped_scaled.mosaic_mask_images.append(final_mask_mosaic_image)
                     data.cropped_scaled.mosaic_pads.append(final_mosaic_image_pad)
@@ -321,12 +195,12 @@ def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_proce
 
         if scene_processing_options.save_cropped:
             if scene_processing_options.resize_crops:
-                resized_rectangle_image = resize(cropped_image, scene_processing_options.out_size,
+                resized_rectangle_image = image_utils.resize(cropped_image, scene_processing_options.out_size,
                                                  interpolation=cv2.INTER_CUBIC)
-                resized_rectangle_mask_image = resize(cropped_mask_image, scene_processing_options.out_size,
+                resized_rectangle_mask_image = image_utils.resize(cropped_mask_image, scene_processing_options.out_size,
                                                       interpolation=cv2.INTER_NEAREST)
-                final_image, final_image_pad = fill(resized_rectangle_image, scene_processing_options.out_size)
-                final_mask_image, _ = fill(resized_rectangle_mask_image, scene_processing_options.out_size)
+                final_image, final_image_pad = pad_image(resized_rectangle_image, scene_processing_options.out_size, scene_processing_options.out_size)
+                final_mask_image, _ = pad_image(resized_rectangle_mask_image, scene_processing_options.out_size, scene_processing_options.out_size)
                 data.cropped_scaled.images.append(final_image)
                 data.cropped_scaled.mask_images.append(final_mask_image)
                 data.cropped_scaled.pads.append(final_image_pad)
@@ -530,7 +404,7 @@ def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: Vid
         while len([future for future in scene_futures if not future.done()]) >= scene_executor_worker_count + 1:
             # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")
             sleep(1)
-            pass  # do nothing until workers become available. Otherwise we could queue up a lot of futures which use a lot of memory as we pass Scene objects
+            pass  # do nothing until workers become available. Otherwise, we could queue up a lot of futures which use a lot of memory as we pass Scene objects
         # we don't care about done futures, lets clean them up to potentially free memory
         clean_up_completed_futures(scene_futures)
         # print(f"deleted done future. futures now {len(scene_futures)}")
@@ -618,7 +492,7 @@ def main():
         if file_index < args.start_index or len(list(output_dir.glob(f"*/{file_path.name}*"))) > 0:
             print(f"{file_index}, Skipping {file_path.name}: Already processed")
             continue
-        if os.path.splitext(file_path)[1] not in SUPPORTED_VIDEO_FILE_EXTENSIONS:
+        if not video_utils.is_video_file(file_path):
             print(f"{file_index}, Skipping {file_path.name}: Unsupported file format")
             continue
         video_metadata = video_utils.get_video_meta_data(file_path)
@@ -656,5 +530,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# python create_mosaic_removal_video_dataset.py --input reddit_todo/creampie --scene-max-length 8 --scene-min-length 2 --model yolo/runs/segment/train_genitals_detection_yolov9c/weights/best.pt --output-root reddit_done/creampie --save-mosaic --save-uncropped --save-cropped --flat --model-device cuda:0 --quality-model-device cuda:0 --resize-crops --preserve-crops --degrade-mosaic

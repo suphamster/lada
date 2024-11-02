@@ -11,7 +11,7 @@ from mmagic.structures import DataSample
 import lada.lib.video_utils as video_utils
 from lada.lib.mosaic_utils import addmosaic_base
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
-from create_mosaic_removal_video_dataset import MosaicRandomDegradationParams, apply_video_degradation
+from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_video_degradation
 
 # import cv2
 # import os

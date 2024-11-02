@@ -192,7 +192,6 @@ class MosaicFramesGenerator:
                 if not res:
                     print(f"err in yolo mosaic gen, trying to read {frame_num}/{self.video_meta_data.frames_count}")
                     return
-                #for frame_num, results in enumerate(self.model.predict(source=self.video_file, stream=True, verbose=False, device=self.device)):
                 for results in self.model.predict(source=frame, stream=False, verbose=False, device=self.device):
                     for i in range(len(results.boxes)):
                         mask = convert_yolo_mask(results.masks[i], results.orig_shape)
