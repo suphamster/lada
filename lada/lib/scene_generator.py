@@ -1,5 +1,6 @@
 import math
 from pathlib import Path
+from typing import Generator
 
 import numpy as np
 
@@ -240,7 +241,7 @@ class SceneGenerator:
         self.stride_length_frames = stride_length * self.video_meta_data.video_fps
         self.previous_scene_frame_end = None
 
-    def __call__(self):
+    def __call__(self) -> Generator[Scene, None, None]:
         scene: Scene | None = None
         scenes_counter: int = 0
 

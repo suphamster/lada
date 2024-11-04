@@ -24,15 +24,15 @@ class Timeline(Gtk.Widget):
     @duration.setter
     def duration(self, value):
         self.update_duration(value)
-        self.update_position(0)
+        self.update_playhead_position(0)
 
     @GObject.Property()
-    def position(self):
-        return self._position
+    def playhead_position(self):
+        return self._playhead_position
 
-    @position.setter
-    def position(self, value):
-        self.update_position(value)
+    @playhead_position.setter
+    def playhead_position(self, value):
+        self.update_playhead_position(value)
 
     @GObject.Signal(name="seek_requested", arg_types=(GObject.TYPE_INT,))
     def seek_requested_signal(self, position: int):
@@ -41,7 +41,8 @@ class Timeline(Gtk.Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._application = None
-        self._position = 0
+        self._playhead_position = 0
+        self.cursor_position_x: int | None = None
         self._duration = 0
         self.video_file = None
         self.set_hexpand(True)
@@ -51,45 +52,43 @@ class Timeline(Gtk.Widget):
         self.drag_start = 0
         def on_drag_begin(gesture_drag, x, y):
             gesture_drag.set_state( Gtk.EventSequenceState.CLAIMED)
-            self.on_drag_begin(x, y)
-        def on_drag_update(_, offset_x, offset_y):
-            self.on_drag_update(offset_x, offset_y)
-        def on_motion(_, x, y):
-            self.on_motion(x, y)
+            self.on_drag_begin(x)
         self.gesture_drag.connect("drag_begin", on_drag_begin)
-        self.gesture_drag.connect("drag_update", on_drag_update)
+        self.gesture_drag.connect("drag_update", lambda _, offset_x, offset_y: self.on_drag_update(offset_x))
         self.add_controller(self.gesture_drag)
 
         event_controller_motion = Gtk.EventControllerMotion.new()
-        event_controller_motion.connect("motion", on_motion)
+        event_controller_motion.connect("leave", lambda _: self.update_cursor_position(None))
+        event_controller_motion.connect("motion", lambda _, x, y: self.update_cursor_position(x))
         self.add_controller(event_controller_motion)
 
         self.style_manager = None
 
     def update_duration(self, value):
         self._duration = value
-        self._position = 0
+        self._playhead_position = 0
         self.queue_draw()
 
-    def update_position(self, value):
-        self._position = value
+    def update_playhead_position(self, value):
+        self._playhead_position = value
         self.queue_draw()
 
-    def on_drag_update(self, offset_x, offset_y):
+    def on_drag_update(self, offset_x):
         x = self.drag_start + offset_x
         x = max(0, x)
         allocation = self.get_allocation()
         width = allocation.width
         new_position = int((x / width) * self._duration)
-        self.update_position(new_position)
+        self.update_playhead_position(new_position)
         self.emit('seek_requested', new_position)
 
-    def on_drag_begin(self, x, y):
+    def on_drag_begin(self, x):
         self.drag_start = x
-        self.on_drag_update(0, 0)
+        self.on_drag_update(0)
 
-    def on_motion(self, x, y):
-        pass
+    def update_cursor_position(self, x):
+        self.cursor_position_x = x
+        self.queue_draw()
 
     def do_snapshot(self, s):
         """
@@ -101,26 +100,29 @@ class Timeline(Gtk.Widget):
         width = allocation.width
         height = allocation.height
 
-        position_x = int((self._position / self._duration) * width) if self._duration > 0 else 0
+        playhead_position_x = int((self._playhead_position / self._duration) * width) if self._duration > 0 else 0
 
         if self.style_manager:
-            accent_color = self.style_manager.get_accent_color()
+            playhead_color = self.style_manager.get_accent_color()
             uses_dark_scheme = bool(self.style_manager.get_dark())
         else:
-            accent_color = Adw.AccentColor.BLUE
+            playhead_color = Adw.AccentColor.BLUE
             uses_dark_scheme = False
+        playhead_color = playhead_color.to_rgba(playhead_color)
 
-        colour = Gdk.RGBA()
+        timeline_color = Gdk.RGBA()
+        cursor_color = Gdk.RGBA()
         if uses_dark_scheme:
-            colour.parse("#ffffff1a")
+            timeline_color.parse("#ffffff1a")
+            cursor_color.parse("#ffffffff")
         else:
-            colour.parse("#0000001a")
+            timeline_color.parse("#0000001a")
+            cursor_color.parse("#000000ff")
 
-        color_position = accent_color.to_rgba(accent_color)
-
-        position_width = 4
-        before_width = position_x - position_width // 2
-        after_width = width - position_width - before_width
+        cursor_width = 2
+        playhead_width = 4
+        before_width = playhead_position_x - playhead_width // 2
+        after_width = width - playhead_width - before_width
 
         rect_height = height
 
@@ -133,15 +135,21 @@ class Timeline(Gtk.Widget):
         before_rounded = Gsk.RoundedRect()
         before_rounded.init(before, rounded_corner, regular_corner, regular_corner, rounded_corner)
         s.push_rounded_clip(before_rounded)
-        s.append_color(colour, before)
+        s.append_color(timeline_color, before)
         s.pop()
 
-        position = Graphene.Rect().init(before_width, 0, position_width, rect_height)
-        s.append_color(color_position, position)
+        playhead_position = Graphene.Rect().init(before_width, 0, playhead_width, rect_height)
+        s.append_color(playhead_color, playhead_position)
 
-        after = Graphene.Rect().init(before_width + position_width, 0, after_width,rect_height)
+        after = Graphene.Rect().init(before_width + playhead_width, 0, after_width,rect_height)
         after_rounded = Gsk.RoundedRect()
         after_rounded.init(after, regular_corner, rounded_corner, rounded_corner, regular_corner)
         s.push_rounded_clip(after_rounded)
-        s.append_color(colour, after)
+        s.append_color(timeline_color, after)
         s.pop()
+
+        if self.cursor_position_x:
+            x = self.cursor_position_x - (cursor_width // 2)
+            width = width - x if x + cursor_width > width else cursor_width
+            cursor_position = Graphene.Rect().init(x, 0, width, rect_height)
+            s.append_color(cursor_color, cursor_position)

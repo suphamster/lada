@@ -386,7 +386,7 @@ class VideoPreview(Gtk.Widget):
             time = f"{minutes}:{seconds:02d}" if hours == 0 else f"{hours}:{minutes:02d}:{seconds:02d}"
             self.label_current_time.set_text(time)
             position_frames = int(position * self.file_duration_frames / self.file_duration_ns)
-            self.widget_timeline.set_property("position", position_frames)
+            self.widget_timeline.set_property("playhead-position", position_frames)
 
         return True
 

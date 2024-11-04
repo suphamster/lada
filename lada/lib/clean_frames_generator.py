@@ -1,6 +1,7 @@
 import math
 import random
 from dataclasses import dataclass
+from typing import Generator
 
 import cv2
 import numpy as np
@@ -96,7 +97,7 @@ class CleanFramesGenerator:
                 self.stride_length_frames = int(round(stride_length * self.video_meta_data.video_fps))
                 print(f"yolo generator: stride mode activated for file {self.video_meta_data.video_file}: file duration: {int(self.video_meta_data.duration / 60)} (min), stride length: {stride_length} (s) / {self.stride_length_frames} (frames)")
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Generator[Image, None, None]:
         stride_window_remaining = -self.stride_length_frames
         stride_window_positive = stride_window_remaining >= 0
         for frame_num, results in enumerate(

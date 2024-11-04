@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Generator
 
 import cv2
 import numpy as np
@@ -182,7 +183,7 @@ class MosaicFramesGenerator:
 
         self.video_meta_data = video_utils.get_video_meta_data(self.video_file)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Generator[Clip, None, None]:
         with video_utils.VideoReader(self.video_file) as video_reader:
             if self.start_frame > 0:
                 video_reader.set(cv2.CAP_PROP_POS_FRAMES, self.start_frame)
