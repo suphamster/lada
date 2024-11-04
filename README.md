@@ -169,8 +169,6 @@ The data to train the nsfw detection model was hand-labeled using [labelme](http
 ## Contribute
 The software currently is not very polished, but it worked for me and maybe works for you. If you want to make it better you probably don't have to look far to find things to improve :)
 
-## License
-AGPL v3, but notice that the dependency Ultralytics used by this project requires non-commercial use (you can find more details on their website).
 
 ## Credits (not exhaustive)
 This project builds on work done by these fantastic people
