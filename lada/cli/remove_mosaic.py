@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument('--crf', type=int, default=20, help='codec quality setting. The lower the better with the caveat of larger files size and CPU usage')
     parser.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic")
     parser.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'))
-    parser.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'))
+    parser.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'))
     parser.add_argument('--mosaic-restoration-config-path', type=str)
     parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering')
     parser.add_argument('--mosaic-cleaning',  default=False, action=argparse.BooleanOptionalAction, help='If enabled will clean detected mosaic pattern from noise before passing it to mosaic restoration model. Not recommended')

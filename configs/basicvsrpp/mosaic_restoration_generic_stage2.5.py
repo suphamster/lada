@@ -3,7 +3,7 @@ from mmengine.config import read_base
 with read_base():
     from ._base_.default_runtime import *
 
-experiment_name = 'mosaic_restoration_generic_stage2'
+experiment_name = 'mosaic_restoration_generic_stage2.5'
 work_dir = f'./experiments/basicvsrpp/{experiment_name}'
 save_dir = './experiments/basicvsrpp'
 
@@ -33,13 +33,13 @@ model = dict(
         },
         vgg_type='vgg19',
         pretrained='model_weights/3rd_party/vgg19-dcbb9e9d.pth',
-        perceptual_weight=0.2,
+        perceptual_weight=1.0,
         style_weight=0,
         norm_img=False),
     gan_loss=dict(
         type='GANLoss',
         gan_type='vanilla',
-        loss_weight=0.05,
+        loss_weight=0.1,
         real_label_val=1.0,
         fake_label_val=0),
     is_use_ema=True,
@@ -93,7 +93,7 @@ val_evaluator = dict(
     ])
 
 train_cfg = dict(
-    type='IterBasedTrainLoop', max_iters=150_000, val_interval=2000)
+    type='IterBasedTrainLoop', max_iters=100_000, val_interval=2000)
 val_cfg = dict(type='MultiValLoop')
 
 # optimizer

@@ -137,7 +137,7 @@ class MainWindow(Adw.ApplicationWindow):
         available_models = []
         for file_path in glob.glob(os.path.join(MODEL_WEIGHTS_DIR, '**/*.pth'), recursive=True):
             file_name = os.path.basename(file_path)
-            if file_name == 'lada_mosaic_restoration_model_generic.pth':
+            if file_name == 'lada_mosaic_restoration_model_generic.pth' or file_name == 'lada_mosaic_restoration_model_generic_v1.1.pth':
                 available_models.append("basicvsrpp-generic")
             elif file_name == 'lada_mosaic_restoration_model_bj_pov.pth':
                 available_models.append("basicvsrpp-bj-pov")

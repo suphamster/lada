@@ -399,7 +399,7 @@ class VideoPreview(Gtk.Widget):
             elif self._mosaic_restoration_model_name == 'basicvsrpp-bj-pov':
                 mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_bj_pov.pth')
             else:
-                mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth')
+                mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth')
 
             mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, mosaic_restoration_model_preferred_pad_mode = load_models(
                 self._device, self._mosaic_restoration_model_name, mosaic_restoration_model_path, None,
