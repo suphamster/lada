@@ -16,7 +16,7 @@ modules:
     build-commands:
       - |
         mkdir -p /app/model_weights/3rd_party
-        mv lada_mosaic_detection_model_v2.pt lada_mosaic_edge_detection_model.pth lada_mosaic_restoration_model_bj_pov.pth lada_mosaic_restoration_model_generic.pth /app/model_weights/
+        mv lada_mosaic_detection_model_v2.pt lada_mosaic_edge_detection_model.pth lada_mosaic_restoration_model_bj_pov.pth lada_mosaic_restoration_model_generic_v1.1.pth /app/model_weights/
         # mv clean_youknow_video.pth /app/model_weights/3rd_party/ # todo
       - python3 -m pip install --prefix=/app --no-deps '.[basicvsrpp,gui]'
       - |
