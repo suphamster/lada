@@ -2,7 +2,7 @@ import argparse
 from tqdm import tqdm
 import os
 import tempfile
-from lada import MODEL_WEIGHTS_DIR
+from lada import MODEL_WEIGHTS_DIR, VERSION
 from lada.lib.restored_mosaic_frames_generator import load_models, FrameRestorer
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
 from lada.lib import audio_utils
@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument('--mosaic-cleaning-edge-detection-model-path', type=str, help="path to pidinet tiny model")
     parser.add_argument('--preserve-relative-scale',  default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written")
+    parser.add_argument('--version',  action='store_true')
 
     args = parser.parse_args()
     return args
@@ -31,6 +32,9 @@ def parse_args():
 
 def cli():
     args = parse_args()
+    if args.version:
+        print("Lada: ", VERSION)
+        return
 
     mosaic_cleaning_edge_detection_model_path = args.mosaic_cleaning_edge_detection_model_path if args.mosaic_cleaning and args.mosaic_cleaning_edge_detection_method == 'pidinet' else None
 

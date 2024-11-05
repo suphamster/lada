@@ -2,6 +2,8 @@ import pathlib
 import sys
 import gi
 
+from lada import VERSION
+
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 gi.require_version('Gst', '1.0')
@@ -40,7 +42,7 @@ class MosaicRestoreApplication(Adw.Application):
         about = Adw.AboutDialog(application_name='lada',
                                 application_icon='io.github.ladaapp.lada',
                                 developer_name='Unknown',
-                                version='0.1.0',
+                                version=VERSION,
                                 developers=['Unknown'],
                                 copyright='© 2024 Unknown')
         about.present(self.props.active_window)

@@ -6,3 +6,5 @@ if "FLATPAK_ID" in os.environ:
   os.environ["YOLO_CONFIG_DIR"] = "/var/config/yolo"
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
+
+VERSION = '0.2.1'

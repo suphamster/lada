@@ -48,6 +48,11 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2022-11-05" version="0.2.1">
+            <description>
+                <p>Small improvement to generic restoration model</p>
+            </description>
+        </release>
         <release date="2022-11-02" version="0.2.0">
             <description>
                 <p>New mosaic detection model</p>
