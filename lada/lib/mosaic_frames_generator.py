@@ -168,7 +168,7 @@ def box_overlaps(box1: Box, box2: Box) -> bool:
     return y_overlaps and x_overlaps
 
 class MosaicFramesGenerator:
-    def __init__(self, model: ultralytics.models.YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_frame=0):
+    def __init__(self, model: ultralytics.models.YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_ns=0):
         self.model = model
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
@@ -178,21 +178,20 @@ class MosaicFramesGenerator:
         self.dont_preserve_relative_scale = dont_preserve_relative_scale
         self.pad_mode = pad_mode
         self.clip_counter = 0
-        self.start_frame = start_frame
-        assert preserve_relative_scale or dont_preserve_relative_scale
-
+        self.start_ns = start_ns
         self.video_meta_data = video_utils.get_video_meta_data(self.video_file)
+        self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
+
+        assert preserve_relative_scale or dont_preserve_relative_scale
 
     def __call__(self, *args, **kwargs) -> Generator[Clip, None, None]:
         with video_utils.VideoReader(self.video_file) as video_reader:
-            if self.start_frame > 0:
-                video_reader.set(cv2.CAP_PROP_POS_FRAMES, self.start_frame)
+            video_frames_generator = video_reader.frames()
+            if self.start_ns > 0:
+                video_reader.seek(self.start_ns)
             scenes: list[Scene] = []
             for frame_num in range(self.start_frame, self.video_meta_data.frames_count):
-                res, frame = video_reader.read()
-                if not res:
-                    print(f"err in yolo mosaic gen, trying to read {frame_num}/{self.video_meta_data.frames_count}")
-                    return
+                frame, _ = next(video_frames_generator)
                 for results in self.model.predict(source=frame, stream=False, verbose=False, device=self.device):
                     for i in range(len(results.boxes)):
                         mask = convert_yolo_mask(results.masks[i], results.orig_shape)

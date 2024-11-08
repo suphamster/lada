@@ -172,7 +172,7 @@ def augment(imgs, hflip=True, rotation=True, flows=None, return_status=False):
 
 
 def read_video_frames(path: str, float32: bool = True, start_idx: int = 0, end_idx: int | None = None, normalize_neg1_pos1 = False, binary_frames=False) -> list[np.ndarray]:
-    with VideoReader(path) as video_reader:
+    with VideoReaderOpenCV(path) as video_reader:
         frames = []
         i = 0
         while video_reader.isOpened():
@@ -210,7 +210,7 @@ def pad_to_compatible_size_for_video_codecs(imgs):
     return [np.pad(img, ((0, pad_h), (0, pad_w), (0,0))).astype(np.uint8) for img in imgs]
 
 @contextmanager
-def VideoReader(*args, **kwargs):
+def VideoReaderOpenCV(*args, **kwargs):
     cap = cv2.VideoCapture(*args, **kwargs)
     if not cap.isOpened():
         raise Exception(f"Unable to open video file:", *args)
@@ -218,6 +218,27 @@ def VideoReader(*args, **kwargs):
         yield cap
     finally:
         cap.release()
+
+class VideoReader:
+    def __init__(self, file):
+        self.file = file
+        self.container = None
+
+    def __enter__(self):
+        self.container = av.open(self.file)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.container.close()
+
+    def frames(self):
+        for frame in self.container.decode(video=0):
+            frame_img = frame.to_ndarray(format='bgr24')
+            yield frame_img, frame.pts
+
+    def seek(self, offset_ns):
+        offset = int((offset_ns / 1_000_000_000) * av.time_base)
+        self.container.seek(offset)
 
 def get_video_meta_data(path: str) -> VideoMetadata:
     cmd = ['ffprobe', '-v', 'quiet', '-output_format', 'json', '-select_streams', 'v', '-show_streams', '-show_format', path]
@@ -231,9 +252,13 @@ def get_video_meta_data(path: str) -> VideoMetadata:
 
     value = [int(num) for num in json_video_stream['avg_frame_rate'].split("/")]
     average_fps = value[0]/value[1] if len(value) == 2 else value[0]
+
     value = [int(num) for num in json_video_stream['r_frame_rate'].split("/")]
     fps = value[0]/value[1] if len(value) == 2 else value[0]
     fps_exact = Fraction(value[0], value[1])
+
+    value = [int(num) for num in json_video_stream['time_base'].split("/")]
+    time_base = Fraction(value[0], value[1])
 
     frame_count = json_video_stream.get('nb_frames')
     if not frame_count:
@@ -253,9 +278,13 @@ def get_video_meta_data(path: str) -> VideoMetadata:
         video_fps_exact=fps_exact,
         codec_name=json_video_stream['codec_name'],
         frames_count=frame_count,
-        duration=float(json_video_stream.get('duration', json_video_format['duration']))
+        duration=float(json_video_stream.get('duration', json_video_format['duration'])),
+        time_base=time_base
     )
     return metadata
+
+def offset_ns_to_frame_num(offset_ns, video_fps_exact):
+    return int(Fraction(offset_ns, 1_000_000_000) * video_fps_exact)
 
 def write_frames_to_video_file(frames: list[Image], output_path, fps: int | Fraction, codec='x264', preset='medium', crf=None):
     assert frames[0].ndim == 3
@@ -448,7 +477,7 @@ def approx_max_length_by_memory_limit(video_metadata: VideoMetadata, limit_in_me
     return max_length_seconds
 
 class VideoWriter:
-    def __init__(self, output_path, width, height, fps, crf=15, preset='medium', codec='h264', moov_front=False):
+    def __init__(self, output_path, width, height, fps, crf=15, preset='medium', codec='h264', time_base=None, moov_front=False):
         options = {"movflags": "+frag_keyframe+empty_moov+faststart"} if moov_front else {}
         output_container = av.open(output_path, "w", options=options)
         video_stream_out = output_container.add_stream(codec, fps)
@@ -456,16 +485,21 @@ class VideoWriter:
         video_stream_out.height = height
         video_stream_out.thread_count = 0
         video_stream_out.thread_type = 3
+        video_stream_out.time_base = time_base
         video_stream_out.options = {'crf': str(crf), 'preset': preset}
         self.output_container = output_container
         self.video_stream = video_stream_out
+        self.time_base = time_base
 
-    def write(self, frame, bgr2rgb=False):
+    def write(self, frame, frame_pts=None, bgr2rgb=False):
         if bgr2rgb:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         out_frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
+        if frame_pts:
+            out_frame.pts = frame_pts
         out_packet = self.video_stream.encode(out_frame)
         self.output_container.mux(out_packet)
+        self.previous_pts = frame_pts
 
     def release(self):
         out_packet = self.video_stream.encode(None)

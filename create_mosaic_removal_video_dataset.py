@@ -1,6 +1,5 @@
 import argparse
 import json
-import os
 import pathlib
 from concurrent import futures
 from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
@@ -166,7 +165,7 @@ def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_proce
                     resized_rectangle_mosaic_image = image_utils.resize(resize_me, scene_processing_options.out_size,
                                                             interpolation=cv2.INTER_CUBIC)
                     final_mask_mosaic_image, _ = pad_image(resized_rectangle_mask_mosaic_image, scene_processing_options.out_size, scene_processing_options.out_size)
-                    final_mosaic_image, final_mosaic_image_pad = pad_image(resized_rectangle_mosaic_image, scene_processing_options.out_size)
+                    final_mosaic_image, final_mosaic_image_pad = pad_image(resized_rectangle_mosaic_image, scene_processing_options.out_size, scene_processing_options.out_size)
                     data.cropped_scaled.mosaic_images.append(final_mosaic_image)
                     data.cropped_scaled.mosaic_mask_images.append(final_mask_mosaic_image)
                     data.cropped_scaled.mosaic_pads.append(final_mosaic_image_pad)

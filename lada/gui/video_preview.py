@@ -6,9 +6,8 @@ import threading
 from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
 
 from lada.gui.timeline import Timeline
-from lada.lib import audio_utils
+from lada.lib import audio_utils, video_utils
 from lada.lib.restored_mosaic_frames_generator import load_models, FrameRestorer
-from lada.lib.video_utils import get_video_meta_data, VideoMetadata, VideoWriter
 from lada import MODEL_WEIGHTS_DIR
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -50,7 +49,7 @@ class VideoPreview(Gtk.Widget):
         self.file_duration_frames = 0
         self.frame_duration_ns = None
         self.frame_num = 0
-        self.video_metadata: VideoMetadata | None = None
+        self.video_metadata: video_utils.VideoMetadata | None = None
         self.models_cache: dict | None = None
         self.should_be_paused = False
 
@@ -167,7 +166,7 @@ class VideoPreview(Gtk.Widget):
 
     def open_video_file(self, file):
         file_path = file.get_path()
-        self.video_metadata = get_video_meta_data(file_path)
+        self.video_metadata = video_utils.get_video_meta_data(file_path)
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
@@ -189,11 +188,11 @@ class VideoPreview(Gtk.Widget):
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)
         self._video_preview_init_done = False
-        self.setup_frame_restorer(start_frame=0)
+        self.setup_frame_restorer(start_ns=0)
 
         def run_export():
             video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(file_path)[0])}.tmp{os.path.splitext(file_path)[1]}")
-            video_writer = VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
+            video_writer = video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
                                        self.video_metadata.video_height, self.video_metadata.video_fps_exact,
                                        codec=video_codec, crf=crf)
 
@@ -347,18 +346,17 @@ class VideoPreview(Gtk.Widget):
 
     def on_seek_data(self, appsrc, offset_ns):
         self.pipeline.set_state(Gst.State.PAUSED)
-        seek_position_frames = int(offset_ns * self.file_duration_frames / self.file_duration_ns)
-        print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND} (frame: {seek_position_frames})")
+        print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}")
         if self.frame_restorer_generator:
-            self.setup_frame_restorer(start_frame=seek_position_frames)
+            self.setup_frame_restorer(start_ns=offset_ns)
         return True
 
     def on_need_data(self, src, length):
         if not self.frame_restorer_generator:
-            self.setup_frame_restorer(start_frame=0)
+            self.setup_frame_restorer(start_ns=0)
 
         if self.frame_num < self.video_metadata.frames_count:
-            frame = next(self.frame_restorer_generator)
+            frame, frame_pts = next(self.frame_restorer_generator)
             data = frame.tostring()
 
             buf = Gst.Buffer.new_allocate(None, len(data), None)
@@ -391,7 +389,7 @@ class VideoPreview(Gtk.Widget):
         return True
 
 
-    def setup_frame_restorer(self, start_frame=0):
+    def setup_frame_restorer(self, start_ns=0):
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             if self._mosaic_restoration_model_name == 'deepmosaics':
@@ -414,7 +412,7 @@ class VideoPreview(Gtk.Widget):
 
         frame_restorer = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
                                        self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
-                                       start_frame=start_frame, passthrough=self._passthrough, mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
+                                       start_ns=start_ns, passthrough=self._passthrough, mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
 
         self.frame_restorer_generator = frame_restorer()
-        self.frame_num = start_frame
+        self.frame_num = video_utils.offset_ns_to_frame_num(start_ns, self.video_metadata.video_fps_exact)

@@ -176,8 +176,8 @@
                                                         <property name="model">
                                                             <object class="GtkStringList">
                                                                 <items>
-                                                                    <item>hevc</item>
                                                                     <item>h264</item>
+                                                                    <item>hevc</item>
                                                                 </items>
                                                             </object>
                                                         </property>

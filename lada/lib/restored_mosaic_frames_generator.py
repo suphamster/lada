@@ -1,11 +1,9 @@
-import cv2
 from ultralytics import YOLO
 
-from lada.lib import image_utils
+from lada.lib import image_utils, video_utils
 from lada.lib import visualization
 from lada.lib.mosaic_frames_generator import MosaicFramesGenerator
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
-from lada.lib.video_utils import VideoReader
 from lada.pidinet import pidinet_inference
 
 
@@ -45,7 +43,7 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
 class FrameRestorer:
     def __init__(self, device, video_file, preserve_relative_scale, max_clip_length, mosaic_restoration_model_name,
                  mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode,
-                 start_frame=0, passthrough=False, mosaic_detection=False, mosaic_cleaning=False):
+                 start_ns=0, passthrough=False, mosaic_detection=False, mosaic_cleaning=False):
         self.device = device
         self.mosaic_restoration_model_name = mosaic_restoration_model_name
         self.max_clip_length = max_clip_length
@@ -55,7 +53,7 @@ class FrameRestorer:
         self.mosaic_restoration_model = mosaic_restoration_model
         self.mosaic_edge_detection_model = mosaic_edge_detection_model
         self.preferred_pad_mode = preferred_pad_mode
-        self.start_frame = start_frame
+        self.start_ns = start_ns
         self.passthrough = passthrough
         self.mosaic_cleaning = mosaic_cleaning
         self.mosaic_detection = mosaic_detection
@@ -79,23 +77,25 @@ class FrameRestorer:
         return restored_clip_images
 
     def __call__(self):
-        with VideoReader(self.video_file) as video_reader:
-            frame_count = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
-            frame_num = self.start_frame
+        with video_utils.VideoReader(self.video_file) as video_reader:
+            video_metadata = video_utils.get_video_meta_data(self.video_file)
+            frame_count = video_metadata.frames_count
+            frame_num = video_utils.offset_ns_to_frame_num(self.start_ns, video_metadata.video_fps_exact)
+            if self.start_ns > 0:
+                video_reader.seek(self.start_ns)
 
-            if self.start_frame > 0:
-                video_reader.set(cv2.CAP_PROP_POS_FRAMES, self.start_frame)
+            video_frames_generator = video_reader.frames()
 
             if self.passthrough:
                 while frame_num < frame_count:
-                    ret, frame = video_reader.read()
-                    yield frame
+                    frame, frame_pts = next(video_frames_generator)
+                    yield frame, frame_pts
                     frame_num += 1
 
             else:
                 mosaic_generator = MosaicFramesGenerator(self.mosaic_detection_model, self.video_file, max_clip_length=self.max_clip_length,
                                                          pad_mode=self.preferred_pad_mode, preserve_relative_scale=self.preserve_relative_scale,
-                                                         dont_preserve_relative_scale=(not self.preserve_relative_scale), start_frame=self.start_frame)
+                                                         dont_preserve_relative_scale=(not self.preserve_relative_scale), start_ns=self.start_ns)
                 clip_buffer = []
 
                 for clip_idx, clip in enumerate(mosaic_generator()):
@@ -119,14 +119,14 @@ class FrameRestorer:
                     if clip.frame_start > frame_num:
                         if len(clip_buffer) == 0:
                             while clip.frame_start > frame_num:
-                                ret, frame = video_reader.read()
-                                yield frame
+                                frame, frame_pts = next(video_frames_generator)
+                                yield frame, frame_pts
                                 frame_num += 1
                         else:
                             while True:
                                 if len(clip_buffer) == 0 or clip.frame_start <= min(clip_buffer, key=lambda c: c.frame_start).frame_start:
                                     break
-                                ret, frame = video_reader.read()
+                                frame, frame_pts = next(video_frames_generator)
                                 for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
                                     clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
                                     clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
@@ -134,7 +134,7 @@ class FrameRestorer:
                                     clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
                                     t, l , b, r = orig_clip_box
                                     frame[t:b + 1, l:r + 1, :] = clip_img
-                                yield frame
+                                yield frame, frame_pts
                                 frame_num += 1
 
                                 processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
@@ -145,17 +145,14 @@ class FrameRestorer:
 
                 while frame_num < frame_count:
                     if len(clip_buffer) == 0:
-                        ret, frame = video_reader.read()
-                        if not ret:
-                            print("probably hit variable frame rate file. read frame result", ret, frame, frame_num, frame_count)
-                            break
-                        yield frame
+                        frame, frame_pts = next(video_frames_generator)
+                        yield frame, frame_pts
                         frame_num += 1
                     else:
                         while True:
                             if len(clip_buffer) == 0:
                                 break
-                            ret, frame = video_reader.read()
+                            frame, frame_pts = next(video_frames_generator)
                             for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
                                 clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
                                 clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
@@ -163,7 +160,7 @@ class FrameRestorer:
                                 clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
                                 t, l, b, r = orig_clip_box
                                 frame[t:b + 1, l:r + 1, :] = clip_img
-                            yield frame
+                            yield frame, frame_pts
                             frame_num += 1
 
                             processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))

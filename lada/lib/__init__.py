@@ -36,3 +36,4 @@ class VideoMetadata:
     codec_name: str
     frames_count: int
     duration: float
+    time_base: Fraction
