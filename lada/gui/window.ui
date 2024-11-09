@@ -95,7 +95,6 @@
                                                 <property name="active">True</property>
                                                 <signal name="clicked" handler="toggle_button_preview_video_callback"/>
                                                 <style>
-                                                    <class name="suggested-action"/>
                                                     <class name="flat"/>
                                                 </style>
                                             </object>
@@ -137,7 +136,6 @@
                                                                 <signal name="clicked"
                                                                         handler="toggle_button_mosaic_detection_callback"/>
                                                                 <style>
-                                                                    <class name="suggested-action"/>
                                                                     <class name="flat"/>
                                                                 </style>
                                                             </object>
@@ -152,7 +150,6 @@
                                                                 <signal name="clicked"
                                                                         handler="toggle_button_mosaic_removal_callback"/>
                                                                 <style>
-                                                                    <class name="suggested-action"/>
                                                                     <class name="flat"/>
                                                                 </style>
                                                             </object>
