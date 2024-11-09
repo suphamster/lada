@@ -17,7 +17,7 @@ Gst.init(None)
 
 from lada.gui.window import MainWindow
 
-class MosaicRestoreApplication(Adw.Application):
+class LadaApplication(Adw.Application):
 
     def __init__(self):
         super().__init__(application_id='io.github.ladaapp.lada',
@@ -55,7 +55,7 @@ class MosaicRestoreApplication(Adw.Application):
             self.set_accels_for_action(f"app.{name}", shortcuts)
 
 def main():
-    app = MosaicRestoreApplication()
+    app = LadaApplication()
     return app.run(sys.argv)
 
 if __name__ == "__main__":

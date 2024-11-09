@@ -22,6 +22,7 @@ class VideoPreview(Gtk.Widget):
     widget_timeline: Timeline = Gtk.Template.Child()
     button_image_play_pause = Gtk.Template.Child()
     label_current_time = Gtk.Template.Child()
+    label_cursor_time = Gtk.Template.Child()
     spinner_video_preview = Gtk.Template.Child()
 
 
@@ -54,6 +55,8 @@ class VideoPreview(Gtk.Widget):
         self.should_be_paused = False
 
         self.widget_timeline.connect('seek_requested', lambda widget, seek_position: self.seek_video(seek_position))
+        self.widget_timeline.connect('cursor_position_changed', lambda widget, cursor_position: self.show_cursor_position(cursor_position))
+
 
     @GObject.Property()
     def passthrough(self):
@@ -163,6 +166,15 @@ class VideoPreview(Gtk.Widget):
         if self.pipeline:
             seek_position_ns = int(seek_position * self.file_duration_ns / self.file_duration_frames)
             self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
+
+    def show_cursor_position(self, cursor_position):
+        if cursor_position > 0:
+            self.label_cursor_time.set_visible(True)
+            cursor_position_ns = int(cursor_position * self.file_duration_ns / self.file_duration_frames)
+            label_text = self.get_time_label_text(cursor_position_ns)
+            self.label_cursor_time.set_text(label_text)
+        else:
+            self.label_cursor_time.set_visible(False)
 
     def open_video_file(self, file):
         file_path = file.get_path()
@@ -372,22 +384,25 @@ class VideoPreview(Gtk.Widget):
 
     def update_current_position(self):
         res, position = self.pipeline.query_position(Gst.Format.TIME)
-        if not res or position == -1:
-            self.label_current_time.set_text('00:00:00')
+        label_text = self.get_time_label_text(position)
+        self.label_current_time.set_text(label_text)
+        if res and position >= 0:
+            position_frames = int(position * self.file_duration_frames / self.file_duration_ns)
+            self.widget_timeline.set_property("playhead-position", position_frames)
+        return True
+
+    def get_time_label_text(self, time_ns):
+        if not time_ns or time_ns == -1:
+            return '00:00:00'
         else:
-            seconds = int(position / Gst.SECOND)
+            seconds = int(time_ns / Gst.SECOND)
             minutes = int(seconds / 60)
             hours = int(minutes / 60)
             seconds = seconds % 60
             minutes = minutes % 60
             hours, minutes, seconds = int(hours), int(minutes), int(seconds)
             time = f"{minutes}:{seconds:02d}" if hours == 0 else f"{hours}:{minutes:02d}:{seconds:02d}"
-            self.label_current_time.set_text(time)
-            position_frames = int(position * self.file_duration_frames / self.file_duration_ns)
-            self.widget_timeline.set_property("playhead-position", position_frames)
-
-        return True
-
+            return time
 
     def setup_frame_restorer(self, start_ns=0):
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:

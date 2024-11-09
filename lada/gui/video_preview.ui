@@ -21,6 +21,19 @@
                         <property name="height-request">64</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
+                        <property name="visible">False</property>
+                    </object>
+                </child>
+                <child type="overlay">
+                    <object class="GtkLabel" id="label_cursor_time">
+                        <property name="name">label_cursor_time</property>
+                        <property name="label">0:00</property>
+                        <property name="width-chars">8</property>
+                        <property name="valign">end</property>
+                        <property name="visible">False</property>
+                        <style>
+                            <class name="numeric"/>
+                        </style>
                     </object>
                 </child>
             </object>

@@ -1,1 +1,3 @@
-
+#label_cursor_time {
+	background-color: color-mix(in srgb, var(--dialog-bg-color) 70%, transparent);
+}
