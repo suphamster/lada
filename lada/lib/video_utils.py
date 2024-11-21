@@ -286,13 +286,13 @@ def get_video_meta_data(path: str) -> VideoMetadata:
 def offset_ns_to_frame_num(offset_ns, video_fps_exact):
     return int(Fraction(offset_ns, 1_000_000_000) * video_fps_exact)
 
-def write_frames_to_video_file(frames: list[Image], output_path, fps: int | Fraction, codec='x264', preset='medium', crf=None):
+def write_frames_to_video_file(frames: list[Image], output_path, fps: int | float | Fraction, codec='x264', preset='medium', crf=None):
     assert frames[0].ndim == 3
     width = frames[0].shape[1]
     height = frames[0].shape[0]
     ffmpeg_output = [
         'nice', '-n', '19', 'ffmpeg', '-y',
-        '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{width}x{height}', '-r', str(fps) if type(fps) else f"{fps.numerator}/{fps.denominator}",
+        '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{width}x{height}', '-r', f"{fps.numerator}/{fps.denominator}" if type(fps) == Fraction else str(fps),
         '-i', '-', '-an', '-preset', preset
     ]
     if codec == 'x265':
@@ -311,13 +311,13 @@ def write_frames_to_video_file(frames: list[Image], output_path, fps: int | Frac
         print(f"ERROR when writing video via ffmpeg to file: {output_path}, return code: {ffmpeg_process.returncode}")
         print(f"stderr: {ffmpeg_process.stderr.read()}")
 
-def write_masks_to_video_file(frames: list[Mask], output_path, fps: int | Fraction):
+def write_masks_to_video_file(frames: list[Mask], output_path, fps: int | float | Fraction):
     #assert frames[0].ndim == 2
     width = frames[0].shape[1]
     height = frames[0].shape[0]
     ffmpeg_output = [
         'nice', '-n', '19', 'ffmpeg', '-y',
-        '-f', 'rawvideo', '-pix_fmt', 'gray', '-s', f'{width}x{height}', '-r', str(fps) if type(fps) else f"{fps.numerator}/{fps.denominator}",
+        '-f', 'rawvideo', '-pix_fmt', 'gray', '-s', f'{width}x{height}', '-r', f"{fps.numerator}/{fps.denominator}" if type(fps) == Fraction else str(fps),
         '-i', '-', '-an', '-vcodec', 'ffv1', '-level', '3', '-tag:v', 'ffv1',  output_path
     ]
 

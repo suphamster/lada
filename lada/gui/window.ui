@@ -183,6 +183,7 @@
                                                 <child>
                                                     <object class="AdwSpinRow" id="spin_row_export_crf">
                                                         <property name="title">Export CRF</property>
+                                                        <property name="tooltip-text">Constant Rate Factor. Quality setting of codec encoder. Lower values will result in higher quality but larger file size, encoding effort.</property>
                                                         <property name="adjustment">
                                                             <object class="GtkAdjustment">
                                                                 <property name="lower">0</property>
@@ -198,13 +199,14 @@
                                                         <property name="title">Preview buffer
                                                             duration (seconds)
                                                         </property>
+                                                        <property name="tooltip-text">Preview buffer duration in seconds. If set to 0 then buffer length will be adjusted automatically.</property>
                                                         <signal name="notify::value"
                                                                 handler="spin_row_preview_buffer_duration_selected_callback"/>
                                                         <property name="adjustment">
                                                             <object class="GtkAdjustment">
-                                                                <property name="lower">4</property>
+                                                                <property name="lower">0</property>
                                                                 <property name="upper">30</property>
-                                                                <property name="value">8</property>
+                                                                <property name="value">0</property>
                                                                 <property name="step-increment">2</property>
                                                             </object>
                                                         </property>
@@ -214,6 +216,12 @@
                                                     <object class="AdwSpinRow" id="spin_row_clip_max_duration">
                                                         <property name="title">Max. clip duration
                                                             (frames)
+                                                        </property>
+                                                        <property name="tooltip-text">A clip is a cropped scene of mosaic material that needs to be restored.
+                                                            The longer the clip the more reference frames are available for the model to use for restoration.
+                                                            Too short clip length will result in unstable restoration and flickering.
+                                                            Too long clip length can produce artifacts.
+                                                            The longer the clip duration the more RAM and VRAM will be used.
                                                         </property>
                                                         <signal name="notify::value"
                                                                 handler="spin_row_clip_max_duration_selected_callback"/>

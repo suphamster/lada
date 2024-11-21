@@ -36,7 +36,10 @@ class VideoPreview(Gtk.Widget):
         self._device = "cpu"
         self._video_preview_init_done = False
         self._max_clip_length = 180
-        self._buffer_queue_min_thresh_time = 14
+        self._buffer_queue_min_thresh_time = 0
+        self._buffer_queue_min_thresh_time_auto_min = 2.
+        self._buffer_queue_min_thresh_time_auto_max = 10.
+        self._buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
         self._application: Adw.Application | None = None
 
         self.appsrc: GstApp | None = None
@@ -81,9 +84,22 @@ class VideoPreview(Gtk.Widget):
     def max_clip_length(self):
         return self._max_clip_length
 
+    @property
+    def buffer_queue_min_thresh_time_auto(self):
+        return self._buffer_queue_min_thresh_time_auto
+
+    @buffer_queue_min_thresh_time_auto.setter
+    def buffer_queue_min_thresh_time_auto(self, value):
+        value = min(self._buffer_queue_min_thresh_time_auto_max, max(self._buffer_queue_min_thresh_time_auto_min, value))
+        print("adjusted buffer_queue_min_thresh_time_auto to", value)
+        self._buffer_queue_min_thresh_time_auto = value
+
     @max_clip_length.setter
     def max_clip_length(self, value):
         self._max_clip_length = value
+        if self._buffer_queue_min_thresh_time == 0:
+            self.buffer_queue_min_thresh_time_auto = float(self._max_clip_length / self.video_metadata.video_fps_exact)
+            self.update_gst_buffers()
         self.seek_video(self.frame_num)
 
     @GObject.Property()
@@ -92,15 +108,9 @@ class VideoPreview(Gtk.Widget):
 
     @buffer_queue_min_thresh_time.setter
     def buffer_queue_min_thresh_time(self, value):
-        self._buffer_queue_min_thresh_time = value
-
-        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time
-        buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
-
-        self.video_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
-        self.video_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
-        self.audio_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
-        self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
+        if self._buffer_queue_min_thresh_time != value:
+            self._buffer_queue_min_thresh_time = value
+            self.update_gst_buffers()
 
     @GObject.Property()
     def mosaic_restoration_model(self):
@@ -162,6 +172,15 @@ class VideoPreview(Gtk.Widget):
         else:
             print("unhandled pipeline state in button_play_pause_callback", pipe_state.nick_value)
 
+    def update_gst_buffers(self):
+        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
+        buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
+
+        self.video_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
+        self.video_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
+        self.audio_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
+        self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
+
     def seek_video(self, seek_position):
         if self.pipeline:
             seek_position_ns = int(seek_position * self.file_duration_ns / self.file_duration_frames)
@@ -183,6 +202,8 @@ class VideoPreview(Gtk.Widget):
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
         self.file_duration_frames = self.video_metadata.frames_count
+        self._buffer_queue_min_thresh_time_auto_min = float(self._max_clip_length / self.video_metadata.video_fps_exact)
+        self.buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
 
         self.widget_timeline.set_property("duration", self.file_duration_frames)
 
@@ -237,6 +258,9 @@ class VideoPreview(Gtk.Widget):
     def autopause_if_not_enough_data_buffered(self):
         self.pipeline.set_state(Gst.State.PAUSED)
         self.spinner_video_preview.set_visible(True)
+        if self._buffer_queue_min_thresh_time == 0 and self._video_preview_init_done:
+            self.buffer_queue_min_thresh_time_auto *= 1.5
+            self.update_gst_buffers()
 
     def init_pipeline(self):
         pipeline = Gst.Pipeline.new()
@@ -258,7 +282,7 @@ class VideoPreview(Gtk.Widget):
         appsrc.connect("end-of-stream", on_eos)
         pipeline.add(appsrc)
 
-        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time
+        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
         buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
 
         buffer_queue = Gst.ElementFactory.make('queue', None)
