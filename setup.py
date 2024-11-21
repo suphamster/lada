@@ -1,18 +1,19 @@
 from setuptools import setup, find_packages
+from lada import VERSION
 
 setup(
     name="lada",
-    version="0.1.0",
+    version=str(VERSION),
     description="Remove and recover pixelated areas in adult videos",
     packages=find_packages(where='.',include=['lada','lada.*']),
-    install_requires=['torch>=2.4.0,<2.5.0', 'ultralytics', 'numpy', 'opencv-python', 'tqdm'],
+    install_requires=['torch', 'ultralytics', 'numpy', 'opencv-python', 'tqdm', 'av'],
     extras_require={
         'rvrt': [],
         'tecogan': ['scikit-image'],
         'deepmosaics': ['scikit-image'],
-        'basicvsrpp': ['mmengine', 'mmcv', 'mmagic', 'albumentations'],
+        'basicvsrpp': ['mmengine==0.10.5', 'mmcv'], # mmengine pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
         'gui': ['pycairo', 'PyGObject'],
-        'training': ['av', 'torchvision'],
+        'training': ['torchvision', 'albumentations'],
         'dataset-creation': ['lapx', 'timm', 'einops', 'torchvision'],
         'packaging-flatpak': ['pip-tools', 'req2flatpak']
     },

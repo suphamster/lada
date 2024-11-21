@@ -1,13 +1,10 @@
 from mmengine.runner import load_checkpoint
 import torch
-from mmengine.registry import MODELS
 
-from lada.basicvsrpp.basicvsrpp_gan import BasicVSRPlusPlusGan, BasicVSRPlusPlusGanNet
-from mmagic.models.editors.basicvsr import BasicVSR
-from mmagic.utils import register_all_modules
+from lada.basicvsrpp.basicvsrpp_gan import BasicVSRPlusPlusGan
+from lada.basicvsrpp.mmagic.basicvsr import BasicVSR
+from lada.basicvsrpp import register_all_modules
 
-MODELS.register_module(name='BasicVSRPlusPlusGan', module=BasicVSRPlusPlusGan, force=False)
-MODELS.register_module(name='BasicVSRPlusPlusGanNet', module=BasicVSRPlusPlusGanNet, force=False)
 register_all_modules()
 
 BASICVSRPP_WEIGHTS_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage1/iter_10000.pth'

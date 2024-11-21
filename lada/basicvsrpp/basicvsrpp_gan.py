@@ -1,6 +1,6 @@
-from mmagic.registry import MODELS
-from mmagic.models.editors.basicvsr_plusplus_net import BasicVSRPlusPlusNet
-from mmagic.models.editors.real_basicvsr.real_basicvsr import RealBasicVSR
+from lada.basicvsrpp.mmagic.registry import MODELS
+from lada.basicvsrpp.mmagic.basicvsr_plusplus_net import BasicVSRPlusPlusNet
+from lada.basicvsrpp.mmagic.real_basicvsr import RealBasicVSR
 
 @MODELS.register_module()
 class BasicVSRPlusPlusGanNet(BasicVSRPlusPlusNet):

@@ -3,14 +3,9 @@ import os
 import os.path as osp
 from mmengine.config import Config, DictAction
 from mmengine.runner import Runner
-from mmengine.registry import DATASETS, MODELS
+from lada.basicvsrpp import register_all_modules
 
-from lada.basicvsrpp.basicvsrpp_gan import BasicVSRPlusPlusGan, BasicVSRPlusPlusGanNet
-from lada.basicvsrpp.mosaic_video_dataset import MosaicVideoDataset
-
-DATASETS.register_module(name='MosaicVideoDataset', module=MosaicVideoDataset, force=False)
-MODELS.register_module(name='BasicVSRPlusPlusGan', module=BasicVSRPlusPlusGan, force=False)
-MODELS.register_module(name='BasicVSRPlusPlusGanNet', module=BasicVSRPlusPlusGanNet, force=False)
+register_all_modules()
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')

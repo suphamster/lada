@@ -54,8 +54,10 @@ There is also a `bj_pov` model which was trained only on such specific clips and
 
 You can select the model to use in the GUI by an option in the sidepanel.
 
+> There are also models for NSFW detection for both mosaiced/pixelated and non-obstructed sources which are used internally for pre-processing/training.
+
 ## Installation
-On Linux the easist way to install the app is to get it from Flathub:
+On Linux the easiest way to install the app is to get it from Flathub:
 
 <a href='https://flathub.org/apps/details/io.github.ladaapp.lada'><img width='200' alt='Download from Flathub' src='https://flathub.org/api/badge?svg&locale=en'/></a>
 
@@ -67,7 +69,7 @@ Contributions welcome if someone is able to package the app for other systems.
 ### System dependencies
 
 1) Install Python
-   > I haven't tested compatibility with latest version. Would recommend you stick to <= 3.12
+   > I haven't tested compatibility with latest version. Would recommend you to use <= 3.12.
 
 2) Install FFmpeg according to their [official docs](https://ffmpeg.org/download.html)
 
@@ -84,13 +86,14 @@ This is a Python project so let's install our dependencies from PyPy:
     source .venv/bin/activate
     ```
 
-2) Install PyTorch **2.4.x** as described in their [official documentation](https://pytorch.org/get-started/locally)
-
+2) Install PyTorch as described in their [official documentation](https://pytorch.org/get-started/locally)
 
 3) Install MMCV version as described in their [official documentation](https://mmcv.readthedocs.io/en/latest/get_started/installation.html)
    > You can install it either with their own installer `mim` or via `pip`.
    > I've had issues installing via `mim` but `pip` worked. Just make sure to select the correct command depending on your system and PyTorch installation 
 
+   > At the time of writing MMCV does only ship binary wheels for Torch up to 2.4.x. 
+   > You'll have to compile MMCV yourself following their documentation (not a big deal) or downgrade torch/torchvision to 2.4.x .
 
 4) Install this project together with the remaining dependencies
     ```bash
@@ -101,12 +104,9 @@ This is a Python project so let's install our dependencies from PyPy:
 
 5) Apply patches
 
-    The current mosaic removal modal is based on BasicVSR++ provided via MMagic. You'll have to patch some files to fix some issues not currently fixed in their released version.
+    In order to fix resume training of the mosaic removal model apply the following patch not currently present in latest upstream (0.10.5):
     ```bash
-    patch -u ./.venv/lib/python3.12/site-packages/mmagic/__init__.py  -i patches/bump_mmagic_mmcv_dependency_bound.patch
-    patch -u ./.venv/lib/python3.12/site-packages/mmagic/models/editors/vico/vico_utils.py -i patches/fix_diffusers_import.patch
     patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
-    patch -u ./.venv/lib/python3.12/site-packages/mmagic/models/losses/perceptual_loss.py -i patches/enable_loading_vgg19_from_local_file.patch
     ```
 
 ### Install models
@@ -145,6 +145,8 @@ python lada/basicvsrpp/export_gan_inference_model_weights.py
 
 Training the nsfw and mosaic detection models should be straight forward. Check out the official docs of [Ultralytics](https://docs.ultralytics.com/).
 
+> Initial models were trained using Python 3.12 / Torch 2.4.1-cuda-12.4 / MMCV 2.2.0 / Ultralytics 8.3.23 but would suggest to use latest versions as described in the Developer Installation section.
+
 ## Datasets
 The goal of the mosaic detection model is to detect for each frame of the video if and where pixelated/mosaic regions exist.
 It will try to crop and cut small clips and hand them over to the mosaic removal model. This will try to recover what it can from those degraded frames and come up with a somewhat plausible replacement for those images.
@@ -157,6 +159,9 @@ AFAIK, there are no public datasets for such purpose and I'll not provide one ei
 python create_mosaic_removal_video_dataset.py --input <input dir> --output-root <output dir>
 ```
 Here `<input dir>` should be a directory containing your source material (video files without mosaics).
+
+You will need to pass some arguments to this script. Try them on a small subset of your data first to see how it works.
+For your final dataset you don't need to save full size videos, mosaic and cropped clips as mosaics are created on-the-fly when training the model (check out `MosaicVideoDataset`).
 
 This script uses the nsfw detection model. It's not super accurate so you'll have to validate and remove false-positive clips manually after it ran.
 You probably also want to exclude very low quality video clips by some `jq` magic to filter on the `video_quality.overall` attribute in the created metadata json files. `0.1` seems to be a good value.
@@ -184,7 +189,7 @@ This project builds on work done by these fantastic people
 : used to assess video quality of created clips during the dataset creation process to filter out low quality videos
 
 [Twitter Emoji](https://github.com/twitter/twemoji)
-: used eggplan emoji as base for the app icon (feel free to contribute a better logo)
+: used eggplant emoji as base for the app icon (feel free to contribute a better logo)
 
 
 Previous iterations of the mosaic removal model used the following projects as a base
@@ -192,12 +197,3 @@ Previous iterations of the mosaic removal model used the following projects as a
 * [KAIR / rvrt](https://github.com/cszn/KAIR)
 
 * [TecoGAN-PyTorch](https://github.com/skycrapers/TecoGAN-PyTorch)
-
-
-
-
-
-
-
-
-

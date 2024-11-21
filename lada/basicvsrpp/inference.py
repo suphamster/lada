@@ -2,12 +2,11 @@ import os.path
 
 import numpy as np
 import torch
-from mmagic.registry import MODELS
-from mmagic.utils import register_all_modules
+from lada.basicvsrpp.mmagic.registry import MODELS
+from lada.basicvsrpp import register_all_modules
 from mmengine.config import Config
 from mmengine.runner import load_checkpoint
 
-from lada.basicvsrpp.basicvsrpp_gan import BasicVSRPlusPlusGan, BasicVSRPlusPlusGanNet
 from lada.lib.image_utils import img2tensor, tensor2img
 
 def get_default_gan_inference_config() -> dict:
@@ -38,7 +37,7 @@ def load_model(config: str | dict | None, checkpoint_path, device):
     elif type(config) == dict:
         pass
     else:
-        raise Exception("unsupported value for 'config', Must be either be a file path to a config file or a dict definition of the model")
+        raise Exception("unsupported value for 'config', Must be either a file path to a config file or a dict definition of the model")
     model = MODELS.build(config)
     load_checkpoint(model, checkpoint_path, map_location='cpu')
     model.cfg = config

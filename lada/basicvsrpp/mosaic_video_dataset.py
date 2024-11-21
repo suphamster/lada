@@ -6,7 +6,8 @@ import random
 import numpy as np
 import torch
 import torch.utils.data as data
-from mmagic.structures import DataSample
+from lada.basicvsrpp.mmagic.data_sample import DataSample
+from lada.basicvsrpp.mmagic.registry import DATASETS
 
 import lada.lib.video_utils as video_utils
 from lada.lib.mosaic_utils import addmosaic_base
@@ -17,6 +18,7 @@ from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_vide
 # import os
 # os.environ["QT_QPA_PLATFORM"] = "xcb"
 
+@DATASETS.register_module()
 class MosaicVideoDataset(data.Dataset):
     def __init__(self, **opt):
         super(MosaicVideoDataset, self).__init__()
