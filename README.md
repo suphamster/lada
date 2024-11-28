@@ -55,12 +55,10 @@ There is also a `bj_pov` model which was trained only on such specific clips and
 You can select the model to use in the GUI by an option in the sidepanel.
 
 ## Installation
-The submission to flathub is in-process. Until then, you can try to flatpak yourself via:
-> ```shell
-> flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-> flatpak install --user -y flathub org.flatpak.Builder
-> flatpak run org.flatpak.Builder --force-clean --sandbox --user --install --install-deps-from=flathub flatpak/build flatpak/io.github.ladaapp.lada.yaml
-> ```
+On Linux the easist way to install the app is to get it from Flathub:
+
+<a href='https://flathub.org/apps/details/io.github.ladaapp.lada'><img width='200' alt='Download from Flathub' src='https://flathub.org/api/badge?svg&locale=en'/></a>
+
 If you don't want to use flatpak or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
 Contributions welcome if someone is able to package the app for other systems.
 
@@ -170,7 +168,7 @@ The data to train the nsfw detection model was hand-labeled using [labelme](http
 The software currently is not very polished, but it worked for me and maybe works for you. If you want to make it better you probably don't have to look far to find things to improve :)
 
 
-## Credits (not exhaustive)
+## Credits
 This project builds on work done by these fantastic people
 
 [DeepMosaics](https://github.com/HypoX64/DeepMosaics):
