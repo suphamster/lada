@@ -3,10 +3,15 @@
     <id>io.github.ladaapp.lada</id>
 
     <name>lada</name>
-    <summary>Remove and recover pixelated content in adult videos</summary>
+    <summary>Recover pixelated adult videos</summary>
 
     <metadata_license>MIT</metadata_license>
     <project_license>AGPL-3.0-or-later</project_license>
+    
+    <branding>
+        <color type="primary" scheme_preference="light">#9141ac</color>
+        <color type="primary" scheme_preference="dark">#3d3846</color>
+    </branding>
 
     <developer id="io.github.ladaapp">
         <name>ladaapp</name>
@@ -22,11 +27,7 @@
     </categories>
 
     <description>
-        <p>Features</p>
-        <ul>
-            <li>Remove and recover pixelated content in adult videos</li>
-            <li>Watch or convert your videos via CLI or GUI</li>
-        </ul>
+        <p>Remove and recover pixelated content in adult videos (mostly present in Japanese sources (JAV)). Watch or export your recovered videos via CLI or GUI.</p>
     </description>
 
     <url type="homepage">https://github.com/ladaapp/lada</url>
@@ -48,24 +49,24 @@
         </screenshot>
     </screenshots>
     <releases>
-        <release date="2022-11-09" version="0.2.2">
+        <release date="2024-11-09" version="0.2.2">
             <description>
-                <p>support light theme (use system default theme)</p>
-                <p>show cursor timeline position</p>
+                <p>Support light theme (use system default theme)</p>
+                <p>Show cursor timeline position</p>
                 <p>Support video files with variable frame rates</p>
             </description>
         </release>
-        <release date="2022-11-05" version="0.2.1">
+        <release date="2024-11-05" version="0.2.1">
             <description>
                 <p>Small improvement to generic restoration model</p>
             </description>
         </release>
-        <release date="2022-11-02" version="0.2.0">
+        <release date="2024-11-02" version="0.2.0">
             <description>
                 <p>New mosaic detection model</p>
             </description>
         </release>
-        <release date="2022-10-29" version="0.1.0">
+        <release date="2024-10-29" version="0.1.0">
             <description>
                 <p>Initial release of this project including all trained models</p>
             </description>
