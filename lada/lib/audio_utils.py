@@ -1,3 +1,5 @@
+import av
+import io
 import os
 import subprocess
 import shutil
@@ -24,6 +26,13 @@ def get_audio_codec(file_path: str) -> Optional[str]:
 
 def is_output_container_compatible_with_input_audio_codec(audio_codec, output_path):
     file_extension = os.path.splitext(output_path)[1]
-    known_container_file_extensions = ('.mp4', '.mkv')
-    known_compatible_audio_codecs = ('aac', 'mp3', 'opus')
-    return file_extension in known_container_file_extensions and audio_codec in known_compatible_audio_codecs
+    if file_extension in ('.mp4', '.m4v'):
+        output_container_format = "mp4"
+    elif file_extension == '.mkv':
+        output_container_format = "matroska"
+    else:
+        raise NotImplementedError("Currently only .mp4 and .mkv are supported output formats when source contains audio streams")
+
+    buf = io.BytesIO()
+    with av.open(buf, 'w', output_container_format) as container:
+        return audio_codec in container.supported_codecs
