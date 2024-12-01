@@ -79,7 +79,6 @@ class FrameRestorer:
     def __call__(self):
         with video_utils.VideoReader(self.video_file) as video_reader:
             video_metadata = video_utils.get_video_meta_data(self.video_file)
-            frame_count = video_metadata.frames_count
             frame_num = video_utils.offset_ns_to_frame_num(self.start_ns, video_metadata.video_fps_exact)
             if self.start_ns > 0:
                 video_reader.seek(self.start_ns)
@@ -87,8 +86,7 @@ class FrameRestorer:
             video_frames_generator = video_reader.frames()
 
             if self.passthrough:
-                while frame_num < frame_count:
-                    frame, frame_pts = next(video_frames_generator)
+                for frame, frame_pts in video_frames_generator:
                     yield frame, frame_pts
                     frame_num += 1
 
@@ -143,26 +141,21 @@ class FrameRestorer:
 
                     clip_buffer.append(clip)
 
-                while frame_num < frame_count:
+                for frame, frame_pts in video_frames_generator:
                     if len(clip_buffer) == 0:
-                        frame, frame_pts = next(video_frames_generator)
                         yield frame, frame_pts
                         frame_num += 1
                     else:
-                        while True:
-                            if len(clip_buffer) == 0:
-                                break
-                            frame, frame_pts = next(video_frames_generator)
-                            for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
-                                clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
-                                clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
-                                clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
-                                clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
-                                t, l, b, r = orig_clip_box
-                                frame[t:b + 1, l:r + 1, :] = clip_img
-                            yield frame, frame_pts
-                            frame_num += 1
+                        for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
+                            clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
+                            clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
+                            clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
+                            clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
+                            t, l, b, r = orig_clip_box
+                            frame[t:b + 1, l:r + 1, :] = clip_img
+                        yield frame, frame_pts
+                        frame_num += 1
 
-                            processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
-                            for processed_clip in processed_clips:
-                                clip_buffer.remove(processed_clip)
+                        processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
+                        for processed_clip in processed_clips:
+                            clip_buffer.remove(processed_clip)
