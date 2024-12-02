@@ -227,11 +227,11 @@ class VideoPreview(Gtk.Widget):
             video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(file_path)[0])}.tmp{os.path.splitext(file_path)[1]}")
             video_writer = video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
                                        self.video_metadata.video_height, self.video_metadata.video_fps_exact,
-                                       codec=video_codec, crf=crf)
+                                       time_base=self.video_metadata.time_base, codec=video_codec, crf=crf)
 
             progress_update_step_size = 100
-            for frame_num, restored_frame in enumerate(self.frame_restorer_generator):
-                video_writer.write(restored_frame, bgr2rgb=True)
+            for frame_num, (restored_frame, restored_frame_pts) in enumerate(self.frame_restorer_generator):
+                video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
                 if frame_num % progress_update_step_size == 0:
                     self.emit('video-export-progress', frame_num / self.video_metadata.frames_count)
 
