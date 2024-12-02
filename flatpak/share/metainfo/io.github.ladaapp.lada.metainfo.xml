@@ -49,6 +49,13 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-02" version="0.2.3">
+            <description>
+                <p>Fix broken GUI export</p>
+                <p>Improve support for files using various audio formats</p>
+                <p>Fix handling overlapping detections that could result in flickering in certain scenes</p>
+            </description>
+        </release>
         <release date="2024-11-09" version="0.2.2">
             <description>
                 <p>Support light theme (use system default theme)</p>
