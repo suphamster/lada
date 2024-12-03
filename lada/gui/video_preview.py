@@ -3,6 +3,7 @@ import pathlib
 import tempfile
 import threading
 
+import numpy as np
 from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
 
 from lada.gui.timeline import Timeline
@@ -266,8 +267,13 @@ class VideoPreview(Gtk.Widget):
         pipeline = Gst.Pipeline.new()
 
         appsrc = Gst.ElementFactory.make('appsrc', "numpy-source")
+        # TODO: As we're using BGR format GStreamer expects to receive a 'buffer size = rstride (image) * height' where 'rstride = RU4 (width * 3)'
+        # RU4 here means that it will round up to nearest number divisible by 4. (https://gstreamer.freedesktop.org/documentation/additional/design/mediatype-video-raw.html)
+        # Most common video widths like 1920, 1280, 640 are divisible by 4 so no problem we can allocate a buffer according to numpy shape H*W*C
+        # But if we receive a video with a width which isn't divisible by 4 (I saw this on a file with dimensions 854 x 480) then the pipeline would break as H*W*C is less then expected buffer size given above calculation.
+        # For now let's just add some zero padding. Maybe there are ways to explicitly set the stride size or tell GStreamer about our zero padding but couldn't find anything...
         caps = Gst.Caps.from_string(
-            f"video/x-raw,format=BGR,width={self.video_metadata.video_width},height={self.video_metadata.video_height},framerate={self.video_metadata.video_fps_exact.numerator}/{self.video_metadata.video_fps_exact.denominator}")
+            f"video/x-raw,format=BGR,width={self.video_metadata.video_width + self.video_metadata.video_width % 4},height={self.video_metadata.video_height},framerate={self.video_metadata.video_fps_exact.numerator}/{self.video_metadata.video_fps_exact.denominator}")
         appsrc.set_property('caps', caps)
         appsrc.set_property('is-live', False)
         appsrc.set_property('emit-signals', True)
@@ -393,6 +399,12 @@ class VideoPreview(Gtk.Widget):
 
         if self.frame_num < self.video_metadata.frames_count:
             frame, frame_pts = next(self.frame_restorer_generator)
+
+            width = frame.shape[1]
+            # TODO: see reasoning for this zero padding in TODO where we specify appsrc Caps
+            if width % 4 != 0:
+                frame = np.pad(frame, ((0, 0), (0, width % 4), (0, 0)), mode='constant', constant_values=0)
+
             data = frame.tostring()
 
             buf = Gst.Buffer.new_allocate(None, len(data), None)
