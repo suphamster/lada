@@ -41,10 +41,7 @@ class LadaApplication(Adw.Application):
     def on_about_action(self, *args):
         about = Adw.AboutDialog(application_name='lada',
                                 application_icon='io.github.ladaapp.lada',
-                                developer_name='Unknown',
-                                version=VERSION,
-                                developers=['Unknown'],
-                                copyright='© 2024 Unknown')
+                                version=VERSION)
         about.present(self.props.active_window)
 
     def create_action(self, name, callback, shortcuts=None):
