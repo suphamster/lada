@@ -111,7 +111,7 @@ class Timeline(Gtk.Widget):
         width = allocation.width
         height = allocation.height
 
-        playhead_position_x = int((self._playhead_position / self._duration) * width) if self._duration > 0 else 0
+        playhead_position_x = min(int((self._playhead_position / self._duration) * width), width - 1) if self._duration > 0 else 0
 
         if self.style_manager:
             playhead_color = self.style_manager.get_accent_color()
