@@ -13,8 +13,6 @@ from gi.repository import Gtk, Gio, Adw, Gdk, Gst
 
 here = pathlib.Path(__file__).parent.resolve()
 
-Gst.init(None)
-
 from lada.gui.window import MainWindow
 
 class LadaApplication(Adw.Application):
@@ -30,7 +28,9 @@ class LadaApplication(Adw.Application):
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         resource = Gio.resource_load(str(here.joinpath('resources.gresource')))
-        Gio.Resource._register(resource)
+        Gio.resources_register(resource)
+
+        Gst.init(None)
 
     def do_activate(self):
         win = self.props.active_window

@@ -384,7 +384,7 @@ class VideoPreview(Gtk.Widget):
         self.video_buffer_queue, self.audio_buffer_queue = buffer_queue, audio_queue
         self.picture_video_preview.set_paintable(paintable)
 
-        GLib.timeout_add(500, self.update_current_position)
+        GLib.timeout_add(20, self.update_current_position)
 
     def on_seek_data(self, appsrc, offset_ns):
         self.pipeline.set_state(Gst.State.PAUSED)
@@ -397,26 +397,27 @@ class VideoPreview(Gtk.Widget):
         if not self.frame_restorer_generator:
             self.setup_frame_restorer(start_ns=0)
 
-        if self.frame_num < self.video_metadata.frames_count:
+        try:
             frame, frame_pts = next(self.frame_restorer_generator)
-
-            width = frame.shape[1]
-            # TODO: see reasoning for this zero padding in TODO where we specify appsrc Caps
-            if width % 4 != 0:
-                frame = np.pad(frame, ((0, 0), (0, width % 4), (0, 0)), mode='constant', constant_values=0)
-
-            data = frame.tostring()
-
-            buf = Gst.Buffer.new_allocate(None, len(data), None)
-            buf.fill(0, data)
-            buf.duration = self.frame_duration_ns
-            timestamp = self.frame_num * self.frame_duration_ns
-            buf.pts = int(timestamp)
-            buf.offset = self.frame_num
-            src.emit('push-buffer', buf)
-            self.frame_num += 1
-        else:
+        except StopIteration:
             src.emit("end-of-stream")
+            return
+
+        width = frame.shape[1]
+        # TODO: see reasoning for this zero padding in TODO where we specify appsrc Caps
+        if width % 4 != 0:
+            frame = np.pad(frame, ((0, 0), (0, width % 4), (0, 0)), mode='constant', constant_values=0)
+
+        data = frame.tostring()
+
+        buf = Gst.Buffer.new_allocate(None, len(data), None)
+        buf.fill(0, data)
+        buf.duration = self.frame_duration_ns
+        timestamp = self.frame_num * self.frame_duration_ns
+        buf.pts = int(timestamp)
+        buf.offset = self.frame_num
+        src.emit('push-buffer', buf)
+        self.frame_num += 1
 
     def update_current_position(self):
         res, position = self.pipeline.query_position(Gst.Format.TIME)
