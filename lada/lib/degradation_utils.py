@@ -29,7 +29,11 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate):
 
     buf = io.BytesIO()
     with av.open(buf, 'w', 'mp4') as container:
-        stream = container.add_stream(codec, rate=1)
+        if codec == 'libx265':
+            options = {'x265-params': 'log_level=error'}
+        else:
+            options = None
+        stream = container.add_stream(codec, rate=1, options=options)
         stream.height = imgs[0].shape[0]
         stream.width = imgs[0].shape[1]
         stream.pix_fmt = 'yuv420p'
