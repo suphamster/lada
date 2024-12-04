@@ -68,6 +68,8 @@ class MainWindow(Adw.ApplicationWindow):
         idx = available_models.index("basicvsrpp-generic")
         self.combo_row_mosaic_removal_models.set_selected(idx)
 
+        self.opened_file: Gio.File = None
+
     @Gtk.Template.Callback()
     def button_open_file_callback(self, button_clicked):
         self.show_open_dialog()
@@ -155,9 +157,12 @@ class MainWindow(Adw.ApplicationWindow):
         video_file_filter.add_mime_type("video/*")
         file_dialog.set_default_filter(video_file_filter)
         file_dialog.set_title("Save restored video file")
+        file_dialog.set_initial_folder(self.opened_file.get_parent())
+        file_dialog.set_initial_name(f"{os.path.splitext(self.opened_file.get_basename())[0]}.restored.mp4")
         file_dialog.save(callback=lambda dialog, result: self.start_export(dialog.save_finish(result)))
 
     def open_file(self, file: Gio.File):
+        self.opened_file = file
         self.set_title(os.path.basename(file.get_path()))
         self.switch_to_main_view()
 
