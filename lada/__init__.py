@@ -7,4 +7,4 @@ if "FLATPAK_ID" in os.environ:
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
-VERSION = '0.2.3-dev'
+VERSION = '0.2.4-dev'
