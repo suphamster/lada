@@ -37,7 +37,7 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate):
 
         for img in imgs:
             frame = av.VideoFrame.from_ndarray(img, format='rgb24')
-            frame.pict_type = 'NONE'
+            frame.pict_type = av.video.frame.PictureType.NONE
             for packet in stream.encode(frame):
                 container.mux(packet)
 
