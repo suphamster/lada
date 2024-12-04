@@ -359,6 +359,7 @@ class VideoPreview(Gtk.Widget):
             match msg.type:
                 case Gst.MessageType.EOS:
                     print("eos")
+                    self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
                 case Gst.MessageType.ERROR:
                     (err, _) = msg.parse_error()
                     print(f'Error from {msg.src.get_path_string()}: {err}')
@@ -421,9 +422,9 @@ class VideoPreview(Gtk.Widget):
 
     def update_current_position(self):
         res, position = self.pipeline.query_position(Gst.Format.TIME)
-        label_text = self.get_time_label_text(position)
-        self.label_current_time.set_text(label_text)
         if res and position >= 0:
+            label_text = self.get_time_label_text(position)
+            self.label_current_time.set_text(label_text)
             position_frames = int(position * self.file_duration_frames / self.file_duration_ns)
             self.widget_timeline.set_property("playhead-position", position_frames)
         return True
