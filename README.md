@@ -8,8 +8,16 @@
 ### GUI
 After opening a file you can either watch a restored version of the provided video in the app (make sure you've enabled the Preview toggle) or you can export it to a new file.
 
-<img src="assets/screenshot_gui_1.png" alt="screenshot showing video preview" width="300">
-<img src="assets/screenshot_gui_2.png" alt="screenshot showing video export" width="300">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot_gui_1_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/screenshot_gui_1_light.png">
+  <img alt="Screenshot showing video preview" src="assets/screenshot_gui_1_dark.png" width="300">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot_gui_2_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/screenshot_gui_2_light.png">
+  <img alt="Screenshot showing video export" src="assets/screenshot_gui_2_dark.png" width="300">
+</picture>
 
 > If you've installed the flatpak then it should be available in your regular application launcher. You can also run it via `flatpak run io.github.ladaapp.lada`
 > 

@@ -2,7 +2,7 @@
 <component type="desktop-application">
     <id>io.github.ladaapp.lada</id>
 
-    <name>lada</name>
+    <name>Lada</name>
     <summary>Recover pixelated adult videos</summary>
 
     <metadata_license>MIT</metadata_license>
@@ -36,11 +36,11 @@
 
     <screenshots>
         <screenshot type="default">
-            <image>https://github.com/ladaapp/lada/raw/main/assets/screenshot_gui_1.png</image>
+            <image>https://github.com/ladaapp/lada/raw/main/assets/screenshot_gui_1_dark.png</image>
             <caption>Watching restored video</caption>
         </screenshot>
         <screenshot>
-            <image>https://github.com/ladaapp/lada/raw/main/assets/screenshot_gui_2.png</image>
+            <image>https://github.com/ladaapp/lada/raw/main/assets/screenshot_gui_2_dark.png</image>
             <caption>Exporting restored video</caption>
         </screenshot>
         <screenshot>
