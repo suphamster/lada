@@ -11,7 +11,15 @@ from torchvision import models
 import torch.utils.model_zoo as model_zoo
 
 def device_to_gpu_id(device):
-    return str(-1 if device == 'cpu' else device.split(1))
+    if device == 'cpu':
+        device_id = -1
+    elif device == 'cuda':
+        device_id = 0
+    elif device.startswith('cuda:'):
+        device_id = device.split(':')[1]
+    else:
+        raise ValueError(f"Invalid or uncovered device name: {device}")
+    return str(device_id)
 
 ################################## IO ##################################
 def save(net,path,gpu_id):
