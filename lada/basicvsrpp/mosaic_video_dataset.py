@@ -141,7 +141,7 @@ class MosaicVideoDataset(data.Dataset):
             'fps': self.fps[index]
         })
         inputs = torch.stack(img_lqs, dim=0)
-        # inputs = tensor (B,C,H,W)
+        # inputs = tensor (T,C,H,W)
         return {'inputs': inputs, 'data_samples': data_sample}
 
     def __len__(self):
