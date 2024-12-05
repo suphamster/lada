@@ -446,15 +446,15 @@ def parse_args():
                         help="Store frames of all videos in output root directory instead of using sub directories per clip")
     parser.add_argument('--save-uncropped', default=False, action=argparse.BooleanOptionalAction,
                         help="Save uncropped, full-size images and masks")
-    parser.add_argument('--save-cropped', default=False, action=argparse.BooleanOptionalAction,
+    parser.add_argument('--save-cropped', default=True, action=argparse.BooleanOptionalAction,
                         help="Save cropped images and masks")
     parser.add_argument('--stride-mode-activation-length', default=0, type=int, help="start activating stride-mode instead of processing every frame in the video when video is at least this long. values is in seconds")
     parser.add_argument('--stride-length', default=0, type=int, help="skip frames in between long videos to prevent sampling too many scene from a single file. value is in seconds")
     parser.add_argument('--save-mosaic', default=False, action=argparse.BooleanOptionalAction,
                         help="Create and save mosaic images and masks")
-    parser.add_argument('--resize-crops', default=False, action=argparse.BooleanOptionalAction,
+    parser.add_argument('--resize-crops', default=True, action=argparse.BooleanOptionalAction,
                         help="Resize crops to out-size. adds padding if necessary")
-    parser.add_argument('--preserve-crops', default=False, action=argparse.BooleanOptionalAction,
+    parser.add_argument('--preserve-crops', default=True, action=argparse.BooleanOptionalAction,
                         help="Keeps scale/resolution of cropped scenes. adds padding if necessary")
     parser.add_argument('--save-as-images', default=False, action=argparse.BooleanOptionalAction,
                         help="Save as images instead of videos")
@@ -462,7 +462,6 @@ def parse_args():
                         help="degrades mosaic and clean video clips to better match real world samples")
     args = parser.parse_args()
     return args
-
 
 def main():
     args = parse_args()
