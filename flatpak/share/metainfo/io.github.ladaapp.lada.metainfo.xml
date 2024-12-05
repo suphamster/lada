@@ -49,6 +49,12 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-05" version="0.2.5">
+            <description>
+                <p>GUI: Adjustments and fixes for timeline playhead position updates</p>'
+                <p>GUI: set initial folder and file name based on file input</p>
+            </description>
+        </release>
         <release date="2024-12-04" version="0.2.4">
             <description>
                 <p>Fix GUI crash when video width is not divisible by 4</p>'
