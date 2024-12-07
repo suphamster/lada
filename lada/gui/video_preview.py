@@ -22,6 +22,7 @@ class VideoPreview(Gtk.Widget):
     picture_video_preview = Gtk.Template.Child()
     widget_timeline: Timeline = Gtk.Template.Child()
     button_image_play_pause = Gtk.Template.Child()
+    button_image_mute_unmute = Gtk.Template.Child()
     label_current_time = Gtk.Template.Child()
     label_cursor_time = Gtk.Template.Child()
     spinner_video_preview = Gtk.Template.Child()
@@ -45,6 +46,7 @@ class VideoPreview(Gtk.Widget):
 
         self.appsrc: GstApp | None = None
         self.audio_uridecodebin: Gst.UriDecodeBin | None = None
+        self.audio_volume: Gst.Volume | None = None
         self.pipeline: Gst.Pipeline | None = None
         self.video_buffer_queue: Gst.Queue | None = None
         self.audio_buffer_queue: Gst.Queue | None = None
@@ -163,6 +165,8 @@ class VideoPreview(Gtk.Widget):
 
     @Gtk.Template.Callback()
     def button_play_pause_callback(self, button_clicked):
+        if not self.pipeline:
+            return
         pipe_state = self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
         if pipe_state.state == Gst.State.PLAYING:
             self.should_be_paused = True
@@ -172,6 +176,15 @@ class VideoPreview(Gtk.Widget):
             self.pipeline.set_state(Gst.State.PLAYING)
         else:
             print("unhandled pipeline state in button_play_pause_callback", pipe_state.nick_value)
+
+    @Gtk.Template.Callback()
+    def button_mute_unmute_callback(self, button_clicked):
+        if not self.pipeline:
+            return
+        muted = self.audio_volume.get_property("mute")
+        self.audio_volume.set_property("mute", not muted)
+        icon_name =  "speaker-4-symbolic" if muted else  "speaker-0-symbolic"
+        self.button_image_mute_unmute.set_property("icon-name", icon_name)
 
     def update_gst_buffers(self):
         buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
@@ -330,6 +343,9 @@ class VideoPreview(Gtk.Widget):
         audio_audioconvert = Gst.ElementFactory.make('audioconvert', None)
         pipeline.add(audio_audioconvert)
 
+        audio_volume = Gst.ElementFactory.make('volume', None)
+        pipeline.add(audio_volume)
+
         audio_sink = Gst.ElementFactory.make('autoaudiosink', None)
         pipeline.add(audio_sink)
 
@@ -350,7 +366,8 @@ class VideoPreview(Gtk.Widget):
         # note that we cannot link decodebin directly to audio_queue as pads are dynamically added and not available at this point
         # see on_pad_added()
         audio_queue.link(audio_audioconvert)
-        audio_audioconvert.link(audio_sink)
+        audio_audioconvert.link(audio_volume)
+        audio_volume.link(audio_sink)
 
         appsrc.link(buffer_queue)
         buffer_queue.link(video_sink)
@@ -381,6 +398,7 @@ class VideoPreview(Gtk.Widget):
 
         self.appsrc = appsrc
         self.audio_uridecodebin = audio_uridecodebin
+        self.audio_volume = audio_volume
         self.pipeline = pipeline
         self.video_buffer_queue, self.audio_buffer_queue = buffer_queue, audio_queue
         self.picture_video_preview.set_paintable(paintable)

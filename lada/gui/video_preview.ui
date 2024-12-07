@@ -47,6 +47,20 @@
                 <property name="margin-bottom">12</property>
 
                 <child>
+                    <object class="GtkButton" id="button_mute_unmute">
+                        <property name="receives-default">true</property>
+                        <property name="margin-end">8</property>
+                        <child>
+                            <object class="GtkImage" id="button_image_mute_unmute">
+                                <property name="icon-name">speaker-4-symbolic</property>
+                            </object>
+                        </child>
+
+                        <signal name="clicked" handler="button_mute_unmute_callback"/>
+                    </object>
+                </child>
+
+                <child>
                     <object class="GtkButton" id="button_play_pause">
                         <property name="receives-default">true</property>
                         <property name="margin-end">8</property>

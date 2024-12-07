@@ -3,5 +3,7 @@
   <gresource prefix="/io/github/ladaapp/lada/icons/scalable/actions">
     <file alias="cafe-symbolic.svg">icons/cafe-symbolic.svg</file>
     <file alias="check-round-outline2-symbolic.svg">icons/check-round-outline2-symbolic.svg</file>
+    <file alias="speaker-0-symbolic.svg">icons/speaker-0-symbolic.svg</file>
+    <file alias="speaker-4-symbolic.svg">icons/speaker-4-symbolic.svg</file>
   </gresource>
 </gresources>
