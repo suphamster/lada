@@ -257,6 +257,9 @@ class VideoPreview(Gtk.Widget):
         exporter_thread = threading.Thread(target=run_export)
         exporter_thread.start()
 
+    def grab_focus(self):
+        self.button_play_pause.grab_focus()
+
     def adjust_pipeline_with_new_source_file(self):
         caps = Gst.Caps.from_string(
             f"video/x-raw,format=BGR,width={self.video_metadata.video_width},height={self.video_metadata.video_height},framerate={self.video_metadata.video_fps_exact.numerator}/{self.video_metadata.video_fps_exact.denominator}")

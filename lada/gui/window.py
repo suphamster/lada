@@ -171,6 +171,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         def show_video_preview(obj):
             self.stack_video_preview.set_visible_child(self.widget_video_preview)
+            self.widget_video_preview.grab_focus()
 
         self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
         self.widget_video_preview.open_video_file(file)
