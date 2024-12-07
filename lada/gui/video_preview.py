@@ -19,6 +19,7 @@ class VideoPreview(Gtk.Widget):
     __gtype_name__ = 'VideoPreview'
 
     button_play_pause = Gtk.Template.Child()
+    button_mute_unmute = Gtk.Template.Child()
     picture_video_preview = Gtk.Template.Child()
     widget_timeline: Timeline = Gtk.Template.Child()
     button_image_play_pause = Gtk.Template.Child()
@@ -150,6 +151,7 @@ class VideoPreview(Gtk.Widget):
     @application.setter
     def application(self, value):
         self._application = value
+        self._setup_shortcuts()
 
     @GObject.Signal(name="video-preview-init-done")
     def video_preview_init_done_signal(self):
@@ -490,3 +492,8 @@ class VideoPreview(Gtk.Widget):
 
         self.frame_restorer_generator = frame_restorer()
         self.frame_num = video_utils.offset_ns_to_frame_num(start_ns, self.video_metadata.video_fps_exact)
+
+    def _setup_shortcuts(self):
+        self._application.shortcuts.register_group("preview", "Preview")
+        self._application.shortcuts.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
+        self._application.shortcuts.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")

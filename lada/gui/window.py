@@ -34,6 +34,7 @@ class MainWindow(Adw.ApplicationWindow):
     progress_bar_file_export = Gtk.Template.Child()
     status_page_export_video = Gtk.Template.Child()
     banner_no_gpu = Gtk.Template.Child()
+    shortcut_controller = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -69,6 +70,13 @@ class MainWindow(Adw.ApplicationWindow):
         self.combo_row_mosaic_removal_models.set_selected(idx)
 
         self.opened_file: Gio.File = None
+
+        application = self.get_application()
+        application.shortcuts.register_group("files", "Files")
+        application.shortcuts.add("files", "open-file", "o", lambda *args: self.show_open_dialog(), "Open a video file")
+        application.shortcuts.add("files", "export-file", "e", lambda *args: self.show_export_dialog(), "Export recovered video")
+        application.shortcuts.register_group("preview", "Preview")
+        application.shortcuts.add("preview", "toggle-preview", "p", lambda *args: self.toggle_button_preview_video_callback(self.toggle_button_preview_video), "Enable/Disable preview mode")
 
     @Gtk.Template.Callback()
     def button_open_file_callback(self, button_clicked):

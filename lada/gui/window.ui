@@ -8,6 +8,13 @@
         <property name="default-height">550</property>
         <property name="resizable">true</property>
         <child>
+            <object class='GtkShortcutController' id="shortcut_controller">
+                <property name='scope'>managed</property>
+            </object>
+        </child>
+        <child>
+        </child>
+        <child>
             <object class="GtkStack" id="stack">
                 <property name="transition-type">crossfade</property>
                 <child>
@@ -346,6 +353,10 @@
             <item>
                 <attribute name="label">About</attribute>
                 <attribute name="action">app.about</attribute>
+            </item>
+            <item>
+                <attribute name="label">Shortcuts</attribute>
+                <attribute name="action">app.shortcuts</attribute>
             </item>
         </section>
     </menu>
