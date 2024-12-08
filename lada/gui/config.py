@@ -18,7 +18,6 @@ MODEL_NAMES_TO_FILES = {v: k for k, v in MODEL_FILES_TO_NAMES.items()}
 class Config:
     def __init__(self):
         self.preview_mode = None
-        self.preview_mode = None
         self.mosaic_restoration_model = None
         self.export_codec = None
         self.export_crf = None

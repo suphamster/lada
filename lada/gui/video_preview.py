@@ -85,6 +85,7 @@ class VideoPreview(Gtk.Widget):
         self._device = value
         self.models_cache = None
         if self._video_preview_init_done:
+            self.setup_frame_restorer()
             self.seek_video(self.frame_num)
 
     @property

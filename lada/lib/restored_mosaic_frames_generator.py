@@ -91,7 +91,7 @@ class FrameRestorer:
                     frame_num += 1
 
             else:
-                mosaic_generator = MosaicFramesGenerator(self.mosaic_detection_model, self.video_file, max_clip_length=self.max_clip_length,
+                mosaic_generator = MosaicFramesGenerator(self.mosaic_detection_model, self.video_file, device=self.device, max_clip_length=self.max_clip_length,
                                                          pad_mode=self.preferred_pad_mode, preserve_relative_scale=self.preserve_relative_scale,
                                                          dont_preserve_relative_scale=(not self.preserve_relative_scale), start_ns=self.start_ns)
                 clip_buffer = []

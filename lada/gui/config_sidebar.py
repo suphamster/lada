@@ -34,26 +34,19 @@ class ConfigSidebar(Gtk.ListBox):
         # init device
         combo_row_gpu_list = self.combo_row_gpu.get_model()
         available_gpus = utils.get_available_gpus()
-        # We're using GPU name in a ComboBox but libadwaita sets up the label with max-width-chars: 20 and there does not
-        # seem to be a way to overwrite this. So let's try to make sure GPU names are below 20 characters to be readable
-        for gpu_selection_idx, (device_id, device_name) in enumerate(available_gpus):
-            if device_name.startswith("NVIDIA GeForce RTX"):
-                device_name = device_name.replace("NVIDIA GeForce RTX", "RTX")
-                available_gpus[gpu_selection_idx] = (device_id, device_name)
         configured_gpu_selection_idx = None
         for gpu_selection_idx, (device_id, device_name) in enumerate(available_gpus):
             combo_row_gpu_list.append(device_name)
-            if self.config.device and utils.is_device_available(self.config.device) and utils.device_to_gpu_id(
-                    self.config.device) == device_id:
+            if self.config.device and utils.is_device_available(self.config.device) and utils.device_to_gpu_id(self.config.device) == device_id:
                 configured_gpu_selection_idx = gpu_selection_idx
 
         no_gpu_available = len(available_gpus) == 0
         if no_gpu_available:
-            self.config.device = "cpu"
+            self.device = "cpu"
         elif configured_gpu_selection_idx:
             self.combo_row_gpu.set_selected(configured_gpu_selection_idx)
         else:
-            self.config.device = f"cuda:{available_gpus[0][0]}"
+            self.device = f"cuda:{available_gpus[0][0]}"
             self.combo_row_gpu.set_selected(0)
 
         # init models
