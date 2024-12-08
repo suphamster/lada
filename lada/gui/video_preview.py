@@ -48,7 +48,7 @@ class VideoPreview(Gtk.Widget):
 
         self.appsrc: GstApp | None = None
         self.audio_uridecodebin: Gst.UriDecodeBin | None = None
-        self.audio_volume: Gst.Volume | None = None
+        self.audio_volume = None
         self.pipeline: Gst.Pipeline | None = None
         self.video_buffer_queue: Gst.Queue | None = None
         self.audio_buffer_queue: Gst.Queue | None = None
@@ -183,11 +183,14 @@ class VideoPreview(Gtk.Widget):
 
     @Gtk.Template.Callback()
     def button_mute_unmute_callback(self, button_clicked):
-        if not self.pipeline:
+        if not self._video_preview_init_done:
             return
         muted = self.audio_volume.get_property("mute")
-        self.audio_volume.set_property("mute", not muted)
-        icon_name =  "speaker-4-symbolic" if muted else  "speaker-0-symbolic"
+        self.set_mute_audio(self.audio_volume, not muted)
+
+    def set_mute_audio(self, audio_volume, mute: bool):
+        audio_volume.set_property("mute", mute)
+        icon_name = "speaker-0-symbolic" if mute else "speaker-4-symbolic"
         self.button_image_mute_unmute.set_property("icon-name", icon_name)
 
     def update_gst_buffers(self):
@@ -213,7 +216,7 @@ class VideoPreview(Gtk.Widget):
         else:
             self.label_cursor_time.set_visible(False)
 
-    def open_video_file(self, file):
+    def open_video_file(self, file: Gio.File, mute_audio: bool):
         file_path = file.get_path()
         self.video_metadata = video_utils.get_video_meta_data(file_path)
 
@@ -231,7 +234,7 @@ class VideoPreview(Gtk.Widget):
             self.frame_restorer_generator = None
             self.adjust_pipeline_with_new_source_file()
         else:
-            self.init_pipeline()
+            self.init_pipeline(mute_audio)
 
         self.pipeline.set_state(Gst.State.PLAYING)
 
@@ -283,7 +286,7 @@ class VideoPreview(Gtk.Widget):
             self.buffer_queue_min_thresh_time_auto *= 1.5
             self.update_gst_buffers()
 
-    def init_pipeline(self):
+    def init_pipeline(self, mute_audio: bool):
         pipeline = Gst.Pipeline.new()
 
         appsrc = Gst.ElementFactory.make('appsrc', "numpy-source")
@@ -351,6 +354,7 @@ class VideoPreview(Gtk.Widget):
         pipeline.add(audio_audioconvert)
 
         audio_volume = Gst.ElementFactory.make('volume', None)
+        self.set_mute_audio(audio_volume, mute_audio)
         pipeline.add(audio_volume)
 
         audio_sink = Gst.ElementFactory.make('autoaudiosink', None)

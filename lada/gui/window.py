@@ -113,7 +113,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.widget_video_preview.grab_focus()
 
         self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
-        self.widget_video_preview.open_video_file(file)
+        self.widget_video_preview.open_video_file(file, self.config_sidebar.get_property("mute_audio"))
 
     def start_export(self, file: Gio.File):
         self.stack.set_visible_child_name("file-export")

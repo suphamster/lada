@@ -21,6 +21,7 @@ class ConfigSidebar(Gtk.ListBox):
     spin_row_preview_buffer_duration = Gtk.Template.Child()
     spin_row_clip_max_duration = Gtk.Template.Child()
     switch_row_mosaic_cleaning = Gtk.Template.Child()
+    switch_row_mute_audio = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -82,6 +83,8 @@ class ConfigSidebar(Gtk.ListBox):
 
         self.switch_row_mosaic_cleaning.set_active(self.config.mosaic_pre_cleaning)
 
+        self.switch_row_mute_audio.set_active(self.config.mute_audio)
+
         self.init_done = True
 
     @GObject.Property()
@@ -136,6 +139,15 @@ class ConfigSidebar(Gtk.ListBox):
     @mosaic_pre_cleaning.setter
     def mosaic_pre_cleaning(self, value):
         self.config.mosaic_pre_cleaning = value
+        self.config.save()
+
+    @GObject.Property()
+    def mute_audio(self):
+        return self.config.mute_audio
+
+    @mute_audio.setter
+    def mute_audio(self, value):
+        self.config.mute_audio = value
         self.config.save()
 
     @GObject.Property()
@@ -225,3 +237,9 @@ class ConfigSidebar(Gtk.ListBox):
         if not self.init_done:
             return
         self.mosaic_pre_cleaning = switch_row.get_property("active")
+
+    @Gtk.Template.Callback()
+    def switch_row_mute_audio_active_callback(self, switch_row, active):
+        if not self.init_done:
+            return
+        self.mute_audio = switch_row.get_property("active")

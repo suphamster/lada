@@ -138,5 +138,13 @@
                             handler="switch_row_mosaic_cleaning_active_callback"/>
                 </object>
             </child>
+        <child>
+            <object class="AdwSwitchRow" id="switch_row_mute_audio">
+                <property name="title">Mute default</property>
+                <property name="tooltip-text">If enabled audio will be muted after opening a video file</property>
+                <signal name="notify::active"
+                        handler="switch_row_mute_audio_active_callback"/>
+            </object>
+        </child>
     </template>
 </interface>

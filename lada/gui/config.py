@@ -26,6 +26,7 @@ class Config:
         self.max_clip_duration = None
         self.device = None
         self.mosaic_pre_cleaning = None
+        self.mute_audio = None
 
         self.set_defaults()
 
@@ -38,6 +39,7 @@ class Config:
         self.max_clip_duration = 180
         self.device = 'cuda:0'
         self.mosaic_pre_cleaning = False
+        self.mute_audio = False
 
     def get_default_restoration_model(self):
         return 'basicvsrpp-generic-1.1'
@@ -78,7 +80,8 @@ class Config:
             preview_buffer_duration=self.preview_buffer_duration,
             max_clip_duration=self.max_clip_duration,
             device=self.device,
-            mosaic_pre_cleaning=self.mosaic_pre_cleaning
+            mosaic_pre_cleaning=self.mosaic_pre_cleaning,
+            mute_audio=self.mute_audio
         )
 
     def _from_dict(self, dict):
@@ -94,6 +97,7 @@ class Config:
         update_prop('max_clip_duration')
         update_prop('device')
         update_prop('mosaic_pre_cleaning')
+        update_prop('mute_audio')
 
 
 def get_config_file_path() -> Path:
