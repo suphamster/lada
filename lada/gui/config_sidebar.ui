@@ -131,6 +131,14 @@
                 </object>
             </child>
             <child>
+                <object class="AdwSwitchRow" id="switch_row_mute_audio">
+                    <property name="title">Mute default</property>
+                    <property name="tooltip-text">If enabled audio will be muted after opening a video file</property>
+                    <signal name="notify::active"
+                            handler="switch_row_mute_audio_active_callback"/>
+                </object>
+            </child>
+            <child>
                 <object class="AdwSwitchRow" id="switch_row_mosaic_cleaning">
                     <property name="title">Mosaic Pre-Cleaning</property>
                     <property name="tooltip-text">If enabled will clean detected mosaic pattern from noise before passing it to mosaic restoration model. Not recommended</property>
@@ -138,13 +146,12 @@
                             handler="switch_row_mosaic_cleaning_active_callback"/>
                 </object>
             </child>
-        <child>
-            <object class="AdwSwitchRow" id="switch_row_mute_audio">
-                <property name="title">Mute default</property>
-                <property name="tooltip-text">If enabled audio will be muted after opening a video file</property>
-                <signal name="notify::active"
-                        handler="switch_row_mute_audio_active_callback"/>
-            </object>
-        </child>
+            <child>
+                <object class="GtkButton">
+                    <property name="label">Reset to factory settings</property>
+                    <property name="sensitive">True</property>
+                    <signal name="clicked" handler="button_config_reset_callback"/>
+                </object>
+            </child>
     </template>
 </interface>

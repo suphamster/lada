@@ -26,6 +26,7 @@ class ConfigSidebar(Gtk.ListBox):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.init_done = False
+        self.save_config = True
         self.config = Config()
         self.config.load_config()
         self.toggle_button_mosaic_detection.set_property("active", self.config.preview_mode == 'mosaic-detection')
@@ -61,7 +62,7 @@ class ConfigSidebar(Gtk.ListBox):
             print(
                 f"configured model {self.config.mosaic_restoration_model} is not available on the filesystem, falling back to model {default_model}")
             idx = available_models.index(default_model)
-            self.config.mosaic_restoration_model = default_model
+            self.mosaic_restoration_model = default_model
         self.combo_row_mosaic_removal_models.set_selected(idx)
 
         self.spin_row_export_crf.set_property('value', self.config.export_crf)
@@ -87,7 +88,8 @@ class ConfigSidebar(Gtk.ListBox):
     @preview_mode.setter
     def preview_mode(self, value):
         self.config.preview_mode = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def mosaic_restoration_model(self):
@@ -96,7 +98,8 @@ class ConfigSidebar(Gtk.ListBox):
     @mosaic_restoration_model.setter
     def mosaic_restoration_model(self, value):
         self.config.mosaic_restoration_model = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def device(self):
@@ -105,7 +108,8 @@ class ConfigSidebar(Gtk.ListBox):
     @device.setter
     def device(self, value):
         self.config.device = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def preview_buffer_duration(self):
@@ -114,7 +118,8 @@ class ConfigSidebar(Gtk.ListBox):
     @preview_buffer_duration.setter
     def preview_buffer_duration(self, value):
         self.config.preview_buffer_duration = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def max_clip_duration(self):
@@ -123,7 +128,8 @@ class ConfigSidebar(Gtk.ListBox):
     @max_clip_duration.setter
     def max_clip_duration(self, value):
         self.config.max_clip_duration = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def mosaic_pre_cleaning(self):
@@ -132,7 +138,8 @@ class ConfigSidebar(Gtk.ListBox):
     @mosaic_pre_cleaning.setter
     def mosaic_pre_cleaning(self, value):
         self.config.mosaic_pre_cleaning = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def mute_audio(self):
@@ -141,7 +148,8 @@ class ConfigSidebar(Gtk.ListBox):
     @mute_audio.setter
     def mute_audio(self, value):
         self.config.mute_audio = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def export_crf(self):
@@ -150,7 +158,8 @@ class ConfigSidebar(Gtk.ListBox):
     @export_crf.setter
     def export_crf(self, value):
         self.config.export_crf = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @GObject.Property()
     def export_codec(self):
@@ -159,7 +168,8 @@ class ConfigSidebar(Gtk.ListBox):
     @export_codec.setter
     def export_codec(self, value):
         self.config.export_codec = value
-        self.config.save()
+        if self.save_config:
+            self.config.save()
 
     @Gtk.Template.Callback()
     def toggle_button_mosaic_detection_callback(self, button_clicked):
@@ -236,3 +246,21 @@ class ConfigSidebar(Gtk.ListBox):
         if not self.init_done:
             return
         self.mute_audio = switch_row.get_property("active")
+
+    @Gtk.Template.Callback()
+    def button_config_reset_callback(self, button_clicked):
+        try:
+            self.save_config = False
+            self.config.set_defaults()
+            self.preview_mode = self.config.preview_mode
+            self.mosaic_restoration_model = self.config.mosaic_restoration_model
+            self.device = self.config.device
+            self.preview_buffer_duration = self.config.preview_buffer_duration
+            self.max_clip_duration = self.config.max_clip_duration
+            self.export_crf = self.config.export_crf
+            self.export_codec = self.config.export_codec
+            self.mute_audio = self.config.mute_audio
+            self.mosaic_pre_cleaning = self.config.mosaic_pre_cleaning
+            self.config.save()
+        finally:
+            self.save_config = True
