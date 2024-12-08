@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <requires lib="gtk" version="4.0"/>
+    <requires lib="Adw" version="1.0"/>
+
+    <template class="ConfigSidebar" parent="GtkListBox">
+            <property name="selection-mode">none</property>
+            <style>
+                <class name="boxed-list"/>
+            </style>
+            <child>
+                <object class="AdwActionRow">
+                    <property name="title">Preview Mode</property>
+                    <child>
+                        <object class="GtkToggleButton"
+                                id="toggle_button_mosaic_detection">
+                            <property name="label">Mosaic&#xA;Detection</property>
+                            <property name="sensitive">True</property>
+                            <property name="tooltip-text">Preview mosaic detection</property>
+                            <signal name="clicked"
+                                    handler="toggle_button_mosaic_detection_callback"/>
+                            <style>
+                                <class name="flat"/>
+                            </style>
+                        </object>
+                    </child>
+                    <child>
+                        <object class="GtkToggleButton"
+                                id="toggle_button_mosaic_removal">
+                            <property name="label">Mosaic&#xA;Removal</property>
+                            <property name="sensitive">True</property>
+                            <property name="tooltip-text">Preview mosaic removal</property>
+                            <property name="active">True</property>
+                            <signal name="clicked"
+                                    handler="toggle_button_mosaic_removal_callback"/>
+                            <style>
+                                <class name="flat"/>
+                            </style>
+                        </object>
+                    </child>
+                </object>
+            </child>
+            <child>
+                <object class="AdwComboRow" id="combo_row_mosaic_removal_models">
+                    <property name="title">Mosaic removal models</property>
+                    <signal name="notify::selected"
+                            handler="combo_row_mosaic_removal_models_selected_callback"/>
+                    <property name="model">
+                        <object class="GtkStringList"/>
+                    </property>
+                </object>
+            </child>
+            <child>
+                <object class="AdwComboRow" id="combo_row_export_codec">
+                    <property name="title">Export codec
+                    </property>
+                    <signal name="notify::selected"
+                            handler="combo_row_mosaic_export_codec_selected_callback"/>
+                    <property name="model">
+                        <object class="GtkStringList">
+                            <items>
+                                <item>h264</item>
+                                <item>hevc</item>
+                            </items>
+                        </object>
+                    </property>
+                </object>
+            </child>
+            <child>
+                <object class="AdwSpinRow" id="spin_row_export_crf">
+                    <property name="title">Export CRF</property>
+                    <property name="tooltip-text">Constant Rate Factor. Quality setting of codec encoder. Lower values will result in higher quality but larger file size, encoding effort.</property>
+                    <property name="adjustment">
+                        <object class="GtkAdjustment">
+                            <property name="lower">0</property>
+                            <property name="upper">40</property>
+                            <property name="step-increment">1</property>
+                        </object>
+                    </property>
+                    <signal name="notify::value"
+                            handler="spin_row_preview_export_crf_selected_callback"/>
+                </object>
+            </child>
+            <child>
+                <object class="AdwSpinRow" id="spin_row_preview_buffer_duration">
+                    <property name="title">Preview buffer
+                        duration (seconds)
+                    </property>
+                    <property name="tooltip-text">Preview buffer duration in seconds. If set to 0 then buffer length will be adjusted automatically.</property>
+                    <signal name="notify::value"
+                            handler="spin_row_preview_buffer_duration_selected_callback"/>
+                    <property name="adjustment">
+                        <object class="GtkAdjustment">
+                            <property name="lower">0</property>
+                            <property name="upper">30</property>
+                            <property name="step-increment">2</property>
+                        </object>
+                    </property>
+                </object>
+            </child>
+            <child>
+                <object class="AdwSpinRow" id="spin_row_clip_max_duration">
+                    <property name="title">Max. clip duration
+                        (frames)
+                    </property>
+                    <property name="tooltip-text">A clip is a cropped scene of mosaic material that needs to be restored.
+                        The longer the clip the more reference frames are available for the model to use for restoration.
+                        Too short clip length will result in unstable restoration and flickering.
+                        Too long clip length can produce artifacts.
+                        The longer the clip duration the more RAM and VRAM will be used.
+                    </property>
+                    <signal name="notify::value"
+                            handler="spin_row_clip_max_duration_selected_callback"/>
+                    <property name="adjustment">
+                        <object class="GtkAdjustment">
+                            <property name="lower">20</property>
+                            <property name="upper">400</property>
+                            <property name="value">180</property>
+                            <property name="step-increment">10</property>
+                        </object>
+                    </property>
+                </object>
+            </child>
+            <child>
+                <object class="AdwComboRow" id="combo_row_gpu">
+                    <property name="title">GPU</property>
+                    <property name="model">
+                        <object class="GtkStringList">
+                            <items>
+                            </items>
+                        </object>
+                    </property>
+                    <signal name="notify::selected"
+                            handler="combo_row_gpu_selected_callback"/>
+                </object>
+            </child>
+            <child>
+                <object class="AdwSwitchRow" id="switch_row_mosaic_cleaning">
+                    <property name="title">Mosaic Pre-Cleaning
+                    </property>
+                    <signal name="notify::active"
+                            handler="switch_row_mosaic_cleaning_active_callback"/>
+                </object>
+            </child>
+    </template>
+</interface>

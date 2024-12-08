@@ -13,11 +13,11 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
     if mosaic_cleaning_edge_detection_model_path:
         mosaic_edge_detection_model = pidinet_inference.load_model(mosaic_cleaning_edge_detection_model_path, model_type="tiny")
 
-    if mosaic_restoration_model_name == "rvrt":
+    if mosaic_restoration_model_name.startswith("rvrt"):
         from lada.rvrt import rvrt_inferencer
         mosaic_restoration_model = rvrt_inferencer.get_model(model_path=mosaic_restoration_model_path, device=device)
         pad_mode = 'zero'
-    elif mosaic_restoration_model_name == "deepmosaics":
+    elif mosaic_restoration_model_name.startswith("deepmosaics"):
         from lada.deepmosaics.models import loadmodel, model_util
         mosaic_restoration_model = loadmodel.video(model_util.device_to_gpu_id(device), mosaic_restoration_model_path)
         pad_mode = 'reflect'
@@ -29,7 +29,7 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
             config = get_default_gan_inference_config()
         mosaic_restoration_model = load_model(config, mosaic_restoration_model_path, device)
         pad_mode = 'reflect'
-    elif mosaic_restoration_model_name == "tecogan":
+    elif mosaic_restoration_model_name.startswith("tecogan"):
         from lada.tecogan.tecogan_inferencer import load_model
         mosaic_restoration_model = load_model(mosaic_restoration_config_path)
         pad_mode = 'reflect'
@@ -59,17 +59,17 @@ class FrameRestorer:
         self.mosaic_detection = mosaic_detection
 
     def restore_clip(self, images):
-        if self.mosaic_restoration_model_name == "rvrt":
+        if self.mosaic_restoration_model_name.startswith("rvrt"):
             from lada.rvrt import rvrt_inferencer
             restored_clip_images = rvrt_inferencer.inference(images, self.mosaic_restoration_model)
-        elif self.mosaic_restoration_model_name == "deepmosaics":
+        elif self.mosaic_restoration_model_name.startswith("deepmosaics"):
             from lada.deepmosaics.inference import restore_video_frames
             from lada.deepmosaics.models import model_util
             restored_clip_images = restore_video_frames(model_util.device_to_gpu_id(self.device), self.mosaic_restoration_model, images)
         elif self.mosaic_restoration_model_name.startswith("basicvsrpp"):
             from lada.basicvsrpp.inference import inference
             restored_clip_images = inference(self.mosaic_restoration_model, images, self.device)
-        elif self.mosaic_restoration_model_name == "tecogan":
+        elif self.mosaic_restoration_model_name.startswith("tecogan"):
             from lada.tecogan.tecogan_inferencer import inference
             restored_clip_images = inference(images, self.mosaic_restoration_model)
         else:

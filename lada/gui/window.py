@@ -1,11 +1,9 @@
-import glob
 import os.path
 import pathlib
 
-import torch
 from gi.repository import Adw, Gtk, Gio, Gdk
-from lada import MODEL_WEIGHTS_DIR
 import lada.gui.video_preview
+from lada.gui.config_sidebar import ConfigSidebar
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -25,16 +23,11 @@ class MainWindow(Adw.ApplicationWindow):
     spinner_video_preview = Gtk.Template.Child()
     stack = Gtk.Template.Child()
     stack_video_preview = Gtk.Template.Child()
-    toggle_button_mosaic_detection = Gtk.Template.Child()
-    toggle_button_mosaic_removal = Gtk.Template.Child()
-    combo_row_gpu = Gtk.Template.Child()
-    combo_row_mosaic_removal_models = Gtk.Template.Child()
-    spin_row_export_crf = Gtk.Template.Child()
-    combo_row_export_codec = Gtk.Template.Child()
     progress_bar_file_export = Gtk.Template.Child()
     status_page_export_video = Gtk.Template.Child()
     banner_no_gpu = Gtk.Template.Child()
     shortcut_controller = Gtk.Template.Child()
+    config_sidebar: ConfigSidebar = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -46,28 +39,26 @@ class MainWindow(Adw.ApplicationWindow):
         drop_target.connect("drop", on_connect_drop)
         self.stack.add_controller(drop_target)
 
-        # init device
-        combo_row_gpu_list = self.combo_row_gpu.get_model()
-        available_gpus = self.get_available_gpus()
-        for device_id, device_name in available_gpus:
-            combo_row_gpu_list.append(device_name)
-
-        no_gpu_available = len(available_gpus) == 0
-        if no_gpu_available:
+        if self.config_sidebar.get_property('device') == 'cpu':
             self.banner_no_gpu.set_revealed(True)
-            device = "cpu"
-        else:
-            device = f"cuda:{available_gpus[0][0]}"
-            self.combo_row_gpu.set_selected(0)
-        self.widget_video_preview.set_property('device', device)
 
-        # init models
-        combo_row_models_list = self.combo_row_mosaic_removal_models.get_model()
-        available_models = self.get_available_models()
-        for model_name in available_models:
-            combo_row_models_list.append(model_name)
-        idx = available_models.index("basicvsrpp-generic")
-        self.combo_row_mosaic_removal_models.set_selected(idx)
+        self.widget_video_preview.set_property('mosaic-detection', self.config_sidebar.get_property('preview-mode') == 'mosaic-detection')
+        self.config_sidebar.connect("notify::preview-mode", lambda object, spec: self.widget_video_preview.set_property('mosaic-detection', object.get_property(spec.name) == 'mosaic-detection'))
+
+        self.widget_video_preview.set_property('device', self.config_sidebar.get_property('device'))
+        self.config_sidebar.connect("notify::device", lambda object, spec: self.widget_video_preview.set_property('device', object.get_property(spec.name)))
+
+        self.widget_video_preview.set_property('mosaic-restoration-model', self.config_sidebar.get_property('mosaic-restoration-model'))
+        self.config_sidebar.connect("notify::mosaic-restoration-model", lambda object, spec: self.widget_video_preview.set_property('mosaic-restoration-model', object.get_property(spec.name)))
+
+        self.widget_video_preview.set_property('buffer-queue-min-thresh-time', self.config_sidebar.get_property('preview-buffer-duration'))
+        self.config_sidebar.connect("notify::preview-buffer-duration", lambda object, spec: self.widget_video_preview.set_property('buffer-queue-min-thresh-time', object.get_property(spec.name)))
+
+        self.widget_video_preview.set_property('max-clip-length', self.config_sidebar.get_property('max-clip-duration'))
+        self.config_sidebar.connect("notify::max-clip-duration", lambda object, spec: self.widget_video_preview.set_property('max-clip-length', object.get_property(spec.name)))
+
+        self.widget_video_preview.set_property('mosaic-cleaning', self.config_sidebar.get_property('mosaic-pre-cleaning'))
+        self.config_sidebar.connect("notify::mosaic-pre-cleaning", lambda object, spec: self.widget_video_preview.set_property('mosaic-cleaning', object.get_property(spec.name)))
 
         self.opened_file: Gio.File = None
 
@@ -87,69 +78,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.show_export_dialog()
 
     @Gtk.Template.Callback()
-    def switch_row_mosaic_cleaning_active_callback(self, switch_row, active):
-        self.widget_video_preview.set_property('mosaic_cleaning', switch_row.get_property("active"))
-
-    @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
         preview_active = button_clicked.get_property("active")
         self.widget_video_preview.set_property('passthrough', not preview_active)
-
-    @Gtk.Template.Callback()
-    def toggle_button_mosaic_detection_callback(self, button_clicked):
-        enable_mosaic_detection = button_clicked.get_property("active")
-        if enable_mosaic_detection:
-            self.toggle_button_mosaic_removal.set_property("active", False)
-            self.widget_video_preview.set_property('mosaic-detection', True)
-        else:
-            self.toggle_button_mosaic_removal.set_property("active", True)
-            self.widget_video_preview.set_property('mosaic-detection', False)
-
-    @Gtk.Template.Callback()
-    def toggle_button_mosaic_removal_callback(self, button_clicked):
-        enable_mosaic_removal = button_clicked.get_property("active")
-        if enable_mosaic_removal:
-            self.toggle_button_mosaic_detection.set_property("active", False)
-            self.widget_video_preview.set_property('mosaic-detection', False)
-        else:
-            self.toggle_button_mosaic_detection.set_property("active", True)
-            self.widget_video_preview.set_property('mosaic-detection', True)
-
-    @Gtk.Template.Callback()
-    def combo_row_mosaic_removal_models_selected_callback(self, combo_row, value):
-        self.widget_video_preview.set_property('mosaic-restoration-model', combo_row.get_property("selected_item").get_string())
-
-    @Gtk.Template.Callback()
-    def combo_row_gpu_selected_callback(self, combo_row, value):
-        selected_gpu_name = combo_row.get_property("selected_item").get_string()
-        for id, name in self.get_available_gpus():
-            if name == selected_gpu_name:
-                selected_gpu_id = f"cuda:{id}"
-                self.widget_video_preview.set_property('device', selected_gpu_id)
-                break
-
-    @Gtk.Template.Callback()
-    def spin_row_preview_buffer_duration_selected_callback(self, spin_row, value):
-        self.widget_video_preview.set_property('buffer-queue-min-thresh-time', spin_row.get_property("value"))
-
-    @Gtk.Template.Callback()
-    def spin_row_clip_max_duration_selected_callback(self, spin_row, value):
-        self.widget_video_preview.set_property('max-clip-length', spin_row.get_property("value"))
-
-    def get_available_gpus(self):
-        return [(i, torch.cuda.get_device_properties(i).name) for i in range(torch.cuda.device_count())]
-
-    def get_available_models(self):
-        available_models = []
-        for file_path in glob.glob(os.path.join(MODEL_WEIGHTS_DIR, '**/*.pth'), recursive=True):
-            file_name = os.path.basename(file_path)
-            if file_name == 'lada_mosaic_restoration_model_generic.pth' or file_name == 'lada_mosaic_restoration_model_generic_v1.1.pth':
-                available_models.append("basicvsrpp-generic")
-            elif file_name == 'lada_mosaic_restoration_model_bj_pov.pth':
-                available_models.append("basicvsrpp-bj-pov")
-            elif file_name == 'clean_youknow_video.pth':
-                available_models.append("deepmosaics")
-        return available_models
 
     def show_open_dialog(self):
         file_dialog = Gtk.FileDialog()
@@ -197,7 +128,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.widget_video_preview.connect("video-export-finished", show_video_export_success)
         self.widget_video_preview.connect("video-export-progress", on_video_export_progress)
-        self.widget_video_preview.export_video(file.get_path(), self.combo_row_export_codec.get_property("selected_item").get_string(), self.spin_row_export_crf.get_property("value"))
+        self.widget_video_preview.export_video(file.get_path(), self.config_sidebar.get_property("export_codec"), self.config_sidebar.get_property("export_crf"))
 
     def switch_to_main_view(self):
         self.stack.set_visible_child_name("page_main")

@@ -6,6 +6,7 @@ import threading
 import numpy as np
 from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
 
+from lada.gui.config import MODEL_NAMES_TO_FILES
 from lada.gui.timeline import Timeline
 from lada.lib import audio_utils, video_utils
 from lada.lib.restored_mosaic_frames_generator import load_models, FrameRestorer
@@ -72,7 +73,8 @@ class VideoPreview(Gtk.Widget):
     @passthrough.setter
     def passthrough(self, value):
         self._passthrough = value
-        self.seek_video(self.frame_num)
+        if self._video_preview_init_done:
+            self.seek_video(self.frame_num)
 
     @GObject.Property()
     def device(self):
@@ -82,11 +84,8 @@ class VideoPreview(Gtk.Widget):
     def device(self, value):
         self._device = value
         self.models_cache = None
-        self.seek_video(self.frame_num)
-
-    @GObject.Property()
-    def max_clip_length(self):
-        return self._max_clip_length
+        if self._video_preview_init_done:
+            self.seek_video(self.frame_num)
 
     @property
     def buffer_queue_min_thresh_time_auto(self):
@@ -98,13 +97,17 @@ class VideoPreview(Gtk.Widget):
         print("adjusted buffer_queue_min_thresh_time_auto to", value)
         self._buffer_queue_min_thresh_time_auto = value
 
+    @GObject.Property()
+    def max_clip_length(self):
+        return self._max_clip_length
+
     @max_clip_length.setter
     def max_clip_length(self, value):
         self._max_clip_length = value
-        if self._buffer_queue_min_thresh_time == 0:
+        if self._video_preview_init_done and self._buffer_queue_min_thresh_time == 0:
             self.buffer_queue_min_thresh_time_auto = float(self._max_clip_length / self.video_metadata.video_fps_exact)
             self.update_gst_buffers()
-        self.seek_video(self.frame_num)
+            self.seek_video(self.frame_num)
 
     @GObject.Property()
     def buffer_queue_min_thresh_time(self):
@@ -112,7 +115,7 @@ class VideoPreview(Gtk.Widget):
 
     @buffer_queue_min_thresh_time.setter
     def buffer_queue_min_thresh_time(self, value):
-        if self._buffer_queue_min_thresh_time != value:
+        if self._video_preview_init_done and self._buffer_queue_min_thresh_time != value:
             self._buffer_queue_min_thresh_time = value
             self.update_gst_buffers()
 
@@ -122,7 +125,6 @@ class VideoPreview(Gtk.Widget):
 
     @mosaic_restoration_model.setter
     def mosaic_restoration_model(self, value):
-        assert value in ['basicvsrpp-generic', 'basicvsrpp-bj-pov', 'deepmosaics'], f"only 'basicvsrpp-generic', 'basicvsrpp-bj-pov' and 'deepmosaics' restoration models currently supported but received {value}"
         self._mosaic_restoration_model_name = value
         self.seek_video(self.frame_num)
 
@@ -468,13 +470,7 @@ class VideoPreview(Gtk.Widget):
     def setup_frame_restorer(self, start_ns=0):
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
-            if self._mosaic_restoration_model_name == 'deepmosaics':
-                mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth')
-            elif self._mosaic_restoration_model_name == 'basicvsrpp-bj-pov':
-                mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_bj_pov.pth')
-            else:
-                mosaic_restoration_model_path = os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth')
-
+            mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
             mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, mosaic_restoration_model_preferred_pad_mode = load_models(
                 self._device, self._mosaic_restoration_model_name, mosaic_restoration_model_path, None,
                 os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'),None
