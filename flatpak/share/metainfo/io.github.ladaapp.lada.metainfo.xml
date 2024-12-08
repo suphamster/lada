@@ -49,6 +49,14 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-08" version="0.3.0">
+            <description>
+                <p>GUI: Add mute/unmute audio functionality</p>
+                <p>GUI: Implement keyboard shortcuts for common actions</p>
+                <p>GUI: Persist configuration so that user preferences survive a restart</p>
+                <p>GUI: Improve readability of config settings and tooltips</p>
+            </description>
+        </release>
         <release date="2024-12-05" version="0.2.5">
             <description>
                 <p>GUI: Adjustments and fixes for timeline playhead position updates</p>
