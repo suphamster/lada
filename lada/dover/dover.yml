@@ -40,7 +40,7 @@ model:
             in_channels: 768
             hidden_channels: 64
         
-test_load_path: ./../../../model_weights/3rd_party/DOVER.pth
+test_load_path: ./../../model_weights/3rd_party/DOVER.pth
 
     
         

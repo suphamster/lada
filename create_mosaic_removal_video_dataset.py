@@ -17,7 +17,7 @@ from lada.lib import VideoMetadata, Mask, mask_utils
 from lada.lib import video_utils, image_utils
 from lada.lib.clean_frames_generator import CleanFramesGenerator
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
-from lada.lib.dover.evaluate import VideoQualityEvaluator
+from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
 from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size, get_mosaic_block_size_v2
 from lada.lib.scene_generator import SceneGenerator, Scene, CroppedScene
