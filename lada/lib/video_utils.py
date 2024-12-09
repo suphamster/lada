@@ -499,7 +499,6 @@ class VideoWriter:
             out_frame.pts = frame_pts
         out_packet = self.video_stream.encode(out_frame)
         self.output_container.mux(out_packet)
-        self.previous_pts = frame_pts
 
     def release(self):
         out_packet = self.video_stream.encode(None)

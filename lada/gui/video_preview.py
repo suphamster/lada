@@ -2,7 +2,7 @@ import os
 import pathlib
 import tempfile
 import threading
-
+import queue
 import numpy as np
 from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
 
@@ -52,6 +52,9 @@ class VideoPreview(Gtk.Widget):
         self.pipeline: Gst.Pipeline | None = None
         self.video_buffer_queue: Gst.Queue | None = None
         self.audio_buffer_queue: Gst.Queue | None = None
+
+        self.frame_restorer_thread: threading.Thread | None = None
+        self.frame_restorer_thread_queue: queue.Queue = queue.Queue()
 
         self.frame_restorer_generator = None
         self.file_duration_ns = 0
@@ -220,6 +223,10 @@ class VideoPreview(Gtk.Widget):
     def open_video_file(self, file: Gio.File, mute_audio: bool):
         file_path = file.get_path()
         self.video_metadata = video_utils.get_video_meta_data(file_path)
+
+        if not self.frame_restorer_thread:
+            self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker, daemon=True)
+            self.frame_restorer_thread.start()
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
@@ -420,18 +427,25 @@ class VideoPreview(Gtk.Widget):
     def on_seek_data(self, appsrc, offset_ns):
         self.pipeline.set_state(Gst.State.PAUSED)
         print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}")
+        while not self.frame_restorer_thread_queue.empty():
+            self.frame_restorer_thread_queue.get()
         if self.frame_restorer_generator:
             self.setup_frame_restorer(start_ns=offset_ns)
         return True
 
-    def on_need_data(self, src, length):
+    def frame_restorer_worker(self):
+        while True:
+            _item = self.frame_restorer_thread_queue.get()
+            self.read_next_frame()
+            self.frame_restorer_thread_queue.task_done()
+
+    def read_next_frame(self):
         if not self.frame_restorer_generator:
             self.setup_frame_restorer(start_ns=0)
-
         try:
             frame, frame_pts = next(self.frame_restorer_generator)
         except StopIteration:
-            src.emit("end-of-stream")
+            self.appsrc.emit("end-of-stream")
             return
 
         width = frame.shape[1]
@@ -447,8 +461,11 @@ class VideoPreview(Gtk.Widget):
         timestamp = self.frame_num * self.frame_duration_ns
         buf.pts = int(timestamp)
         buf.offset = self.frame_num
-        src.emit('push-buffer', buf)
+        self.appsrc.emit('push-buffer', buf)
         self.frame_num += 1
+
+    def on_need_data(self, src, length):
+        self.frame_restorer_thread_queue.put("work worker, work!")
 
     def update_current_position(self):
         res, position = self.pipeline.query_position(Gst.Format.TIME)
