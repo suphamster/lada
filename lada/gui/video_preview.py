@@ -248,6 +248,7 @@ class VideoPreview(Gtk.Widget):
 
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)
+            self.empty_out_restorer_worker_queue()
             self._video_preview_init_done = False
             self.frame_restorer_generator = None
             self.adjust_pipeline_with_new_source_file(audio_pipeline_already_added, mute_audio)
@@ -380,6 +381,7 @@ class VideoPreview(Gtk.Widget):
 
     def pipeline_remove_audio(self):
         for audio_element in self.pipeline_audio_elements:
+            audio_element.set_state(Gst.State.NULL)
             self.pipeline.remove(audio_element)
         self.audio_uridecodebin = None
         self.audio_volume = None
@@ -473,11 +475,15 @@ class VideoPreview(Gtk.Widget):
     def on_seek_data(self, appsrc, offset_ns):
         self.pipeline.set_state(Gst.State.PAUSED)
         print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}")
-        while not self.frame_restorer_thread_queue.empty():
-            self.frame_restorer_thread_queue.get()
+        self.empty_out_restorer_worker_queue()
         if self.frame_restorer_generator:
             self.setup_frame_restorer(start_ns=offset_ns)
         return True
+
+    def empty_out_restorer_worker_queue(self):
+        while not self.frame_restorer_thread_queue.empty():
+            self.frame_restorer_thread_queue.get()
+            self.frame_restorer_thread_queue.task_done()
 
     def frame_restorer_worker(self):
         while True:
