@@ -122,6 +122,7 @@ class MainWindow(Adw.ApplicationWindow):
             print("finished exporting")
             self.status_page_export_video.set_title("Finished video restoration!")
             self.status_page_export_video.set_icon_name("check-round-outline2-symbolic")
+            self.progress_bar_file_export.set_fraction(1.0)
 
         def on_video_export_progress(obj, progress):
             self.progress_bar_file_export.set_fraction(progress)

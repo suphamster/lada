@@ -52,6 +52,7 @@ class VideoPreview(Gtk.Widget):
         self.pipeline: Gst.Pipeline | None = None
         self.video_buffer_queue: Gst.Queue | None = None
         self.audio_buffer_queue: Gst.Queue | None = None
+        self.pipeline_audio_elements = []
 
         self.frame_restorer_thread: threading.Thread | None = None
         self.frame_restorer_thread_queue: queue.Queue = queue.Queue()
@@ -62,6 +63,7 @@ class VideoPreview(Gtk.Widget):
         self.frame_duration_ns = None
         self.frame_num = 0
         self.video_metadata: video_utils.VideoMetadata | None = None
+        self.has_audio: bool = True
         self.models_cache: dict | None = None
         self.should_be_paused = False
 
@@ -187,13 +189,16 @@ class VideoPreview(Gtk.Widget):
 
     @Gtk.Template.Callback()
     def button_mute_unmute_callback(self, button_clicked):
-        if not self._video_preview_init_done:
+        if not (self.has_audio and self._video_preview_init_done):
             return
         muted = self.audio_volume.get_property("mute")
         self.set_mute_audio(self.audio_volume, not muted)
 
     def set_mute_audio(self, audio_volume, mute: bool):
         audio_volume.set_property("mute", mute)
+        self.set_speaker_icon(mute)
+
+    def set_speaker_icon(self, mute: bool):
         icon_name = "speaker-0-symbolic" if mute else "speaker-4-symbolic"
         self.button_image_mute_unmute.set_property("icon-name", icon_name)
 
@@ -203,8 +208,9 @@ class VideoPreview(Gtk.Widget):
 
         self.video_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
         self.video_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
-        self.audio_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
-        self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
+        if self.has_audio:
+            self.audio_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
+            self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
 
     def seek_video(self, seek_position):
         if self.pipeline:
@@ -223,6 +229,10 @@ class VideoPreview(Gtk.Widget):
     def open_video_file(self, file: Gio.File, mute_audio: bool):
         file_path = file.get_path()
         self.video_metadata = video_utils.get_video_meta_data(file_path)
+        audio_pipeline_already_added = self.has_audio
+        self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
+        self.button_mute_unmute.set_sensitive(self.has_audio)
+        self.set_speaker_icon(mute=not self.has_audio)
 
         if not self.frame_restorer_thread:
             self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker, daemon=True)
@@ -240,7 +250,7 @@ class VideoPreview(Gtk.Widget):
             self.pipeline.set_state(Gst.State.NULL)
             self._video_preview_init_done = False
             self.frame_restorer_generator = None
-            self.adjust_pipeline_with_new_source_file()
+            self.adjust_pipeline_with_new_source_file(audio_pipeline_already_added, mute_audio)
         else:
             self.init_pipeline(mute_audio)
 
@@ -250,6 +260,7 @@ class VideoPreview(Gtk.Widget):
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)
         self._video_preview_init_done = False
+        self._mosaic_detection = False
         self.setup_frame_restorer(start_ns=0)
 
         def run_export():
@@ -275,12 +286,17 @@ class VideoPreview(Gtk.Widget):
     def grab_focus(self):
         self.button_play_pause.grab_focus()
 
-    def adjust_pipeline_with_new_source_file(self):
+    def adjust_pipeline_with_new_source_file(self, audio_pipeline_already_added, mute_audio):
         caps = Gst.Caps.from_string(
             f"video/x-raw,format=BGR,width={self.video_metadata.video_width},height={self.video_metadata.video_height},framerate={self.video_metadata.video_fps_exact.numerator}/{self.video_metadata.video_fps_exact.denominator}")
         self.appsrc.set_property('caps', caps)
         self.appsrc.set_property('duration', self.file_duration_ns)
-        self.audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
+        if self.has_audio and not audio_pipeline_already_added:
+            self.pipeline_add_audio(mute_audio)
+        elif self.has_audio and audio_pipeline_already_added:
+            self.audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
+        elif not self.has_audio and audio_pipeline_already_added:
+            self.pipeline_remove_audio()
 
     def autoplay_if_enough_data_buffered(self):
         if not self.should_be_paused:
@@ -294,9 +310,12 @@ class VideoPreview(Gtk.Widget):
             self.buffer_queue_min_thresh_time_auto *= 1.5
             self.update_gst_buffers()
 
-    def init_pipeline(self, mute_audio: bool):
-        pipeline = Gst.Pipeline.new()
+    def get_initial_buffer_queue_thresholds(self):
+        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
+        buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
+        return buffer_queue_min_thresh_time, buffer_queue_max_thresh_time
 
+    def pipeline_add_video(self):
         appsrc = Gst.ElementFactory.make('appsrc', "numpy-source")
         # TODO: As we're using BGR format GStreamer expects to receive a 'buffer size = rstride (image) * height' where 'rstride = RU4 (width * 3)'
         # RU4 here means that it will round up to nearest number divisible by 4. (https://gstreamer.freedesktop.org/documentation/additional/design/mediatype-video-raw.html)
@@ -317,56 +336,26 @@ class VideoPreview(Gtk.Widget):
             self.autoplay_if_enough_data_buffered()
             return True
         appsrc.connect("end-of-stream", on_eos)
-        pipeline.add(appsrc)
+        self.pipeline.add(appsrc)
 
-        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
-        buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
+        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_initial_buffer_queue_thresholds()
 
         buffer_queue = Gst.ElementFactory.make('queue', None)
         buffer_queue.set_property('max-size-bytes', 0)
         buffer_queue.set_property('max-size-buffers', 0)
         buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)  # ns
         buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
+
         def on_running(queue):
             current_level_time = queue.get_property('current-level-time')
             if not self._video_preview_init_done and current_level_time > 0:
                 self._video_preview_init_done = True
                 self.emit('video-preview-init-done')
+
         buffer_queue.connect("underrun", lambda queue: self.autopause_if_not_enough_data_buffered())
         buffer_queue.connect("overrun", lambda queue: self.autoplay_if_enough_data_buffered())
         buffer_queue.connect('running', on_running)
-        pipeline.add(buffer_queue)
-
-        audio_queue = Gst.ElementFactory.make('queue', None)
-        audio_queue.set_property('max-size-bytes', 0)
-        audio_queue.set_property('max-size-buffers', 0)
-        audio_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)  # ns
-        audio_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
-        pipeline.add(audio_queue)
-
-        audio_uridecodebin = Gst.ElementFactory.make('uridecodebin', None)
-        audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
-        def on_pad_added(decodebin, decoder_src_pad, audio_queue):
-            caps = decoder_src_pad.get_current_caps()
-            if not caps:
-                caps = decoder_src_pad.query_caps()
-            gststruct = caps.get_structure(0)
-            gstname = gststruct.get_name()
-            if gstname.startswith("audio"):
-                sink_pad = audio_queue.get_static_pad("sink")
-                decoder_src_pad.link(sink_pad)
-        audio_uridecodebin.connect("pad-added", on_pad_added, audio_queue)
-        pipeline.add(audio_uridecodebin)
-
-        audio_audioconvert = Gst.ElementFactory.make('audioconvert', None)
-        pipeline.add(audio_audioconvert)
-
-        audio_volume = Gst.ElementFactory.make('volume', None)
-        self.set_mute_audio(audio_volume, mute_audio)
-        pipeline.add(audio_volume)
-
-        audio_sink = Gst.ElementFactory.make('autoaudiosink', None)
-        pipeline.add(audio_sink)
+        self.pipeline.add(buffer_queue)
 
         gtksink = Gst.ElementFactory.make('gtk4paintablesink', None)
         paintable = gtksink.get_property('paintable')
@@ -380,7 +369,62 @@ class VideoPreview(Gtk.Widget):
             video_sink.add(gtksink)
             convert.link(gtksink)
             video_sink.add_pad(Gst.GhostPad.new('sink', convert.get_static_pad('sink')))
-        pipeline.add(video_sink)
+        self.pipeline.add(video_sink)
+
+        appsrc.link(buffer_queue)
+        buffer_queue.link(video_sink)
+
+        self.appsrc = appsrc
+        self.video_buffer_queue = buffer_queue
+        self.picture_video_preview.set_paintable(paintable)
+
+    def pipeline_remove_audio(self):
+        for audio_element in self.pipeline_audio_elements:
+            self.pipeline.remove(audio_element)
+        self.audio_uridecodebin = None
+        self.audio_volume = None
+        self.audio_buffer_queue = None
+
+    def pipeline_add_audio(self, mute_audio: bool):
+        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_initial_buffer_queue_thresholds()
+
+        audio_queue = Gst.ElementFactory.make('queue', None)
+        audio_queue.set_property('max-size-bytes', 0)
+        audio_queue.set_property('max-size-buffers', 0)
+        audio_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)  # ns
+        audio_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
+        self.pipeline.add(audio_queue)
+        self.pipeline_audio_elements.append(audio_queue)
+
+        audio_uridecodebin = Gst.ElementFactory.make('uridecodebin', None)
+        audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
+
+        def on_pad_added(decodebin, decoder_src_pad, audio_queue):
+            caps = decoder_src_pad.get_current_caps()
+            if not caps:
+                caps = decoder_src_pad.query_caps()
+            gststruct = caps.get_structure(0)
+            gstname = gststruct.get_name()
+            if gstname.startswith("audio"):
+                sink_pad = audio_queue.get_static_pad("sink")
+                decoder_src_pad.link(sink_pad)
+
+        audio_uridecodebin.connect("pad-added", on_pad_added, audio_queue)
+        self.pipeline.add(audio_uridecodebin)
+        self.pipeline_audio_elements.append(audio_uridecodebin)
+
+        audio_audioconvert = Gst.ElementFactory.make('audioconvert', None)
+        self.pipeline.add(audio_audioconvert)
+        self.pipeline_audio_elements.append(audio_audioconvert)
+
+        audio_volume = Gst.ElementFactory.make('volume', None)
+        self.set_mute_audio(audio_volume, mute_audio)
+        self.pipeline.add(audio_volume)
+        self.pipeline_audio_elements.append(audio_volume)
+
+        audio_sink = Gst.ElementFactory.make('autoaudiosink', None)
+        self.pipeline.add(audio_sink)
+        self.pipeline_audio_elements.append(audio_sink)
 
         # note that we cannot link decodebin directly to audio_queue as pads are dynamically added and not available at this point
         # see on_pad_added()
@@ -388,8 +432,12 @@ class VideoPreview(Gtk.Widget):
         audio_audioconvert.link(audio_volume)
         audio_volume.link(audio_sink)
 
-        appsrc.link(buffer_queue)
-        buffer_queue.link(video_sink)
+        self.audio_uridecodebin = audio_uridecodebin
+        self.audio_volume = audio_volume
+        self.audio_buffer_queue = audio_queue
+
+    def init_pipeline(self, mute_audio: bool):
+        pipeline = Gst.Pipeline.new()
 
         def on_bus_msg(_, msg):
             match msg.type:
@@ -415,12 +463,10 @@ class VideoPreview(Gtk.Widget):
         bus = pipeline.get_bus()
         bus.add_watch(GLib.PRIORITY_DEFAULT, on_bus_msg)
 
-        self.appsrc = appsrc
-        self.audio_uridecodebin = audio_uridecodebin
-        self.audio_volume = audio_volume
         self.pipeline = pipeline
-        self.video_buffer_queue, self.audio_buffer_queue = buffer_queue, audio_queue
-        self.picture_video_preview.set_paintable(paintable)
+        self.pipeline_add_video()
+        if self.has_audio:
+            self.pipeline_add_audio(mute_audio)
 
         GLib.timeout_add(20, self.update_current_position)
 
