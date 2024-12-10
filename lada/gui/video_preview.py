@@ -56,6 +56,7 @@ class VideoPreview(Gtk.Widget):
 
         self.frame_restorer_thread: threading.Thread | None = None
         self.frame_restorer_thread_queue: queue.Queue = queue.Queue()
+        self.worker_should_be_running: bool = False
 
         self.frame_restorer_generator = None
         self.file_duration_ns = 0
@@ -228,15 +229,20 @@ class VideoPreview(Gtk.Widget):
 
     def open_video_file(self, file: Gio.File, mute_audio: bool):
         file_path = file.get_path()
+
+        if self.pipeline:
+            self.pipeline.set_state(Gst.State.NULL)
+            self.stop_frame_restorer_worker()
+            self._video_preview_init_done = False
+            self.frame_restorer_generator = None
+
         self.video_metadata = video_utils.get_video_meta_data(file_path)
         audio_pipeline_already_added = self.has_audio
         self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
         self.button_mute_unmute.set_sensitive(self.has_audio)
         self.set_speaker_icon(mute=not self.has_audio)
 
-        if not self.frame_restorer_thread:
-            self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker, daemon=True)
-            self.frame_restorer_thread.start()
+        self.start_frame_restorer_worker()
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
@@ -247,10 +253,6 @@ class VideoPreview(Gtk.Widget):
         self.widget_timeline.set_property("duration", self.file_duration_frames)
 
         if self.pipeline:
-            self.pipeline.set_state(Gst.State.NULL)
-            self.empty_out_restorer_worker_queue()
-            self._video_preview_init_done = False
-            self.frame_restorer_generator = None
             self.adjust_pipeline_with_new_source_file(audio_pipeline_already_added, mute_audio)
         else:
             self.init_pipeline(mute_audio)
@@ -279,6 +281,7 @@ class VideoPreview(Gtk.Widget):
             video_writer.release()
 
             audio_utils.combine_audio_video_files(self.video_metadata.video_file, video_tmp_file_output_path, file_path)
+            self.emit('video-export-progress', 1.0)
             self.emit('video-export-finished')
 
         exporter_thread = threading.Thread(target=run_export)
@@ -292,11 +295,12 @@ class VideoPreview(Gtk.Widget):
             f"video/x-raw,format=BGR,width={self.video_metadata.video_width},height={self.video_metadata.video_height},framerate={self.video_metadata.video_fps_exact.numerator}/{self.video_metadata.video_fps_exact.denominator}")
         self.appsrc.set_property('caps', caps)
         self.appsrc.set_property('duration', self.file_duration_ns)
-        if self.has_audio and not audio_pipeline_already_added:
-            self.pipeline_add_audio(mute_audio)
-        elif self.has_audio and audio_pipeline_already_added:
-            self.audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
-        elif not self.has_audio and audio_pipeline_already_added:
+        if self.has_audio:
+            if audio_pipeline_already_added:
+                self.audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
+            else:
+                self.pipeline_add_audio(mute_audio)
+        else:
             self.pipeline_remove_audio()
 
     def autoplay_if_enough_data_buffered(self):
@@ -475,21 +479,35 @@ class VideoPreview(Gtk.Widget):
     def on_seek_data(self, appsrc, offset_ns):
         self.pipeline.set_state(Gst.State.PAUSED)
         print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}")
-        self.empty_out_restorer_worker_queue()
+        self.empty_out_frame_restorer_worker_queue()
         if self.frame_restorer_generator:
             self.setup_frame_restorer(start_ns=offset_ns)
         return True
 
-    def empty_out_restorer_worker_queue(self):
+    def start_frame_restorer_worker(self):
+        self.worker_should_be_running = True
+        self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker, daemon=True)
+        self.frame_restorer_thread.start()
+
+    def stop_frame_restorer_worker(self):
+        self.worker_should_be_running = False
+        self.empty_out_frame_restorer_worker_queue()
+        self.frame_restorer_thread.join()
+        self.frame_restorer_thread = None
+
+    def empty_out_frame_restorer_worker_queue(self):
         while not self.frame_restorer_thread_queue.empty():
             self.frame_restorer_thread_queue.get()
             self.frame_restorer_thread_queue.task_done()
 
     def frame_restorer_worker(self):
-        while True:
-            _item = self.frame_restorer_thread_queue.get()
-            self.read_next_frame()
-            self.frame_restorer_thread_queue.task_done()
+        while self.worker_should_be_running:
+            try:
+                self.frame_restorer_thread_queue.get(timeout=0.1)
+                self.read_next_frame()
+                self.frame_restorer_thread_queue.task_done()
+            except queue.Empty:
+                pass
 
     def read_next_frame(self):
         if not self.frame_restorer_generator:
