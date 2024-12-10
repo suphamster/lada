@@ -57,8 +57,8 @@ class Timeline(Gtk.Widget):
         def on_drag_begin(gesture_drag, x, y):
             gesture_drag.set_state( Gtk.EventSequenceState.CLAIMED)
             self.on_drag_begin(x)
-        self.gesture_drag.connect("drag_begin", on_drag_begin)
-        self.gesture_drag.connect("drag_update", lambda _, offset_x, offset_y: self.on_drag_update(offset_x))
+        self.gesture_drag.connect("drag-begin", on_drag_begin)
+        self.gesture_drag.connect("drag-end", lambda _, offset_x, offset_y: self.on_drag_end(offset_x))
         self.add_controller(self.gesture_drag)
 
         event_controller_motion = Gtk.EventControllerMotion.new()
@@ -77,7 +77,7 @@ class Timeline(Gtk.Widget):
         self._playhead_position = value
         self.queue_draw()
 
-    def on_drag_update(self, offset_x):
+    def on_drag_end(self, offset_x):
         x = self.drag_start + offset_x
         x = max(0, x)
         allocation = self.get_allocation()
@@ -88,7 +88,6 @@ class Timeline(Gtk.Widget):
 
     def on_drag_begin(self, x):
         self.drag_start = x
-        self.on_drag_update(0)
 
     def update_cursor_position(self, x):
         self.cursor_position_x = x
