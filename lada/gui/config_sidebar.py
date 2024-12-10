@@ -9,7 +9,7 @@ here = pathlib.Path(__file__).parent.resolve()
 
 
 @Gtk.Template(filename=here / 'config_sidebar.ui')
-class ConfigSidebar(Gtk.ListBox):
+class ConfigSidebar(Gtk.ScrolledWindow):
     __gtype_name__ = 'ConfigSidebar'
 
     toggle_button_mosaic_detection = Gtk.Template.Child()
