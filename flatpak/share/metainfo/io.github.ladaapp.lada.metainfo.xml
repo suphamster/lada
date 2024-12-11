@@ -49,6 +49,13 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-11" version="0.3.2">
+            <description>
+                <p>GUI: fix memory leak when opening another file if we're already previewing a video</p>
+                <p>GUI: make sidebar scrollable if window height is not big enough to display everything</p>
+                <p>CLI: reformat and group CLI arguments in --help output</p>
+            </description>
+        </release>
         <release date="2024-12-09" version="0.3.1">
             <description>
                 <p>GUI: Move mosaic restoration preview processing to its own thread to avoid blocking the UI</p>
