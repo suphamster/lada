@@ -9,32 +9,43 @@ from lada.lib import audio_utils
 
 def parse_args():
     parser = argparse.ArgumentParser()
+
     parser.add_argument('--input', type=str, help='path to pixelated video file')
     parser.add_argument('--output', type=str, help='path to store restored video')
-    parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on')
-    parser.add_argument('--codec', type=str, default="h264", help='ffmpeg video codec. You probably want to use "h264" or "hevc" here')
-    parser.add_argument('--crf', type=int, default=20, help='codec quality setting. The lower the better with the caveat of larger files size and CPU usage')
-    parser.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic")
-    parser.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'))
-    parser.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'))
-    parser.add_argument('--mosaic-restoration-config-path', type=str)
-    parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering')
-    parser.add_argument('--mosaic-cleaning',  default=False, action=argparse.BooleanOptionalAction, help='If enabled will clean detected mosaic pattern from noise before passing it to mosaic restoration model. Not recommended')
-    parser.add_argument('--mosaic-cleaning-edge-detection-method', type=str, default="canny", help="either canny or pidinet")
-    parser.add_argument('--mosaic-cleaning-edge-detection-model-path', type=str, help="path to pidinet tiny model")
-    parser.add_argument('--preserve-relative-scale',  default=True, action=argparse.BooleanOptionalAction)
-    parser.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written")
-    parser.add_argument('--version',  action='store_true')
+    parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on (default: %(default)s)')
+    parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering (default: %(default)s)')
+    parser.add_argument('--preserve-relative-scale',  default=True, action=argparse.BooleanOptionalAction, help="(default: %(default)s)")
+    parser.add_argument('--version',  action='store_true', help="shows version and exit")
 
-    args = parser.parse_args()
-    return args
+    export = parser.add_argument_group('Video export (Decoder settings)')
+    export.add_argument('--codec', type=str, default="h264", help='FFmpeg video codec. E.g. "h264 or "hevc" (default: %(default)s)')
+    export.add_argument('--crf', type=int, default=20, help='constant rate factor (quality setting for decoder). The lower the better with the caveat of larger files size and CPU usage (default: %(default)s)')
+    export.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written (default: %(default)s)")
+
+    group_restoration = parser.add_argument_group('Mosaic restoration')
+    group_restoration.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic", help="Model used to restore mosaic clips (default: %(default)s)")
+    group_restoration.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'), help="(default: %(default)s)")
+    group_restoration.add_argument('--mosaic-restoration-config-path', type=str)
+
+    group_detection = parser.add_argument_group('Mosaic detection')
+    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'), help="(default: %(default)s)")
+
+    group_cleaning = parser.add_argument_group('Mosaic cleaning')
+    group_cleaning.add_argument('--mosaic-cleaning',  default=False, action=argparse.BooleanOptionalAction, help='If enabled will clean detected mosaic pattern from noise before passing it to mosaic restoration model. Not recommended (default: %(default)s)')
+    group_cleaning.add_argument('--mosaic-cleaning-edge-detection-method', type=str, default="canny", help="either canny or pidinet (default: %(default)s)")
+    group_cleaning.add_argument('--mosaic-cleaning-edge-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_edge_detection_model.pth'), help="path to pidinet tiny model (default: %(default)s)")
+
+    return parser.parse_args()
 
 
 def cli():
     args = parse_args()
     if args.version:
         print("Lada: ", VERSION)
-        return
+        exit(0)
+    if not (args.input and args.output):
+        print("Arguments --input and --output are required. Use --help to find out more.")
+        exit(1)
 
     mosaic_cleaning_edge_detection_model_path = args.mosaic_cleaning_edge_detection_model_path if args.mosaic_cleaning and args.mosaic_cleaning_edge_detection_method == 'pidinet' else None
 
@@ -56,6 +67,7 @@ def cli():
 
     video_writer.release()
 
+    print("Processing audio")
     audio_utils.combine_audio_video_files(args.input, video_tmp_file_output_path, args.output)
 
 
