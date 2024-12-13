@@ -58,7 +58,7 @@ class FrameRestorer:
         self.mosaic_cleaning = mosaic_cleaning
         self.mosaic_detection = mosaic_detection
 
-    def restore_clip(self, images):
+    def restore_clip_frames(self, images):
         if self.mosaic_restoration_model_name.startswith("rvrt"):
             from lada.rvrt import rvrt_inferencer
             restored_clip_images = rvrt_inferencer.inference(images, self.mosaic_restoration_model)
@@ -75,6 +75,44 @@ class FrameRestorer:
         else:
             raise NotImplementedError()
         return restored_clip_images
+
+    def restore_frame(self, frame, frame_num, restored_clips):
+        """
+        Takes mosaic frame and restored clips and replaces mosaic regions in frame with restored content from the clips starting at the same frame number as mosaic frame.
+        Pops starting frame from each restored clip in the process if they actually start at the same frame number as frame.
+        """
+        for buffered_clip in [c for c in restored_clips if c.frame_start == frame_num]:
+            clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
+            clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
+            clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
+            clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
+            t, l, b, r = orig_clip_box
+            frame[t:b + 1, l:r + 1, :] = clip_img
+
+    def restore_clip(self, clip):
+        """
+        Restores each contained from of the mosaic clip. If self.mosaic_detection is True will instead draw mosaic detection
+        boundaries on each frame.
+        """
+        if self.mosaic_detection:
+            restored_clip_images = visualization.draw_mosaic_detections(clip)
+        else:
+            if self.mosaic_cleaning:
+                images = []
+                for (
+                cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad_after_resize, pad_before_resize) in clip:
+                    images.append(clean_cropped_mosaic(cropped_img, cropped_mask, pad_after_resize,
+                                                       pidinet_model=self.mosaic_edge_detection_model))
+            else:
+                images = clip.get_clip_images()
+
+            restored_clip_images = self.restore_clip_frames(images)
+        assert len(restored_clip_images) == len(clip.get_clip_images())
+
+        for i in range(len(restored_clip_images)):
+            assert clip.data[i][0].shape == restored_clip_images[i].shape
+            clip.data[i] = restored_clip_images[i], clip.data[i][1], clip.data[i][2], clip.data[i][3], clip.data[i][4], \
+            clip.data[i][5]
 
     def __call__(self):
         with video_utils.VideoReader(self.video_file) as video_reader:
@@ -97,22 +135,7 @@ class FrameRestorer:
                 clip_buffer = []
 
                 for clip_idx, clip in enumerate(mosaic_generator()):
-                    if self.mosaic_detection:
-                        restored_clip_images = visualization.draw_mosaic_detections(clip)
-                    else:
-                        if self.mosaic_cleaning:
-                            images = []
-                            for (cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad_after_resize, pad_before_resize) in clip:
-                                images.append(clean_cropped_mosaic(cropped_img, cropped_mask, pad_after_resize, pidinet_model=self.mosaic_edge_detection_model))
-                        else:
-                            images = clip.get_clip_images()
-
-                        restored_clip_images = self.restore_clip(images)
-                    assert len(restored_clip_images) == len(clip.get_clip_images())
-
-                    for i in range(len(restored_clip_images)):
-                        assert clip.data[i][0].shape == restored_clip_images[i].shape
-                        clip.data[i] = restored_clip_images[i], clip.data[i][1], clip.data[i][2], clip.data[i][3], clip.data[i][4], clip.data[i][5]
+                    self.restore_clip(clip)
 
                     if clip.frame_start > frame_num:
                         if len(clip_buffer) == 0:
@@ -121,17 +144,9 @@ class FrameRestorer:
                                 yield frame, frame_pts
                                 frame_num += 1
                         else:
-                            while True:
-                                if len(clip_buffer) == 0 or clip.frame_start <= min(clip_buffer, key=lambda c: c.frame_start).frame_start:
-                                    break
+                            while len(clip_buffer) > 0 and clip.frame_start > min(clip_buffer, key=lambda c: c.frame_start).frame_start:
                                 frame, frame_pts = next(video_frames_generator)
-                                for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
-                                    clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
-                                    clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
-                                    clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
-                                    clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
-                                    t, l , b, r = orig_clip_box
-                                    frame[t:b + 1, l:r + 1, :] = clip_img
+                                self.restore_frame(frame, frame_num, clip_buffer)
                                 yield frame, frame_pts
                                 frame_num += 1
 
@@ -146,13 +161,7 @@ class FrameRestorer:
                         yield frame, frame_pts
                         frame_num += 1
                     else:
-                        for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
-                            clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
-                            clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
-                            clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
-                            clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
-                            t, l, b, r = orig_clip_box
-                            frame[t:b + 1, l:r + 1, :] = clip_img
+                        self.restore_frame(frame, frame_num, clip_buffer)
                         yield frame, frame_pts
                         frame_num += 1
 
