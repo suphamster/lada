@@ -80,6 +80,7 @@ class VideoPreview(Gtk.Widget):
     def passthrough(self, value):
         self._passthrough = value
         if self._video_preview_init_done:
+            self.setup_frame_restorer()
             self.seek_video(self.frame_num)
 
     @GObject.Property()
@@ -580,9 +581,12 @@ class VideoPreview(Gtk.Widget):
 
         if self.frame_restorer_generator:
             self.frame_restorer_generator.stop()
-        self.frame_restorer_generator = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
-                                       self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
-                                       passthrough=self._passthrough, mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
+        if self._passthrough:
+            self.frame_restorer_generator = PassthroughFrameRestorer(self.video_metadata.video_file)
+        else:
+            self.frame_restorer_generator = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
+                                           self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
+                                           mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
         self.frame_restorer_generator.start(start_ns=start_ns)
 
         self.frame_num = video_utils.offset_ns_to_frame_num(start_ns, self.video_metadata.video_fps_exact)
@@ -591,3 +595,31 @@ class VideoPreview(Gtk.Widget):
         self._application.shortcuts.register_group("preview", "Preview")
         self._application.shortcuts.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
         self._application.shortcuts.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
+
+
+class PassthroughFrameRestorer:
+    def __init__(self, video_file):
+        self.video_file = video_file
+        self.video_reader: video_utils.VideoReader | None = None
+        self.video_frames_generator = None
+        self.stop_requested = False
+
+    def start(self, start_ns=0):
+        self.video_reader = video_utils.VideoReader(self.video_file)
+        self.video_reader.__enter__()
+        if start_ns == 0:
+            self.video_reader.seek(start_ns)
+        self.video_frames_generator = self.video_reader.frames()
+
+    def stop(self):
+        self.video_reader.__exit__(None, None, None)
+        self.stop_requested = True
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """
+        returns None if being called while FrameRestorer is being stopped
+        """
+        return next(self.video_frames_generator)

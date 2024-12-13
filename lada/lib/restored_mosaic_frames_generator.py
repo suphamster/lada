@@ -53,7 +53,7 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
 class FrameRestorer:
     def __init__(self, device, video_file, preserve_relative_scale, max_clip_length, mosaic_restoration_model_name,
                  mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode,
-                 passthrough=False, mosaic_detection=False, mosaic_cleaning=False):
+                 mosaic_detection=False, mosaic_cleaning=False):
         self.device = device
         self.mosaic_restoration_model_name = mosaic_restoration_model_name
         self.max_clip_length = max_clip_length
@@ -65,7 +65,6 @@ class FrameRestorer:
         self.preferred_pad_mode = preferred_pad_mode
         self.start_ns = 0
         self.start_frame = 0
-        self.passthrough = passthrough
         self.mosaic_cleaning = mosaic_cleaning
         self.mosaic_detection = mosaic_detection
         self.eof = False
