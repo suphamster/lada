@@ -58,14 +58,18 @@ def cli():
 
     frame_restorer = FrameRestorer(args.device, args.input, args.preserve_relative_scale, args.max_clip_length, args.mosaic_restoration_model,
                  mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode, mosaic_cleaning=args.mosaic_cleaning)
+    try:
+        frame_restorer.start()
 
-    video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
-    video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front, time_base=video_metadata.time_base)
-
-    for restored_frame, restored_frame_pts in tqdm(frame_restorer(), total=video_metadata.frames_count, desc="Processing frames"):
-        video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
-
-    video_writer.release()
+        video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
+        video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front, time_base=video_metadata.time_base)
+        try:
+            for restored_frame, restored_frame_pts in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
+                video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
+        finally:
+            video_writer.release()
+    finally:
+        frame_restorer.stop()
 
     print("Processing audio")
     audio_utils.combine_audio_video_files(args.input, video_tmp_file_output_path, args.output)

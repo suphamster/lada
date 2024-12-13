@@ -58,7 +58,7 @@ class VideoPreview(Gtk.Widget):
         self.frame_restorer_thread_queue: queue.Queue = queue.Queue()
         self.worker_should_be_running: bool = False
 
-        self.frame_restorer_generator = None
+        self.frame_restorer_generator: FrameRestorer | None = None
         self.file_duration_ns = 0
         self.file_duration_frames = 0
         self.frame_duration_ns = None
@@ -513,7 +513,11 @@ class VideoPreview(Gtk.Widget):
         if not self.frame_restorer_generator:
             self.setup_frame_restorer(start_ns=0)
         try:
-            frame, frame_pts = next(self.frame_restorer_generator)
+            result = next(self.frame_restorer_generator)
+            if result is None:
+                assert self.frame_restorer_generator.stop_requested
+                return
+            frame, frame_pts = result
         except StopIteration:
             self.appsrc.emit("end-of-stream")
             return
@@ -574,11 +578,13 @@ class VideoPreview(Gtk.Widget):
                                      mosaic_edge_detection_model=mosaic_edge_detection_model,
                                      mosaic_restoration_model_preferred_pad_mode=mosaic_restoration_model_preferred_pad_mode)
 
-        frame_restorer = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
+        if self.frame_restorer_generator:
+            self.frame_restorer_generator.stop()
+        self.frame_restorer_generator = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
                                        self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
-                                       start_ns=start_ns, passthrough=self._passthrough, mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
+                                       passthrough=self._passthrough, mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
+        self.frame_restorer_generator.start(start_ns=start_ns)
 
-        self.frame_restorer_generator = frame_restorer()
         self.frame_num = video_utils.offset_ns_to_frame_num(start_ns, self.video_metadata.video_fps_exact)
 
     def _setup_shortcuts(self):
