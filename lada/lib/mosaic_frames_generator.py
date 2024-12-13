@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import ultralytics
 from ultralytics import YOLO
+from ultralytics.engine.results import Results
 
 from lada.lib import Box, Mask, Image, VideoMetadata
 from lada.lib import image_utils
@@ -174,7 +175,7 @@ def box_overlaps(box1: Box, box2: Box) -> bool:
     return y_overlaps and x_overlaps
 
 class MosaicFramesWorker:
-    def __init__(self, model: ultralytics.models.YOLO, video_file, frame_queue: queue.Queue, clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False):
+    def __init__(self, model: ultralytics.models.YOLO, video_file, frame_queue: queue.Queue, clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
         self.model = model
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
@@ -191,6 +192,7 @@ class MosaicFramesWorker:
         self.clip_queue = clip_queue
         self.thread: threading.Thread | None = None
         self.should_be_running = False
+        self.batch_size = batch_size
 
     def start(self, start_ns):
         self.start_ns = start_ns
@@ -208,6 +210,53 @@ class MosaicFramesWorker:
             logger.debug("mosaic frames worker: stopped")
         self.thread = None
 
+    def _create_clips_for_completed_scenes(self, scenes, frame_num, eof):
+        completed_scenes = []
+        for current_scene in scenes:
+            if (current_scene.frame_end < frame_num or len(current_scene) >= self.max_clip_length or eof) and current_scene not in completed_scenes:
+                completed_scenes.append(current_scene)
+                other_scenes = [other for other in scenes if other != current_scene]
+                for other_scene in other_scenes:
+                    if other_scene.frame_start < current_scene.frame_start and other_scene not in completed_scenes:
+                        completed_scenes.append(other_scene)
+
+        for completed_scene in sorted(completed_scenes, key=lambda s: s.frame_start):
+            if self.preserve_relative_scale and self.dont_preserve_relative_scale:
+                clip_v1 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
+                clip_v2 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
+                self.clip_queue.put((clip_v1, clip_v2))
+            elif self.preserve_relative_scale:
+                clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
+                self.clip_queue.put(clip)
+            elif self.dont_preserve_relative_scale:
+                clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
+                self.clip_queue.put(clip)
+            #print(f"frame {frame_num}, yielding clip starting {clip.frame_start}, ending {clip.frame_end}, all scene starts: {[s.frame_start for s in scenes]}, completed scenes: {[s.frame_start for s in completed_scenes]}")
+            scenes.remove(completed_scene)
+            self.clip_counter += 1
+
+    def _create_or_append_scenes_based_on_prediction_result(self, results: Results, scenes: list[Scene], frame_num):
+        mosaic_detected = len(results.boxes) > 0
+        self.frame_queue.put((frame_num, mosaic_detected))
+        for i in range(len(results.boxes)):
+            mask = convert_yolo_mask(results.masks[i], results.orig_shape)
+            box = convert_yolo_box(results.boxes[i], results.orig_shape)
+
+            current_scene = None
+            for scene in scenes:
+                if scene.belongs(box):
+                    if scene.frame_end == frame_num:
+                        current_scene = scene
+                        current_scene.merge_mask_box(mask, box)
+                    else:
+                        current_scene = scene
+                        current_scene.add_frame(frame_num, results.orig_img, mask, box)
+                    break
+            if current_scene is None:
+                current_scene = Scene(self.video_file, self.video_meta_data)
+                scenes.append(current_scene)
+                current_scene.add_frame(frame_num, results.orig_img, mask, box)
+
     def _worker(self):
         logger.debug("mosaic frames worker: started")
         with video_utils.VideoReader(self.video_file) as video_reader:
@@ -219,62 +268,23 @@ class MosaicFramesWorker:
             eof = False
             while not eof and self.should_be_running:
                 try:
-                    frame, _ = next(video_frames_generator)
+                    frames = []
+                    for i in range(self.batch_size):
+                        frame, _ = next(video_frames_generator)
+                        frames.append(frame)
                 except StopIteration:
                     eof = True
+                if len(frames) > 0:
+                    batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device)
+                    assert len(frames) == len(batch_prediction_results)
+                    for i, results in enumerate(batch_prediction_results):
+                        self._create_or_append_scenes_based_on_prediction_result(results, scenes, frame_num)
+                        self._create_clips_for_completed_scenes(scenes, frame_num, eof=False)
+                        frame_num += 1
                 if eof:
+                    self._create_clips_for_completed_scenes(scenes, frame_num, eof=True)
                     self.frame_queue.put(None)
-                else:
-                    prediction_results = self.model.predict(source=frame, stream=False, verbose=False, device=self.device)
-                    mosaic_detected = len(prediction_results) > 0 and len(prediction_results[0].boxes) > 0
-                    self.frame_queue.put((frame_num, mosaic_detected))
-                    for results in prediction_results:
-                        for i in range(len(results.boxes)):
-                            mask = convert_yolo_mask(results.masks[i], results.orig_shape)
-                            box = convert_yolo_box(results.boxes[i], results.orig_shape)
-
-                            current_scene = None
-                            for scene in scenes:
-                                if scene.belongs(box):
-                                    if scene.frame_end == frame_num:
-                                        current_scene = scene
-                                        current_scene.merge_mask_box(mask, box)
-                                    else:
-                                        current_scene = scene
-                                        current_scene.add_frame(frame_num, results.orig_img, mask, box)
-                                    break
-                            if current_scene is None:
-                                current_scene = Scene(self.video_file, self.video_meta_data)
-                                scenes.append(current_scene)
-                                current_scene.add_frame(frame_num, results.orig_img, mask, box)
-
-                completed_scenes = []
-                for current_scene in scenes:
-                    if (current_scene.frame_end < frame_num or len(current_scene) >= self.max_clip_length or eof) and current_scene not in completed_scenes:
-                        completed_scenes.append(current_scene)
-                        other_scenes = [other for other in scenes if other != current_scene]
-                        for other_scene in other_scenes:
-                            if other_scene.frame_start < current_scene.frame_start and other_scene not in completed_scenes:
-                                completed_scenes.append(other_scene)
-
-                for completed_scene in sorted(completed_scenes, key=lambda s: s.frame_start):
-                    if self.preserve_relative_scale and self.dont_preserve_relative_scale:
-                        clip_v1 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                        clip_v2 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                        self.clip_queue.put((clip_v1, clip_v2))
-                    elif self.preserve_relative_scale:
-                        clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                        self.clip_queue.put(clip)
-                    elif self.dont_preserve_relative_scale:
-                        clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                        self.clip_queue.put(clip)
-                    #print(f"frame {frame_num}, yielding clip starting {clip.frame_start}, ending {clip.frame_end}, all scene starts: {[s.frame_start for s in scenes]}, completed scenes: {[s.frame_start for s in completed_scenes]}")
-                    scenes.remove(completed_scene)
-                    self.clip_counter += 1
-                if eof:
                     self.clip_queue.put(None)
-                frame_num += 1
-
 
 class MosaicFramesGenerator:
     def __init__(self, model: ultralytics.models.YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_ns=0):
