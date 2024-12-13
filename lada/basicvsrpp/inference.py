@@ -1,3 +1,4 @@
+import logging
 import os.path
 
 import numpy as np
@@ -8,6 +9,8 @@ from mmengine.config import Config
 from mmengine.runner import load_checkpoint
 
 from lada.lib.image_utils import img2tensor, tensor2img
+
+logger = logging.getLogger(__name__)
 
 def get_default_gan_inference_config() -> dict:
     return dict(
@@ -39,7 +42,7 @@ def load_model(config: str | dict | None, checkpoint_path, device):
     else:
         raise Exception("unsupported value for 'config', Must be either a file path to a config file or a dict definition of the model")
     model = MODELS.build(config)
-    load_checkpoint(model, checkpoint_path, map_location='cpu')
+    load_checkpoint(model, checkpoint_path, map_location='cpu', logger=logger)
     model.cfg = config
     model.to(device)
     model.eval()
