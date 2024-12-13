@@ -6,9 +6,9 @@ from ultralytics import YOLO
 import argparse
 import hashlib
 
-from ultralytics import settings
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+from lada import disable_ultralytics_telemetry
+
+disable_ultralytics_telemetry()
 
 
 # The function to be called anytime a slider's value changes

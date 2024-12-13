@@ -7,7 +7,6 @@ from typing import Generator
 import cv2
 import numpy as np
 import torch
-import ultralytics
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
@@ -175,7 +174,7 @@ def box_overlaps(box1: Box, box2: Box) -> bool:
     return y_overlaps and x_overlaps
 
 class MosaicFramesWorker:
-    def __init__(self, model: ultralytics.models.YOLO, video_file, frame_queue: queue.Queue, clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
+    def __init__(self, model: YOLO, video_file, frame_queue: queue.Queue, clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
         self.model = model
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
@@ -287,7 +286,7 @@ class MosaicFramesWorker:
                     self.clip_queue.put(None)
 
 class MosaicFramesGenerator:
-    def __init__(self, model: ultralytics.models.YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_ns=0):
+    def __init__(self, model: YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_ns=0):
         self.model = model
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device

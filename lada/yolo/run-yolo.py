@@ -5,10 +5,10 @@ from pathlib import Path
 from ultralytics import YOLO
 import argparse
 
+from lada import disable_ultralytics_telemetry
 from lada.lib.video_utils import process_video_v3
-from ultralytics import settings
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+
+disable_ultralytics_telemetry()
 
 
 def process_frame(in_frame, model):

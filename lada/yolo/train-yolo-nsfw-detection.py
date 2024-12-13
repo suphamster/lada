@@ -1,11 +1,10 @@
 from ultralytics import YOLO
 import argparse
 from pathlib import Path
-from ultralytics import settings
 
-# Disable analytics and crash reporting
-settings.update({'sync': False})
-print(settings)
+from lada import disable_ultralytics_telemetry
+
+disable_ultralytics_telemetry()
 
 parser = argparse.ArgumentParser("Train YOLO model")
 parser.add_argument('--config', type=Path, help="path to .yaml config file", default='nsfw_detection-dataset.yaml')

@@ -435,8 +435,6 @@ def clean_cropped_mosaic(mosaic, mask, pad=(0,0,0,0), draw=False, pidinet_model=
 if __name__ == "__main__":
     os.environ["QT_QPA_PLATFORM"] = "xcb"
     from ultralytics import YOLO
-    from ultralytics import settings
-    settings.update({'sync': False})
     from lada.lib.mosaic_frames_generator import MosaicFramesGenerator
 
     input = 'sample_vid.mp4'

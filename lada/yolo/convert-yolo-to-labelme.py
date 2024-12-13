@@ -4,10 +4,11 @@ import json
 import cv2
 import os
 import argparse
-from ultralytics import YOLO, settings
+from ultralytics import YOLO
 
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+from lada import disable_ultralytics_telemetry
+
+disable_ultralytics_telemetry()
 
 
 class PolygonSaver:

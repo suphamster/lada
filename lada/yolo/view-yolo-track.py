@@ -1,11 +1,6 @@
 from ultralytics import YOLO
 import cv2
-import sys
 import argparse
-
-from ultralytics import settings
-# Disable analytics and crash reporting
-settings.update({'sync': False})
 
 def parse_args():
     parser = argparse.ArgumentParser()
