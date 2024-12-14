@@ -12,10 +12,12 @@ from lada.lib import image_utils, video_utils
 from lada.lib import visualization
 from lada.lib.mosaic_frames_generator import MosaicFramesWorker
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.pidinet import pidinet_inference
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
+disable_ultralytics_telemetry()
 
 def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_path, mosaic_restoration_config_path,
                 mosaic_detection_model_path, mosaic_cleaning_edge_detection_model_path=None):

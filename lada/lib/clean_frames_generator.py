@@ -10,7 +10,10 @@ import ultralytics.engine.results
 import ultralytics.models
 from lada.lib import Mask, Box, Image, VideoMetadata
 from lada.lib import mask_utils
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from ultralytics.utils.ops import scale_image
+
+disable_ultralytics_telemetry()
 
 
 @dataclass

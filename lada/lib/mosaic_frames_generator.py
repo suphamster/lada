@@ -17,9 +17,11 @@ from lada.lib.scene_utils import crop_to_box_v3
 from lada.lib.clean_frames_generator import convert_yolo_box, convert_yolo_mask
 from lada.lib import video_utils
 from lada import LOG_LEVEL
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
+disable_ultralytics_telemetry()
 
 class Scene:
     def __init__(self, file_path: Path, video_meta_data: VideoMetadata):
