@@ -69,11 +69,16 @@ class Scene:
     def get_boxes(self):
         return [box for _, _, box in self.data]
 
+    def box_overlaps(self, box1: Box, box2: Box) -> bool:
+        y_overlaps = (box1[0] <= box2[0] <= box1[2] or box1[0] <= box2[2] <= box1[2]) or (box2[0] <= box1[0] <= box2[2] or box2[0] <= box1[2] <= box2[2])
+        x_overlaps = (box1[1] <= box2[1] <= box1[3] or box1[1] <= box2[3] <= box1[3]) or (box2[1] <= box1[1] <= box2[3] or box2[1] <= box1[3] <= box2[3])
+        return y_overlaps and x_overlaps
+
     def belongs(self, box: Box):
         if len(self.data) == 0:
             return False
         last_scene_box = self.data[-1][2]
-        return box_overlaps(last_scene_box, box)
+        return self.box_overlaps(last_scene_box, box)
 
     def __iter__(self):
         return self
@@ -171,13 +176,8 @@ class Clip:
     def __getitem__(self, item):
         return self.data[item]
 
-def box_overlaps(box1: Box, box2: Box) -> bool:
-    y_overlaps = (box1[0] <= box2[0] <= box1[2] or box1[0] <= box2[2] <= box1[2]) or (box2[0] <= box1[0] <= box2[2] or box2[0] <= box1[2] <= box2[2])
-    x_overlaps = (box1[1] <= box2[1] <= box1[3] or box1[1] <= box2[3] <= box1[3]) or (box2[1] <= box1[1] <= box2[3] or box2[1] <= box1[3] <= box2[3])
-    return y_overlaps and x_overlaps
-
-class MosaicFramesWorker:
-    def __init__(self, model: YOLO, video_file, frame_queue: queue.Queue, clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
+class MosaicDetector:
+    def __init__(self, model: YOLO, video_file, frame_detection_queue: queue.Queue, mosaic_clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
         self.model = model
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
@@ -191,11 +191,11 @@ class MosaicFramesWorker:
         self.start_ns = 0
         self.start_frame = 0
         self.video_meta_data = video_utils.get_video_meta_data(self.video_file)
-        self.frame_queue = frame_queue
-        self.clip_queue = clip_queue
-        self.raw_frame_queue = queue.Queue(maxsize=2*batch_size)
-        self.thread: threading.Thread | None = None
-        self.frame_reader_thread: threading.Thread | None = None
+        self.frame_detection_queue = frame_detection_queue
+        self.mosaic_clip_queue = mosaic_clip_queue
+        self.frame_feeder_queue = queue.Queue(maxsize=2 * batch_size)
+        self.frame_detector_thread: threading.Thread | None = None
+        self.frame_feeder_thread: threading.Thread | None = None
         self.should_be_running = False
         self.batch_size = batch_size
 
@@ -204,11 +204,11 @@ class MosaicFramesWorker:
         self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
         self.should_be_running = True
 
-        self.thread = threading.Thread(target=self._worker)
-        self.thread.start()
+        self.frame_detector_thread = threading.Thread(target=self._frame_detector_worker)
+        self.frame_detector_thread.start()
 
-        self.frame_reader_thread = threading.Thread(target=self._frame_reader_worker)
-        self.frame_reader_thread.start()
+        self.frame_feeder_thread = threading.Thread(target=self._frame_feeder_worker)
+        self.frame_feeder_thread.start()
 
     def stop(self):
         logger.debug("mosaic frame detection: stopping...")
@@ -216,24 +216,24 @@ class MosaicFramesWorker:
         self.should_be_running = False
 
         # unblock producer
-        threading_utils.empty_out_queue(self.raw_frame_queue, "raw_frame_queue")
-        if self.frame_reader_thread:
-            self.frame_reader_thread.join()
+        threading_utils.empty_out_queue(self.frame_feeder_queue, "raw_frame_queue")
+        if self.frame_feeder_thread:
+            self.frame_feeder_thread.join()
             logger.debug("frame reader worker: stopped")
-        self.frame_reader_thread = None
+        self.frame_feeder_thread = None
 
         # unblock consumer
-        threading_utils.put_closing_queue_marker(self.raw_frame_queue, "raw_frame_queue")
+        threading_utils.put_closing_queue_marker(self.frame_feeder_queue, "raw_frame_queue")
         # unblock producer
-        threading_utils.empty_out_queue(self.clip_queue, "clip_queue")
-        threading_utils.empty_out_queue(self.frame_queue, "frame_queue")
-        if self.thread:
-            self.thread.join()
+        threading_utils.empty_out_queue(self.mosaic_clip_queue, "clip_queue")
+        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_queue")
+        if self.frame_detector_thread:
+            self.frame_detector_thread.join()
             logger.debug("mosaic frames worker: stopped")
-        self.thread = None
+        self.frame_detector_thread = None
 
         # garbage collection
-        threading_utils.empty_out_queue(self.raw_frame_queue, "raw_frame_queue")
+        threading_utils.empty_out_queue(self.frame_feeder_queue, "raw_frame_queue")
 
         logger.debug(f"mosaic frame detection: stopped, took: {time.time() - start}")
 
@@ -251,20 +251,20 @@ class MosaicFramesWorker:
             if self.preserve_relative_scale and self.dont_preserve_relative_scale:
                 clip_v1 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
                 clip_v2 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                self.clip_queue.put((clip_v1, clip_v2))
+                self.mosaic_clip_queue.put((clip_v1, clip_v2))
             elif self.preserve_relative_scale:
                 clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                self.clip_queue.put(clip)
+                self.mosaic_clip_queue.put(clip)
             elif self.dont_preserve_relative_scale:
                 clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                self.clip_queue.put(clip)
+                self.mosaic_clip_queue.put(clip)
             #print(f"frame {frame_num}, yielding clip starting {clip.frame_start}, ending {clip.frame_end}, all scene starts: {[s.frame_start for s in scenes]}, completed scenes: {[s.frame_start for s in completed_scenes]}")
             scenes.remove(completed_scene)
             self.clip_counter += 1
 
     def _create_or_append_scenes_based_on_prediction_result(self, results: Results, scenes: list[Scene], frame_num):
         mosaic_detected = len(results.boxes) > 0
-        self.frame_queue.put((frame_num, mosaic_detected))
+        self.frame_detection_queue.put((frame_num, mosaic_detected))
         for i in range(len(results.boxes)):
             mask = convert_yolo_mask(results.masks[i], results.orig_shape)
             box = convert_yolo_box(results.boxes[i], results.orig_shape)
@@ -284,8 +284,8 @@ class MosaicFramesWorker:
                 scenes.append(current_scene)
                 current_scene.add_frame(frame_num, results.orig_img, mask, box)
 
-    def _frame_reader_worker(self):
-        logger.debug("frame reader worker: started")
+    def _frame_feeder_worker(self):
+        logger.debug("frame feeder: started")
         with video_utils.VideoReader(self.video_file) as video_reader:
             if self.start_ns > 0:
                 video_reader.seek(self.start_ns)
@@ -300,10 +300,10 @@ class MosaicFramesWorker:
                         frames.append(frame)
                 except StopIteration:
                     eof = True
-                self.raw_frame_queue.put((frames, frame_num, eof))
+                self.frame_feeder_queue.put((frames, frame_num, eof))
                 frame_num += len(frames)
 
-    def _worker(self):
+    def _frame_detector_worker(self):
         logger.debug("mosaic frames worker: started")
         with video_utils.VideoReader(self.video_file) as video_reader:
             if self.start_ns > 0:
@@ -312,7 +312,7 @@ class MosaicFramesWorker:
             frame_num = self.start_frame
             eof = False
             while not eof and self.should_be_running:
-                raw_frames = self.raw_frame_queue.get()
+                raw_frames = self.frame_feeder_queue.get()
                 if raw_frames is None:
                     assert not self.should_be_running, f"Illegal state: Expected frame batch from raw frames queue but received None (EOF marker) and no stop was requested"
                 frame_reader_stopped = raw_frames is None
@@ -329,10 +329,10 @@ class MosaicFramesWorker:
                 if eof:
                     self._create_clips_for_completed_scenes(scenes, frame_num, eof=True)
                 if eof or frame_reader_stopped:
-                    self.frame_queue.put(None)
-                    self.clip_queue.put(None)
+                    self.frame_detection_queue.put(None)
+                    self.mosaic_clip_queue.put(None)
 
-class MosaicFramesGenerator:
+class MosaicDetectorDeprecated:
     def __init__(self, model: YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_ns=0):
         self.model = model
         self.video_file = video_file
@@ -407,113 +407,3 @@ class MosaicFramesGenerator:
                     scenes.remove(completed_scene)
                     self.clip_counter += 1
                 frame_num += 1
-
-if __name__ == '__main__':
-    import argparse
-
-    def parse_args():
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--input', type=str)
-        parser.add_argument('--model-path', type=str,
-                            default='yolo/runs/segment/train_mosaic_detection_yolov9c/weights/best.pt')
-        parser.add_argument('--max-clip-length', type=int, default=30)
-        parser.add_argument('--clip-size', type=int, default=256)
-
-        args = parser.parse_args()
-        return args
-
-    def show(window_name, output):
-        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-        cv2.imshow(window_name, output)
-        while True:
-            key_pressed = cv2.waitKey(1)
-            if key_pressed & 0xFF == ord("n"):
-                break
-
-    args = parse_args()
-
-    model = YOLO(args.model_path)
-
-    mosaic_generator = MosaicFramesGenerator(model, args.input, args.max_clip_length, args.clip_size, should_pad=False)
-
-    window_name = "main"
-
-    clip_buffer = []
-    frame_buffer = []
-
-    clip_colors = {}
-    clip_names = {}
-
-    cap = cv2.VideoCapture(args.input)
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    def read_frame(frame_num):
-        ret, frame = cap.read()
-        if ret:
-            visualization.draw_text(f"frame:{frame_num}", (25,25), frame)
-            return frame
-        return None
-
-    frame_num = 0
-    clips_min_frame_start = 0
-
-    for clip_idx, clip in enumerate(mosaic_generator()):
-        if clip.frame_start > frame_num:
-            if len(clip_buffer) == 0:
-                while clip.frame_start > frame_num:
-                    frame = read_frame(frame_num)
-                    show(window_name, frame)
-                    frame_num += 1
-            else:
-                while True:
-                    if len(clip_buffer) == 0 or clip.frame_start <= min(clip_buffer, key=lambda c: c.frame_start).frame_start:
-                        break
-                    frame = read_frame(frame_num)
-                    for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
-                        clip_start_frame_num = buffered_clip.frame_start
-                        clip_img, clip_mask, clip_box, orig_crop_shape, pad = buffered_clip.pop()
-                        visualization.draw_text(f"c:{clip_names[buffered_clip]},f:{clip_start_frame_num}", (25, 25), clip_img)
-                        t, l, b, r = clip_box
-                        frame[t:b + 1, l:r + 1, :] = image_utils.resize(clip_img, orig_crop_shape[:2])
-                        visualization.draw_box(frame, clip_box, color=clip_colors[buffered_clip])
-                    show(window_name, frame)
-                    frame_num += 1
-
-                    processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
-                    for processed_clip in processed_clips:
-                        clip_buffer.remove(processed_clip)
-                        del clip_colors[processed_clip]
-                        del clip_names[processed_clip]
-
-        clip_buffer.append(clip)
-        clip_colors[clip] = list(np.random.random(size=3) * 256)
-        clip_names[clip] = clip_idx
-
-    while frame_num < frame_count:
-        if len(clip_buffer) == 0:
-            frame = read_frame(frame_num)
-            show(window_name, frame)
-            frame_num += 1
-        else:
-            while True:
-                if len(clip_buffer) == 0:
-                    break
-                frame = read_frame(frame_num)
-                for buffered_clip in [c for c in clip_buffer if c.frame_start == frame_num]:
-                    clip_start_frame_num = buffered_clip.frame_start
-                    clip_img, clip_mask, clip_box, orig_crop_shape, pad = buffered_clip.pop()
-                    visualization.draw_text(f"c:{clip_names[buffered_clip]},f:{clip_start_frame_num}", (25, 25), clip_img)
-                    t, l, b, r = clip_box
-                    frame[t:b + 1, l:r + 1, :] = image_utils.resize(clip_img, orig_crop_shape[:2])
-                    visualization.draw_box(frame, clip_box, color=clip_colors[buffered_clip])
-                show(window_name, frame)
-                frame_num += 1
-
-                processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
-                for processed_clip in processed_clips:
-                    clip_buffer.remove(processed_clip)
-                    del clip_colors[processed_clip]
-                    del clip_names[processed_clip]
-
-    cap.release()
-    cv2.destroyAllWindows()

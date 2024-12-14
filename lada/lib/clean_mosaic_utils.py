@@ -435,13 +435,13 @@ def clean_cropped_mosaic(mosaic, mask, pad=(0,0,0,0), draw=False, pidinet_model=
 if __name__ == "__main__":
     os.environ["QT_QPA_PLATFORM"] = "xcb"
     from ultralytics import YOLO
-    from lada.lib.mosaic_frames_generator import MosaicFramesGenerator
+    from lada.lib.mosaic_detector import MosaicDetectorDeprecated
 
     input = 'sample_vid.mp4'
 
     mosaic_detection_model = YOLO('yolo/runs/segment/train_mosaic_detection_yolov9c/weights/best.pt')
     pidinet_model = pidinet_inference.load_model("experiments/pidinet/run1/save_models/checkpoint_019.pth")
-    mosaic_generator = MosaicFramesGenerator(mosaic_detection_model, input, 30, 256, pad_mode='zero')
+    mosaic_generator = MosaicDetectorDeprecated(mosaic_detection_model, input, 30, 256, pad_mode='zero')
     quit = False
     for clip_id, clip in enumerate(mosaic_generator()):
         images = []

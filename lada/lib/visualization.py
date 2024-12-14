@@ -1,7 +1,7 @@
 import cv2
 from lada.lib import image_utils
 from lada.lib import Image
-from lada.lib.mosaic_frames_generator import Clip
+from lada.lib.mosaic_detector import Clip
 
 def overlay_mask(frame, mask):
     overlay = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)

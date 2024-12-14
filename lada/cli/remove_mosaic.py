@@ -3,7 +3,7 @@ from tqdm import tqdm
 import os
 import tempfile
 from lada import MODEL_WEIGHTS_DIR, VERSION
-from lada.lib.restored_mosaic_frames_generator import load_models, FrameRestorer
+from lada.lib.frame_restorer import load_models, FrameRestorer
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
 from lada.lib import audio_utils
 

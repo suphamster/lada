@@ -10,7 +10,7 @@ from ultralytics import YOLO
 from lada import LOG_LEVEL
 from lada.lib import image_utils, video_utils, threading_utils
 from lada.lib import visualization
-from lada.lib.mosaic_frames_generator import MosaicFramesWorker
+from lada.lib.mosaic_detector import MosaicDetector
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.pidinet import pidinet_inference
@@ -88,22 +88,78 @@ class FrameRestorer:
         # no queue size limit needed, elements are tiny
         self.frame_detection_queue = queue.Queue()
 
-        self.mosaic_frames_generator = MosaicFramesWorker(self.mosaic_detection_model, self.video_meta_data.video_file,
-                                                          frame_queue=self.frame_detection_queue,
-                                                          clip_queue=self.mosaic_clip_queue,
-                                                          device=self.device,
-                                                         max_clip_length=self.max_clip_length,
-                                                         pad_mode=self.preferred_pad_mode,
-                                                         preserve_relative_scale=self.preserve_relative_scale,
-                                                         dont_preserve_relative_scale=(not self.preserve_relative_scale))
+        self.mosaic_detector = MosaicDetector(self.mosaic_detection_model, self.video_meta_data.video_file,
+                                              frame_detection_queue=self.frame_detection_queue,
+                                              mosaic_clip_queue=self.mosaic_clip_queue,
+                                              device=self.device,
+                                              max_clip_length=self.max_clip_length,
+                                              pad_mode=self.preferred_pad_mode,
+                                              preserve_relative_scale=self.preserve_relative_scale,
+                                              dont_preserve_relative_scale=(not self.preserve_relative_scale))
 
-        self.restoration_thread: threading.Thread | None = None
-        self.reassembly_thread: threading.Thread | None = None
-        self.restoration_thread_should_be_running = False
-        self.reassembly_thread_should_be_running = False
+        self.clip_restoration_thread: threading.Thread | None = None
+        self.frame_restoration_thread: threading.Thread | None = None
+        self.clip_restoration_thread_should_be_running = False
+        self.frame_restoration_thread_should_be_running = False
         self.stop_requested = False
 
-    def restore_clip_frames(self, images):
+    def start(self, start_ns=0):
+        assert self.frame_restoration_thread is None and self.clip_restoration_thread is None, "Illegal State: Tried to start FrameRestorer when it's already running. You need to stop it first"
+
+        self.start_ns = start_ns
+        self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
+        self.frame_restoration_thread_should_be_running = True
+        self.clip_restoration_thread_should_be_running = True
+        self.stop_requested = False
+
+        self.frame_restoration_thread = threading.Thread(target=self._reassembly_worker)
+        self.clip_restoration_thread = threading.Thread(target=self._restoration_worker)
+
+        self.mosaic_detector.start(start_ns=start_ns)
+        self.clip_restoration_thread.start()
+        self.frame_restoration_thread.start()
+
+    def stop(self):
+        if self.clip_restoration_thread is None and self.frame_restoration_thread is None:
+            logger.debug("Tried to stop already stopped FrameRestorer. Ignoring...")
+            return
+        logger.debug("frame restorer: stopping...")
+        start = time.time()
+        self.clip_restoration_thread_should_be_running = False
+        self.frame_restoration_thread_should_be_running = False
+        self.stop_requested = True
+
+        self.mosaic_detector.stop()
+
+        # unblock consumer
+        threading_utils.put_closing_queue_marker(self.mosaic_clip_queue, "mosaic_clip_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
+        # wait until thread stopped
+        if self.clip_restoration_thread:
+            self.clip_restoration_thread.join()
+            logger.debug("restoration worker: stopped")
+        self.clip_restoration_thread = None
+
+        # unblock consumer
+        threading_utils.put_closing_queue_marker(self.frame_detection_queue, "frame_detection_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
+        # wait until thread stopped
+        if self.frame_restoration_thread:
+            self.frame_restoration_thread.join()
+            logger.debug("reassembly worker: stopped")
+        self.frame_restoration_thread = None
+
+        # garbage collection
+        threading_utils.empty_out_queue(self.mosaic_clip_queue, "mosaic_clip_queue")
+        threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
+        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
+        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
+
+        logger.debug(f"frame restorer: stopped, took {time.time() - start}")
+
+    def _restore_clip_frames(self, images):
         if self.mosaic_restoration_model_name.startswith("rvrt"):
             from lada.rvrt import rvrt_inferencer
             restored_clip_images = rvrt_inferencer.inference(images, self.mosaic_restoration_model)
@@ -121,7 +177,7 @@ class FrameRestorer:
             raise NotImplementedError()
         return restored_clip_images
 
-    def restore_frame(self, frame, frame_num, restored_clips):
+    def _restore_frame(self, frame, frame_num, restored_clips):
         """
         Takes mosaic frame and restored clips and replaces mosaic regions in frame with restored content from the clips starting at the same frame number as mosaic frame.
         Pops starting frame from each restored clip in the process if they actually start at the same frame number as frame.
@@ -134,7 +190,7 @@ class FrameRestorer:
             t, l, b, r = orig_clip_box
             frame[t:b + 1, l:r + 1, :] = clip_img
 
-    def restore_clip(self, clip):
+    def _restore_clip(self, clip):
         """
         Restores each contained from of the mosaic clip. If self.mosaic_detection is True will instead draw mosaic detection
         boundaries on each frame.
@@ -151,7 +207,7 @@ class FrameRestorer:
             else:
                 images = clip.get_clip_images()
 
-            restored_clip_images = self.restore_clip_frames(images)
+            restored_clip_images = self._restore_clip_frames(images)
         assert len(restored_clip_images) == len(clip.get_clip_images())
 
         for i in range(len(restored_clip_images)):
@@ -159,77 +215,26 @@ class FrameRestorer:
             clip.data[i] = restored_clip_images[i], clip.data[i][1], clip.data[i][2], clip.data[i][3], clip.data[i][4], \
             clip.data[i][5]
 
-    def collect_garbage(self, clip_buffer):
+    def _collect_garbage(self, clip_buffer):
         processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
         for processed_clip in processed_clips:
             clip_buffer.remove(processed_clip)
 
-    def contains_at_least_one_clip_starting_after_frame_num(self, frame_num, clip_buffer):
+    def _contains_at_least_one_clip_starting_after_frame_num(self, frame_num, clip_buffer):
         return len(clip_buffer) > 0 and frame_num < max(clip_buffer, key=lambda c: c.frame_start).frame_start
-
-    def start(self, start_ns=0):
-        self.start_ns = start_ns
-        self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
-        self.reassembly_thread_should_be_running = True
-        self.restoration_thread_should_be_running = True
-        self.stop_requested = False
-
-        self.reassembly_thread = threading.Thread(target=self._reassembly_worker)
-        self.restoration_thread = threading.Thread(target=self._restoration_worker)
-
-        self.mosaic_frames_generator.start(start_ns=start_ns)
-        self.restoration_thread.start()
-        self.reassembly_thread.start()
-
-    def stop(self):
-        logger.debug("frame restorer: stopping...")
-        start = time.time()
-        self.restoration_thread_should_be_running = False
-        self.reassembly_thread_should_be_running = False
-        self.stop_requested = True
-
-        self.mosaic_frames_generator.stop()
-
-        # unblock consumer
-        threading_utils.put_closing_queue_marker(self.mosaic_clip_queue, "mosaic_clip_queue")
-        # unblock producer
-        threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
-        # wait until thread stopped
-        if self.restoration_thread:
-            self.restoration_thread.join()
-            logger.debug("restoration worker: stopped")
-        self.restoration_thread = None
-
-        # unblock consumer
-        threading_utils.put_closing_queue_marker(self.frame_detection_queue, "frame_detection_queue")
-        # unblock producer
-        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
-        # wait until thread stopped
-        if self.reassembly_thread:
-            self.reassembly_thread.join()
-            logger.debug("reassembly worker: stopped")
-        self.reassembly_thread = None
-
-        # garbage collection
-        threading_utils.empty_out_queue(self.mosaic_clip_queue, "mosaic_clip_queue")
-        threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
-        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
-        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
-
-        logger.debug(f"frame restorer: stopped, took {time.time() - start}")
 
     def _restoration_worker(self):
         logger.debug("restoration_worker: started")
-        while self.restoration_thread_should_be_running:
+        while self.clip_restoration_thread_should_be_running:
             start = time.time()
             clip = self.mosaic_clip_queue.get()
             waited_for_mosaic_clip = time.time() - start
             if clip is None:
-                self.restoration_thread_should_be_running = False
+                self.clip_restoration_thread_should_be_running = False
                 self.restored_clip_queue.put(None)
             else:
                 logger.debug(f"restoration_worker: read mosaic clip, waited for {waited_for_mosaic_clip}s", )
-                self.restore_clip(clip)
+                self._restore_clip(clip)
                 self.restored_clip_queue.put(clip)
 
     def _read_next_frame(self, video_frames_generator, expected_frame_num) -> Optional[tuple[bool, np.ndarray, int]]:
@@ -270,23 +275,23 @@ class FrameRestorer:
             clips_remaining = True
             clip_buffer = []
 
-            while self.reassembly_thread_should_be_running:
+            while self.frame_restoration_thread_should_be_running:
                 _frame_result = self._read_next_frame(video_frames_generator, frame_num)
                 if _frame_result is None:
                     self.eof = True
-                    self.reassembly_thread_should_be_running = False
+                    self.frame_restoration_thread_should_be_running = False
                     break
                 else:
                     mosaic_detected, frame, frame_pts = _frame_result
                 if mosaic_detected:
                     # As we don't know how many clips starting with the current frame we'll read and buffer restored clips until we receive a clip
                     # that starts after the current frame. This makes sure that we've gather all restored clips necessary to restore the current frame.
-                    while clips_remaining and not self.contains_at_least_one_clip_starting_after_frame_num(frame_num, clip_buffer):
+                    while clips_remaining and not self._contains_at_least_one_clip_starting_after_frame_num(frame_num, clip_buffer):
                         clips_remaining = self._read_next_clip(frame_num, clip_buffer)
 
-                    self.restore_frame(frame, frame_num, clip_buffer)
+                    self._restore_frame(frame, frame_num, clip_buffer)
                     self.frame_restoration_queue.put((frame, frame_pts))
-                    self.collect_garbage(clip_buffer)
+                    self._collect_garbage(clip_buffer)
                 else:
                     self.frame_restoration_queue.put((frame, frame_pts))
                 frame_num += 1

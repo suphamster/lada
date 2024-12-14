@@ -9,7 +9,7 @@ settings.update({'sync': False})
 import cv2
 import os
 
-from lada.lib.mosaic_frames_generator import MosaicFramesGenerator
+from lada.lib.mosaic_detector import MosaicDetectorDeprecated
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
 from lada.pidinet import pidinet_inference
@@ -35,7 +35,7 @@ def main():
     # pidinet_model = pidinet_inference.load_model("experiments/pidinet/run2_tiny/save_models/checkpoint_019.pth", model_type="tiny", device=args.device)
     pidinet_model = None
 
-    mosaic_generator = MosaicFramesGenerator(mosaic_detection_model, args.input, args.max_clip_length, args.clip_size, pad_mode='zero', preserve_relative_scale=True, dont_preserve_relative_scale=False, device=args.device)
+    mosaic_generator = MosaicDetectorDeprecated(mosaic_detection_model, args.input, args.max_clip_length, args.clip_size, pad_mode='zero', preserve_relative_scale=True, dont_preserve_relative_scale=False, device=args.device)
 
     if args.output:
         video_metadata = get_video_meta_data(args.input)

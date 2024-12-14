@@ -7,7 +7,7 @@ from ultralytics import YOLO
 from ultralytics import settings
 
 from lada.lib import video_utils
-from lada.lib.mosaic_frames_generator import MosaicFramesGenerator
+from lada.lib.mosaic_detector import MosaicDetectorDeprecated
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
 from lada.lib.video_utils import get_video_meta_data
 from lada.pidinet import pidinet_inference
@@ -71,7 +71,7 @@ def main():
 
         video_metadata = get_video_meta_data(file_path)
 
-        mosaic_frames_generator = MosaicFramesGenerator(mosaic_detection_model, args.input, args.max_clip_length, args.clip_size, pad_mode=pad_mode, device=args.device, preserve_relative_scale=True, dont_preserve_relative_scale=True)
+        mosaic_frames_generator = MosaicDetectorDeprecated(mosaic_detection_model, args.input, args.max_clip_length, args.clip_size, pad_mode=pad_mode, device=args.device, preserve_relative_scale=True, dont_preserve_relative_scale=True)
         for clip_idx, (clip_scaling_preserved, clip_scaling_not_preserved) in enumerate(mosaic_frames_generator()):
 
             frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, "mosaic_unscaled", clip_scaling_preserved.file_path.name, clip_scaling_preserved.id, True, file_suffix, video=True)
