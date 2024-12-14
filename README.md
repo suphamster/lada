@@ -11,12 +11,12 @@ After opening a file you can either watch a restored version of the provided vid
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot_gui_1_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/screenshot_gui_1_light.png">
-  <img alt="Screenshot showing video preview" src="assets/screenshot_gui_1_dark.png" width="300">
+  <img alt="Screenshot showing video preview" src="assets/screenshot_gui_1_dark.png" width="45%">
 </picture>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot_gui_2_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="assets/screenshot_gui_2_light.png">
-  <img alt="Screenshot showing video export" src="assets/screenshot_gui_2_dark.png" width="300">
+  <img alt="Screenshot showing video export" src="assets/screenshot_gui_2_dark.png" width="45%">
 </picture>
 
 > If you've installed the flatpak then it should be available in your regular application launcher. You can also run it via `flatpak run io.github.ladaapp.lada`
@@ -30,7 +30,7 @@ You can also use the CLI to export the restored video
 ```shell
 lada-cli --input <input video path> --output <output video path>
 ```
-<img src="assets/screenshot_cli_1.png" alt="screenshot showing video export" width="300">
+<img src="assets/screenshot_cli_1.png" alt="screenshot showing video export" width="45%">
 
 > If you've installed the app via flathub then the command would look like this (instead of *host* permissions you could also use `--file-forwarding` option)
 >  ```shell
