@@ -179,6 +179,7 @@ class MosaicFramesWorker:
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
         self.max_clip_length = max_clip_length
+        assert max_clip_length > 0
         self.clip_size = clip_size
         self.preserve_relative_scale = preserve_relative_scale
         self.dont_preserve_relative_scale = dont_preserve_relative_scale

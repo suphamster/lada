@@ -75,14 +75,13 @@ class FrameRestorer:
         max_frames_in_frame_restoration_queue = (512 * 1024 * 1024) // (self.video_meta_data.video_width * self.video_meta_data.video_height * 3)
         self.frame_restoration_queue = queue.Queue(maxsize=max_frames_in_frame_restoration_queue)
 
-        # limit queue size to approx 256MB
-        max_frames_in_frame_restoration_queue = (256 * 1024 * 1024) // (256 * 256 * 4) # 4 = 3 color channels + mask
-        self.mosaic_clip_queue = queue.Queue(maxsize=max_frames_in_frame_restoration_queue)
+        # limit queue size to approx 512MB
+        max_clips_in_mosaic_clips_queue = min(1, (512 * 1024 * 1024) // (self.max_clip_length * 256 * 256 * 4)) # 4 = 3 color channels + mask
+        self.mosaic_clip_queue = queue.Queue(maxsize=max_clips_in_mosaic_clips_queue)
 
-        # limit queue size to approx 256MB
-        max_frames_in_frame_restoration_queue = (256 * 1024 * 1024) // (256 * 256 * 4) # 4 = 3 color channels + mask
-        self.mosaic_clip_queue = queue.Queue(maxsize=max_frames_in_frame_restoration_queue)
-        self.restored_clip_queue = queue.Queue(maxsize=max_frames_in_frame_restoration_queue)
+        # limit queue size to approx 512MB
+        max_clips_in_restored_clips_queue = min(1, (512 * 1024 * 1024) // (self.max_clip_length * 256 * 256 * 4)) # 4 = 3 color channels + mask
+        self.restored_clip_queue = queue.Queue(maxsize=max_clips_in_restored_clips_queue)
 
         # no queue size limit needed, elements are tiny
         self.frame_detection_queue = queue.Queue()
@@ -203,14 +202,9 @@ class FrameRestorer:
         self.restored_clip_queue.put(None)
         self.frame_restoration_queue.put(None)
 
-        # todo: for some reason just putting a single none message isn't enough
-        self.restored_clip_queue.put(None)
-        self.frame_restoration_queue.put(None)
-
         if self.reassembly_thread:
             self.reassembly_thread.join()
             logger.debug("reassembly worker: stopped")
-        self.reassembly_thread.join()
         self.reassembly_thread = None
 
         self.empty_out_queues()
