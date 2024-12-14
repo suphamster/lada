@@ -1,6 +1,7 @@
 import logging
 import queue
 import threading
+import time
 from pathlib import Path
 from typing import Generator
 
@@ -10,7 +11,7 @@ import torch
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
-from lada.lib import Box, Mask, Image, VideoMetadata
+from lada.lib import Box, Mask, Image, VideoMetadata, threading_utils
 from lada.lib import image_utils
 from lada.lib import visualization
 from lada.lib.scene_utils import crop_to_box_v3
@@ -192,7 +193,9 @@ class MosaicFramesWorker:
         self.video_meta_data = video_utils.get_video_meta_data(self.video_file)
         self.frame_queue = frame_queue
         self.clip_queue = clip_queue
+        self.raw_frame_queue = queue.Queue(maxsize=2*batch_size)
         self.thread: threading.Thread | None = None
+        self.frame_reader_thread: threading.Thread | None = None
         self.should_be_running = False
         self.batch_size = batch_size
 
@@ -200,17 +203,39 @@ class MosaicFramesWorker:
         self.start_ns = start_ns
         self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
         self.should_be_running = True
+
         self.thread = threading.Thread(target=self._worker)
         self.thread.start()
 
+        self.frame_reader_thread = threading.Thread(target=self._frame_reader_worker)
+        self.frame_reader_thread.start()
+
     def stop(self):
-        self.frame_queue.put(None)
-        self.clip_queue.put(None)
+        logger.debug("mosaic frame detection: stopping...")
+        start = time.time()
         self.should_be_running = False
+
+        # unblock producer
+        threading_utils.empty_out_queue(self.raw_frame_queue, "raw_frame_queue")
+        if self.frame_reader_thread:
+            self.frame_reader_thread.join()
+            logger.debug("frame reader worker: stopped")
+        self.frame_reader_thread = None
+
+        # unblock consumer
+        threading_utils.put_closing_queue_marker(self.raw_frame_queue, "raw_frame_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.clip_queue, "clip_queue")
+        threading_utils.empty_out_queue(self.frame_queue, "frame_queue")
         if self.thread:
             self.thread.join()
             logger.debug("mosaic frames worker: stopped")
         self.thread = None
+
+        # garbage collection
+        threading_utils.empty_out_queue(self.raw_frame_queue, "raw_frame_queue")
+
+        logger.debug(f"mosaic frame detection: stopped, took: {time.time() - start}")
 
     def _create_clips_for_completed_scenes(self, scenes, frame_num, eof):
         completed_scenes = []
@@ -259,13 +284,12 @@ class MosaicFramesWorker:
                 scenes.append(current_scene)
                 current_scene.add_frame(frame_num, results.orig_img, mask, box)
 
-    def _worker(self):
-        logger.debug("mosaic frames worker: started")
+    def _frame_reader_worker(self):
+        logger.debug("frame reader worker: started")
         with video_utils.VideoReader(self.video_file) as video_reader:
             if self.start_ns > 0:
                 video_reader.seek(self.start_ns)
             video_frames_generator = video_reader.frames()
-            scenes: list[Scene] = []
             frame_num = self.start_frame
             eof = False
             while not eof and self.should_be_running:
@@ -276,15 +300,35 @@ class MosaicFramesWorker:
                         frames.append(frame)
                 except StopIteration:
                     eof = True
-                if len(frames) > 0:
-                    batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device)
-                    assert len(frames) == len(batch_prediction_results)
-                    for i, results in enumerate(batch_prediction_results):
-                        self._create_or_append_scenes_based_on_prediction_result(results, scenes, frame_num)
-                        self._create_clips_for_completed_scenes(scenes, frame_num, eof=False)
-                        frame_num += 1
+                self.raw_frame_queue.put((frames, frame_num, eof))
+                frame_num += len(frames)
+
+    def _worker(self):
+        logger.debug("mosaic frames worker: started")
+        with video_utils.VideoReader(self.video_file) as video_reader:
+            if self.start_ns > 0:
+                video_reader.seek(self.start_ns)
+            scenes: list[Scene] = []
+            frame_num = self.start_frame
+            eof = False
+            while not eof and self.should_be_running:
+                raw_frames = self.raw_frame_queue.get()
+                if raw_frames is None:
+                    assert not self.should_be_running, f"Illegal state: Expected frame batch from raw frames queue but received None (EOF marker) and no stop was requested"
+                frame_reader_stopped = raw_frames is None
+                if not frame_reader_stopped:
+                    frames, _frame_num, eof = raw_frames
+                    assert frame_num == _frame_num, "mosaic frames worker out of sync with frame reader"
+                    if len(frames) > 0:
+                        batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device)
+                        assert len(frames) == len(batch_prediction_results)
+                        for i, results in enumerate(batch_prediction_results):
+                            self._create_or_append_scenes_based_on_prediction_result(results, scenes, frame_num)
+                            self._create_clips_for_completed_scenes(scenes, frame_num, eof=False)
+                            frame_num += 1
                 if eof:
                     self._create_clips_for_completed_scenes(scenes, frame_num, eof=True)
+                if eof or frame_reader_stopped:
                     self.frame_queue.put(None)
                     self.clip_queue.put(None)
 

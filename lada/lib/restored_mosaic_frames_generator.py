@@ -8,7 +8,7 @@ import numpy as np
 from ultralytics import YOLO
 
 from lada import LOG_LEVEL
-from lada.lib import image_utils, video_utils
+from lada.lib import image_utils, video_utils, threading_utils
 from lada.lib import visualization
 from lada.lib.mosaic_frames_generator import MosaicFramesWorker
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
@@ -167,12 +167,6 @@ class FrameRestorer:
     def contains_at_least_one_clip_starting_after_frame_num(self, frame_num, clip_buffer):
         return len(clip_buffer) > 0 and frame_num < max(clip_buffer, key=lambda c: c.frame_start).frame_start
 
-    def empty_out_queues(self):
-        for queue in (self.mosaic_clip_queue, self.restored_clip_queue, self.frame_restoration_queue, self.frame_detection_queue):
-            while not queue.empty():
-                queue.get()
-                queue.task_done()
-
     def start(self, start_ns=0):
         self.start_ns = start_ns
         self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
@@ -188,29 +182,41 @@ class FrameRestorer:
         self.reassembly_thread.start()
 
     def stop(self):
-        start = time.time()
         logger.debug("frame restorer: stopping...")
+        start = time.time()
         self.restoration_thread_should_be_running = False
         self.reassembly_thread_should_be_running = False
         self.stop_requested = True
 
         self.mosaic_frames_generator.stop()
 
+        # unblock consumer
+        threading_utils.put_closing_queue_marker(self.mosaic_clip_queue, "mosaic_clip_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
+        # wait until thread stopped
         if self.restoration_thread:
             self.restoration_thread.join()
             logger.debug("restoration worker: stopped")
         self.restoration_thread = None
 
-        self.restored_clip_queue.put(None)
-        self.frame_restoration_queue.put(None)
-
+        # unblock consumer
+        threading_utils.put_closing_queue_marker(self.frame_detection_queue, "frame_detection_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
+        # wait until thread stopped
         if self.reassembly_thread:
             self.reassembly_thread.join()
             logger.debug("reassembly worker: stopped")
         self.reassembly_thread = None
 
-        self.empty_out_queues()
-        logger.debug(f"frame restorer: stopped. took {time.time() - start}s")
+        # garbage collection
+        threading_utils.empty_out_queue(self.mosaic_clip_queue, "mosaic_clip_queue")
+        threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
+        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
+        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
+
+        logger.debug(f"frame restorer: stopped, took {time.time() - start}")
 
     def _restoration_worker(self):
         logger.debug("restoration_worker: started")
