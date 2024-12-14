@@ -1,12 +1,13 @@
-# Lada
+<h1 id="header" align="center">Lada</h1>
+<img src="flatpak/share/icons/hicolor/128x128/apps/io.github.ladaapp.lada.png" alt="Lada Icon" style="display: block; margin-left: auto; margin-right: auto; width: 64px; height: 64px;">
 
 ## Features
 * Remove and recover pixelated content in adult videos
 * Watch or export your videos via CLI or GUI
 
-## Use
+## Usage
 ### GUI
-After opening a file you can either watch a restored version of the provided video in the app (make sure you've enabled the Preview toggle) or you can export it to a new file.
+After opening a file you can either watch a restored version of the provided video in the app (make sure you've enabled the *Preview* toggle) or you can export it to a new file.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot_gui_1_dark.png">
@@ -19,9 +20,17 @@ After opening a file you can either watch a restored version of the provided vid
   <img alt="Screenshot showing video export" src="assets/screenshot_gui_2_dark.png" width="45%">
 </picture>
 
+> [!TIP]
 > If you've installed the flatpak then it should be available in your regular application launcher. You can also run it via `flatpak run io.github.ladaapp.lada`
 > 
-> Otherwise, if you've followed the Developer Installation section run the command `lada` to open the app (Make sure you are in the root directory of this proejct)
+> Otherwise, if you've followed the Developer Installation section run the command `lada` to open the app (Make sure you are in the root directory of this project)
+
+> [!NOTE]
+> If you've installed Lada from Flathub and drag-and-drop doesn't work then your drag source (your file browser) probably does not support the [File Transfer Portal](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileTransfer.html).
+> You can fix/workaround this either by:
+>  1) switching or updating your file browser to something that supports it
+>  2) giving the app filesystem permissions (e.g. via [Flatseal](https://flathub.org/apps/com.github.tchx84.Flatseal) so it can read the file directly
+>  3) use the 'Open' button / file dialog to select the file instead of drag-and-drop
 
 You can find some additional settings in the left sidebar.
 
@@ -32,6 +41,7 @@ lada-cli --input <input video path> --output <output video path>
 ```
 <img src="assets/screenshot_cli_1.png" alt="screenshot showing video export" width="45%">
 
+> [!TIP]
 > If you've installed the app via flathub then the command would look like this (instead of *host* permissions you could also use `--file-forwarding` option)
 >  ```shell
 >  flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada --input <input video path> --output <output video path>
@@ -44,33 +54,54 @@ lada-cli --input <input video path> --output <output video path>
 You can find out more about additional options by using the `--help` argument.
 
 ## Status
-Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Others scenes will be rather meh or show worse artifacts than the original mosaics.
+Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Other scenes can be rather meh and show worse artifacts than the original mosaics.
 
-You'll need a (Nvidia) GPU and some patience to run the app.
+You'll need a Nvidia (CUDA) GPU and some patience to run the app.
 If your GPU is not fast enough to watch the video in real-time you'll have to export it first and watch it later with your favorite media player.
-> Note from the field: Laptop GPU Nvidia RTX 3050 is not fast enough for real-time playback but export works fine. RTX 3090 doesn't sweat.
- 
-I've only tested it on my Linux machine. I'd expect it to work on other x86_64 Linux machines as well.
-> Note: It should be able to run on other OS and with other GPU vendors or CPU but probably needs some changes. Patches welcome :)
+If your card has at least 4-6GB of VRAM then it should work out of the box.
+
+The CPU is used for re-encoding the restored video so shouldn't be too slow either. The app uses a lot of RAM for buffering to increase throughput.
+For 1080p content you should be fine with 16GB RAM (general recommendation, this can be lowered by fine-tuning some params in the code though).
+
+Technically running the app on your CPU is also supported where *supported* is defined as: It will not crash but processing will be so slow you wish you haven't given it a try.
+
+Here are some speed performance numbers using Lada v0.4.0 (at time of writing, unreleased version) on my available hardware to give you an idea what to expect:
+
+| Video name | Video description                                                                                    | Video<br>duration / resolution / FPS | Lada<br>runtime / FPS<br>Nvidia RTX 3050<br>(*Laptop GPU*) | Lada<br>runtime / FPS<br>Nvidia RTX 3090<br>(Desktop GPU) |
+|------------|------------------------------------------------------------------------------------------------------|--------------------------------------|------------------------------------------------------------|-----------------------------------------------------------|
+| vid1       | multiple mosaic regions present on all frames                                                        | 1m30s / 10920x1080 / 30 FPS          | 15m33s / 2.8 FPS                                           | 1m41s / 26 FPS                                            |
+| vid2       | single mosaic region present on all frames                                                           | 3m0s / 1920x1080 / 30 FPS            | 20m36s / 4.3 FPS                                           | 2m18s / 39 FPS                                            |
+| vid3       | half of the video doesn't have any mosaics present,<br>the other half mostly single mosaic per frame | 41m16s / 852x480 / 30 FPS            | 3h20m57s / 6.1 FPS                                         | 13m10s / 94 FPS                                           |
+
+
+As you can see, Realtime playback for Nvidia RTX 3050 (Laptop GPU) is currently out-of-reach but Preview functionality can still be used to skip through a video (with some loading/buffering) to see what quality to expect from an export.
 
 It may or may not work on Windows and Mac and other GPUs. You'll have to try to follow Developer Installation below and see how far you get.
-
-## Models
-The project comes with a `generic` model that was trained on a diverse set of scenes and is used by default.
-There is also a `bj_pov` model which was trained only on such specific clips and may show better results than the generic model but therefore is not as versatile.
-> For folks currently using [DeepMosaics](https://github.com/HypoX64/DeepMosaics): You can also use their `clean_youknow_video.pth` model if you prefer.
-
-You can select the model to use in the sidepanel or if using the CLI by passing the arguments for path and type of model.
-
-> There are also models for detection for both mosaiced/pixelated and non-obstructed NSFW sources which are used internally for pre-processing and model training.
+Patches / reports welcome if you are able to make it run on other systems.
 
 ## Installation
-On Linux the easiest way to install the app is to get it from Flathub. It's available for x86_64 CPUs with Nvidia/CUDA GPUs:
+On Linux the easiest way to install the app is to get it from Flathub.
 
 <a href='https://flathub.org/apps/details/io.github.ladaapp.lada'><img width='200' alt='Download from Flathub' src='https://flathub.org/api/badge?svg&locale=en'/></a>
 
+> [!CAUTION]
+> The flatpak works only with x86_64 CPUs with Nvidia/CUDA GPUs (CPU also, but read the notes in [Status](#Status) first)
+
 If you don't want to use flatpak, have other hardware specs than what the flatpak is built for or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
 Contributions welcome if someone is able to package the app for other systems.
+
+## Models
+The project comes with a `generic` mosaic removal / video restoration model that was trained on a diverse set of scenes and is used by default.
+There is also a `bj_pov` model which was trained only on such specific clips and may show better results than the generic model but therefore is not as versatile (Didn't notice much of a difference but YMMV).
+
+> [!TIP]
+> For folks currently using [DeepMosaics](https://github.com/HypoX64/DeepMosaics): You can use their `clean_youknow_video.pth` model in Lada if you prefer.
+> Download it from their page, move it in `model_weights/3rd_party` directory and select in CLI/GUI. (you can't do this on the flatpak version currently)
+
+You can select the model to use in the sidepanel or if using the CLI by passing the arguments for path and type of model.
+
+> [!NOTE]
+> There are also models for detection for both mosaiced/pixelated and non-obstructed NSFW sources which are used internally for pre-processing and model training.
 
 ## Developer Installation
 
@@ -78,9 +109,9 @@ Contributions welcome if someone is able to package the app for other systems.
 
 1) Install Python <= 3.12
 
-2) [Install FFMpeg](https://ffmpeg.org/download.html)
+2) [Install FFmpeg](https://ffmpeg.org/download.html)
 
-2) [Install GStreamer](https://gstreamer.freedesktop.org/documentation/installing/index.html)
+3) [Install GStreamer](https://gstreamer.freedesktop.org/documentation/installing/index.html)
 
 4) [Install GTK](https://www.gtk.org/docs/installations/)
 
@@ -96,6 +127,7 @@ This is a Python project so let's install our dependencies from PyPi:
 2) [Install PyTorch](https://pytorch.org/get-started/locally)
 
 3) [Install MMCV](https://mmcv.readthedocs.io/en/latest/get_started/installation.html)
+   > [!TIP]
    > You can install it either with their own installer `mim` or via `pip`.
    > I've had issues installing via `mim` but `pip` worked. Just make sure to select the correct command depending on your system and PyTorch installation 
 
@@ -211,31 +243,19 @@ python create_mosaic_detection_image_dataset.py --input-root <input dir> --outpu
 The data to train the nsfw detection model was hand-labeled using [labelme](https://github.com/wkentaro/labelme).
 There are some additional snippets for train/val dataset creation and scripts for convertion between YOLO and labelme format in the `lada/yolo` directory.
 
-## Contribute
-There is still a lot of potential for improvements but the current state of the project works well for me and maybe works for you. If you want to make it better you probably don't have to look far to find things to improve :)
-
 
 ## Credits
 This project builds on work done by these fantastic people
 
-[DeepMosaics](https://github.com/HypoX64/DeepMosaics):
-: used their code to create mosaic for dataset creation/training, you can also run their clean_youknow_video model in this app. They seem to be the only other open source project trying to solve this task I could find. Kudos to them!
-
-[BasicVSR++](https://ckkelvinchan.github.io/projects/BasicVSR++) / [MMagic](https://github.com/open-mmlab/mmagic)
-: used as base model for mosaic removal
-
-[YOLO/Ultralytics](https://github.com/ultralytics/ultralytics):
-: used as model to detect mosaic regions as well as non-mosaic regions for dataset creation
-
-[DOVER](https://github.com/VQAssessment/DOVER):
-: used to assess video quality of created clips during the dataset creation process to filter out low quality videos
-
-[Twitter Emoji](https://github.com/twitter/twemoji)
-: used eggplant emoji as base for the app icon (feel free to contribute a better logo)
+* [DeepMosaics](https://github.com/HypoX64/DeepMosaics): Used their code to create mosaic for dataset creation/training, you can also run their clean_youknow_video model in this app. They seem to be the only other open source project trying to solve this task I could find. Kudos to them!
+* [BasicVSR++](https://ckkelvinchan.github.io/projects/BasicVSR++) / [MMagic](https://github.com/open-mmlab/mmagic): Used as base model for mosaic removal
+* [YOLO/Ultralytics](https://github.com/ultralytics/ultralytics): Used as model to detect mosaic regions as well as non-mosaic regions for dataset creation
+* [DOVER](https://github.com/VQAssessment/DOVER): Used to assess video quality of created clips during the dataset creation process to filter out low quality videos
+* [Twitter Emoji](https://github.com/twitter/twemoji): Used eggplant emoji as base for the app icon (feel free to contribute a better logo)
+* PyTorch, FFmpeg, GStreamer, GTK and [all other folks building our ecosystem](https://xkcd.com/2347/)
 
 
 Previous iterations of the mosaic removal model used the following projects as a base
 
 * [KAIR / rvrt](https://github.com/cszn/KAIR)
-
 * [TecoGAN-PyTorch](https://github.com/skycrapers/TecoGAN-PyTorch)
