@@ -1,5 +1,8 @@
-<h1 id="header" align="center">Lada</h1>
-<img src="flatpak/share/icons/hicolor/128x128/apps/io.github.ladaapp.lada.png" alt="Lada Icon" style="display: block; margin-left: auto; margin-right: auto; width: 64px; height: 64px;">
+<h1 align="center">
+  <img src="flatpak/share/icons/hicolor/128x128/apps/io.github.ladaapp.lada.png" alt="Lada Icon" style="display: block; width: 64px; height: 64px;">
+  <br>
+  Lada
+</h1>
 
 ## Features
 * Remove and recover pixelated content in adult videos
