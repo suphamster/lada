@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import tempfile
@@ -8,12 +9,14 @@ from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
 
 from lada.gui.config import MODEL_NAMES_TO_FILES
 from lada.gui.timeline import Timeline
-from lada.lib import audio_utils, video_utils
+from lada.lib import audio_utils, video_utils, threading_utils
 from lada.lib.frame_restorer import load_models, FrameRestorer
-from lada import MODEL_WEIGHTS_DIR
+from lada import MODEL_WEIGHTS_DIR, LOG_LEVEL
 
 here = pathlib.Path(__file__).parent.resolve()
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=LOG_LEVEL)
 
 @Gtk.Template(filename=here / 'video_preview.ui')
 class VideoPreview(Gtk.Widget):
@@ -59,6 +62,7 @@ class VideoPreview(Gtk.Widget):
         self.worker_should_be_running: bool = False
 
         self.frame_restorer: FrameRestorer | None = None
+        self.frame_restorer_lock: threading.Lock = threading.Lock()
         self.file_duration_ns = 0
         self.file_duration_frames = 0
         self.frame_duration_ns = None
@@ -235,7 +239,6 @@ class VideoPreview(Gtk.Widget):
             self.pipeline.set_state(Gst.State.NULL)
             self.stop_frame_restorer_worker()
             self._video_preview_init_done = False
-            self.frame_restorer = None
 
         self.video_metadata = video_utils.get_video_meta_data(file_path)
         audio_pipeline_already_added = self.has_audio
@@ -243,6 +246,7 @@ class VideoPreview(Gtk.Widget):
         self.button_mute_unmute.set_sensitive(self.has_audio)
         self.set_speaker_icon(mute=not self.has_audio)
 
+        self.setup_frame_restorer(start_ns=0)
         self.start_frame_restorer_worker()
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
@@ -480,43 +484,40 @@ class VideoPreview(Gtk.Widget):
     def on_seek_data(self, appsrc, offset_ns):
         self.pipeline.set_state(Gst.State.PAUSED)
         print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}")
-        self.empty_out_frame_restorer_worker_queue()
         if self.frame_restorer:
             self.setup_frame_restorer(start_ns=offset_ns)
         return True
 
     def start_frame_restorer_worker(self):
         self.worker_should_be_running = True
-        self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker, daemon=True)
+        self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker)
         self.frame_restorer_thread.start()
 
     def stop_frame_restorer_worker(self):
         self.worker_should_be_running = False
-        self.empty_out_frame_restorer_worker_queue()
+
+        # unblock consumer
+        threading_utils.put_closing_queue_marker(self.frame_restorer_thread_queue, "frame_restorer_thread_queue")
+
         self.frame_restorer_thread.join()
         self.frame_restorer_thread = None
 
-    def empty_out_frame_restorer_worker_queue(self):
-        while not self.frame_restorer_thread_queue.empty():
-            self.frame_restorer_thread_queue.get()
-            self.frame_restorer_thread_queue.task_done()
+        # garbage collection
+        threading_utils.empty_out_queue(self.frame_restorer_thread_queue, "frame_restorer_thread_queue")
+        logger.debug("VideoPreview frame restorer worker: stopped")
 
     def frame_restorer_worker(self):
+        logger.debug("VideoPreview frame restorer worker: started")
         while self.worker_should_be_running:
-            try:
-                self.frame_restorer_thread_queue.get(timeout=0.1)
-                self.read_next_frame()
-                self.frame_restorer_thread_queue.task_done()
-            except queue.Empty:
-                pass
+            self.frame_restorer_thread_queue.get()
+            self.read_next_frame()
+            self.frame_restorer_thread_queue.task_done()
 
     def read_next_frame(self):
-        if not self.frame_restorer:
-            self.setup_frame_restorer(start_ns=0)
         try:
             result = next(self.frame_restorer)
             if result is None:
-                assert self.frame_restorer.stop_requested
+                assert self.frame_restorer.stop_requested, "Illegal state: Received None (stop marker) from frame restorer but it wasn't requested to stop"
                 return
             frame, frame_pts = result
         except StopIteration:
@@ -565,6 +566,7 @@ class VideoPreview(Gtk.Widget):
             return time
 
     def setup_frame_restorer(self, start_ns=0):
+        self.frame_restorer_lock.acquire()
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
@@ -590,6 +592,7 @@ class VideoPreview(Gtk.Widget):
         self.frame_restorer.start(start_ns=start_ns)
 
         self.frame_num = video_utils.offset_ns_to_frame_num(start_ns, self.video_metadata.video_fps_exact)
+        self.frame_restorer_lock.release()
 
     def _setup_shortcuts(self):
         self._application.shortcuts.register_group("preview", "Preview")

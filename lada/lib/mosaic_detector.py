@@ -211,31 +211,31 @@ class MosaicDetector:
         self.frame_feeder_thread.start()
 
     def stop(self):
-        logger.debug("mosaic frame detection: stopping...")
+        logger.debug("MosaicDetector: stopping...")
         start = time.time()
         self.should_be_running = False
 
         # unblock producer
-        threading_utils.empty_out_queue(self.frame_feeder_queue, "raw_frame_queue")
+        threading_utils.empty_out_queue(self.frame_feeder_queue, "frame_feeder_queue")
         if self.frame_feeder_thread:
             self.frame_feeder_thread.join()
-            logger.debug("frame reader worker: stopped")
+            logger.debug("frame feeder worker: stopped")
         self.frame_feeder_thread = None
 
         # unblock consumer
-        threading_utils.put_closing_queue_marker(self.frame_feeder_queue, "raw_frame_queue")
+        threading_utils.put_closing_queue_marker(self.frame_feeder_queue, "frame_feeder_queue")
         # unblock producer
-        threading_utils.empty_out_queue(self.mosaic_clip_queue, "clip_queue")
-        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_queue")
+        threading_utils.empty_out_queue(self.mosaic_clip_queue, "mosaic_clip_queue")
+        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
         if self.frame_detector_thread:
             self.frame_detector_thread.join()
-            logger.debug("mosaic frames worker: stopped")
+            logger.debug("frame detector worker: stopped")
         self.frame_detector_thread = None
 
         # garbage collection
-        threading_utils.empty_out_queue(self.frame_feeder_queue, "raw_frame_queue")
+        threading_utils.empty_out_queue(self.frame_feeder_queue, "frame_feeder_queue")
 
-        logger.debug(f"mosaic frame detection: stopped, took: {time.time() - start}")
+        logger.debug(f"MosaicDetector: stopped, took: {time.time() - start}")
 
     def _create_clips_for_completed_scenes(self, scenes, frame_num, eof):
         completed_scenes = []
@@ -314,7 +314,7 @@ class MosaicDetector:
             while not eof and self.should_be_running:
                 raw_frames = self.frame_feeder_queue.get()
                 if raw_frames is None:
-                    assert not self.should_be_running, f"Illegal state: Expected frame batch from raw frames queue but received None (EOF marker) and no stop was requested"
+                    assert not self.should_be_running, f"Illegal state: Expected frame batch from frame feeder queue but received None (EOF marker) and no stop was requested"
                 frame_reader_stopped = raw_frames is None
                 if not frame_reader_stopped:
                     frames, _frame_num, eof = raw_frames
