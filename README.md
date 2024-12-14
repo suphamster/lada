@@ -114,6 +114,7 @@ This is a Python project so let's install our dependencies from PyPi:
     In order to fix resume training of the mosaic restoration model apply the following patch not currently present in latest upstream package(`mmengine`/`0.10.5`):
     ```bash
     patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
+    patch -u ./.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py patches/increase_mms_time_limit.patch
     ```
 
 ### Install models

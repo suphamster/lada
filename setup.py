@@ -6,7 +6,7 @@ setup(
     version=str(VERSION),
     description="Remove and recover pixelated areas in adult videos",
     packages=find_packages(where='.',include=['lada','lada.*']),
-    install_requires=['torch', 'ultralytics', 'numpy', 'opencv-python', 'tqdm', 'av'],
+    install_requires=['torch', 'ultralytics==8.3.49', 'numpy', 'opencv-python', 'tqdm', 'av'], # ultralytics pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
     extras_require={
         'rvrt': [],
         'tecogan': ['scikit-image'],

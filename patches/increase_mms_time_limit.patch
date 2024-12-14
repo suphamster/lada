@@ -1,0 +1,12 @@
+--- old/.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2024-12-14 09:48:28.831709163 +0100
++++ new/.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2024-12-14 09:48:05.271568671 +0100
+@@ -34,7 +34,8 @@
+             agnostic=self.args.agnostic_nms,
+             max_det=self.args.max_det,
+             nc=len(self.model.names),
+-            classes=self.args.classes
++            classes=self.args.classes,
++            max_time_img=0.3
+         )
+ 
+         if not isinstance(orig_imgs, list):  # input images are a torch.Tensor, not a list
