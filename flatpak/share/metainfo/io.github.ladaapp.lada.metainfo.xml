@@ -28,6 +28,7 @@
 
     <description>
         <p>Remove and recover pixelated content in adult videos (mostly present in Japanese sources (JAV)). Watch or export your recovered videos via CLI or GUI.</p>
+        <p>The process is pretty resource-intensive and will not run on all hardware. Please read the Status section of the README file in the project repository on GitHub.</p>
     </description>
 
     <url type="homepage">https://github.com/ladaapp/lada</url>
@@ -49,6 +50,14 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-15" version="0.4.0">
+            <description>
+                <p>Huge speed boost on high-performant hardware:</p>
+                <p>Parts of the restoration pipeline are now being run in parallel with buffering in between each step. This enhances utilization / reduces wait times.</p>
+                <p>Speed on my RTX 3090 on average doubled compared to v0.3.2. On the Laptop with a throttled RTX 3050 I didn't see a noticeable differance (was already fully utilized on v0.3.2)</p>
+                <p>You can find detailed speed performance numbers in the README.</p>
+            </description>
+        </release>
         <release date="2024-12-11" version="0.3.2">
             <description>
                 <p>GUI: fix memory leak when opening another file if we're already previewing a video</p>
