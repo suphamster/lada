@@ -34,11 +34,11 @@ class Timeline(Gtk.Widget):
     def playhead_position(self, value):
         self.update_playhead_position(value)
 
-    @GObject.Signal(name="seek_requested", arg_types=(GObject.TYPE_INT,))
+    @GObject.Signal(name="seek_requested", arg_types=(GObject.TYPE_INT64,))
     def seek_requested_signal(self, position: int):
         pass
 
-    @GObject.Signal(name="cursor_position_changed", arg_types=(GObject.TYPE_INT,))
+    @GObject.Signal(name="cursor_position_changed", arg_types=(GObject.TYPE_INT64,))
     def cursor_position(self, position: int | None):
         pass
 

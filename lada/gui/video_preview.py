@@ -39,7 +39,7 @@ class VideoPreview(Gtk.Widget):
         self._passthrough = False
         self._mosaic_cleaning = False
         self._mosaic_detection = False
-        self._mosaic_restoration_model_name = 'basicvsrpp-generic'
+        self._mosaic_restoration_model_name = 'basicvsrpp-generic-1.1'
         self._device = "cpu"
         self._video_preview_init_done = False
         self._max_clip_length = 180
@@ -64,9 +64,8 @@ class VideoPreview(Gtk.Widget):
         self.frame_restorer: FrameRestorer | None = None
         self.frame_restorer_lock: threading.Lock = threading.Lock()
         self.file_duration_ns = 0
-        self.file_duration_frames = 0
         self.frame_duration_ns = None
-        self.frame_num = 0
+        self.current_timestamp_ns = 0
         self.video_metadata: video_utils.VideoMetadata | None = None
         self.has_audio: bool = True
         self.models_cache: dict | None = None
@@ -82,10 +81,11 @@ class VideoPreview(Gtk.Widget):
 
     @passthrough.setter
     def passthrough(self, value):
+        if self._passthrough == value:
+            return
         self._passthrough = value
         if self._video_preview_init_done:
-            self.setup_frame_restorer()
-            self.seek_video(self.frame_num)
+            self.reset_frame_restorer()
 
     @GObject.Property()
     def device(self):
@@ -93,11 +93,12 @@ class VideoPreview(Gtk.Widget):
 
     @device.setter
     def device(self, value):
+        if self._device == value:
+            return
         self._device = value
         self.models_cache = None
         if self._video_preview_init_done:
-            self.setup_frame_restorer()
-            self.seek_video(self.frame_num)
+            self.reset_frame_restorer()
 
     @property
     def buffer_queue_min_thresh_time_auto(self):
@@ -106,8 +107,12 @@ class VideoPreview(Gtk.Widget):
     @buffer_queue_min_thresh_time_auto.setter
     def buffer_queue_min_thresh_time_auto(self, value):
         value = min(self._buffer_queue_min_thresh_time_auto_max, max(self._buffer_queue_min_thresh_time_auto_min, value))
+        if self._buffer_queue_min_thresh_time_auto == value:
+            return
         print("adjusted buffer_queue_min_thresh_time_auto to", value)
         self._buffer_queue_min_thresh_time_auto = value
+        if self._video_preview_init_done:
+            self.update_gst_buffers()
 
     @GObject.Property()
     def max_clip_length(self):
@@ -115,11 +120,12 @@ class VideoPreview(Gtk.Widget):
 
     @max_clip_length.setter
     def max_clip_length(self, value):
+        if self._max_clip_length == value:
+            return
         self._max_clip_length = value
         if self._video_preview_init_done and self._buffer_queue_min_thresh_time == 0:
             self.buffer_queue_min_thresh_time_auto = float(self._max_clip_length / self.video_metadata.video_fps_exact)
-            self.update_gst_buffers()
-            self.seek_video(self.frame_num)
+            self.reset_frame_restorer()
 
     @GObject.Property()
     def buffer_queue_min_thresh_time(self):
@@ -127,8 +133,10 @@ class VideoPreview(Gtk.Widget):
 
     @buffer_queue_min_thresh_time.setter
     def buffer_queue_min_thresh_time(self, value):
-        if self._video_preview_init_done and self._buffer_queue_min_thresh_time != value:
-            self._buffer_queue_min_thresh_time = value
+        if self._buffer_queue_min_thresh_time == value:
+            return
+        self._buffer_queue_min_thresh_time = value
+        if self._video_preview_init_done:
             self.update_gst_buffers()
 
     @GObject.Property()
@@ -137,8 +145,11 @@ class VideoPreview(Gtk.Widget):
 
     @mosaic_restoration_model.setter
     def mosaic_restoration_model(self, value):
+        if self._mosaic_restoration_model_name == value:
+            return
         self._mosaic_restoration_model_name = value
-        self.seek_video(self.frame_num)
+        if self._video_preview_init_done:
+            self.reset_frame_restorer()
 
     @GObject.Property()
     def mosaic_cleaning(self):
@@ -146,8 +157,11 @@ class VideoPreview(Gtk.Widget):
 
     @mosaic_cleaning.setter
     def mosaic_cleaning(self, value):
+        if self._mosaic_cleaning == value:
+            return
         self._mosaic_cleaning = value
-        self.seek_video(self.frame_num)
+        if self._video_preview_init_done:
+            self.reset_frame_restorer()
 
     @GObject.Property()
     def mosaic_detection(self):
@@ -155,8 +169,11 @@ class VideoPreview(Gtk.Widget):
 
     @mosaic_detection.setter
     def mosaic_detection(self, value):
+        if self._mosaic_detection == value:
+            return
         self._mosaic_detection = value
-        self.seek_video(self.frame_num)
+        if self._video_preview_init_done:
+            self.reset_frame_restorer()
 
     @GObject.Property(type=Adw.Application)
     def application(self):
@@ -181,9 +198,9 @@ class VideoPreview(Gtk.Widget):
 
     @Gtk.Template.Callback()
     def button_play_pause_callback(self, button_clicked):
-        if not self.pipeline:
+        if not self._video_preview_init_done:
             return
-        pipe_state = self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
+        pipe_state = self.pipeline.get_state(20 * Gst.MSECOND)
         if pipe_state.state == Gst.State.PLAYING:
             self.should_be_paused = True
             self.pipeline.set_state(Gst.State.PAUSED)
@@ -218,15 +235,12 @@ class VideoPreview(Gtk.Widget):
             self.audio_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
             self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
 
-    def seek_video(self, seek_position):
-        if self.pipeline:
-            seek_position_ns = int(seek_position * self.file_duration_ns / self.file_duration_frames)
-            self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
+    def seek_video(self, seek_position_ns):
+        self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
 
-    def show_cursor_position(self, cursor_position):
-        if cursor_position > 0:
+    def show_cursor_position(self, cursor_position_ns):
+        if cursor_position_ns > 0:
             self.label_cursor_time.set_visible(True)
-            cursor_position_ns = int(cursor_position * self.file_duration_ns / self.file_duration_frames)
             label_text = self.get_time_label_text(cursor_position_ns)
             self.label_cursor_time.set_text(label_text)
         else:
@@ -251,11 +265,10 @@ class VideoPreview(Gtk.Widget):
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
-        self.file_duration_frames = self.video_metadata.frames_count
         self._buffer_queue_min_thresh_time_auto_min = float(self._max_clip_length / self.video_metadata.video_fps_exact)
         self.buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
 
-        self.widget_timeline.set_property("duration", self.file_duration_frames)
+        self.widget_timeline.set_property("duration", self.file_duration_ns)
 
         if self.pipeline:
             self.adjust_pipeline_with_new_source_file(audio_pipeline_already_added, mute_audio)
@@ -482,11 +495,24 @@ class VideoPreview(Gtk.Widget):
         GLib.timeout_add(20, self.update_current_position)
 
     def on_seek_data(self, appsrc, offset_ns):
+        if offset_ns == self.current_timestamp_ns:
+            return True
+        print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}, current position (sec): {self.current_timestamp_ns / Gst.SECOND}")
         self.pipeline.set_state(Gst.State.PAUSED)
-        print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}")
-        if self.frame_restorer:
-            self.setup_frame_restorer(start_ns=offset_ns)
+        self.frame_restorer_lock.acquire()
+        self.stop_frame_restorer_worker()
+        self.setup_frame_restorer(start_ns=offset_ns)
+        self.start_frame_restorer_worker()
+        self.frame_restorer_lock.release()
         return True
+
+    def reset_frame_restorer(self):
+        self.pipeline.set_state(Gst.State.NULL)
+        self.frame_restorer_lock.acquire()
+        self.stop_frame_restorer_worker()
+        self.setup_frame_restorer(start_ns=self.current_timestamp_ns)
+        self.start_frame_restorer_worker()
+        self.frame_restorer_lock.release()
 
     def start_frame_restorer_worker(self):
         self.worker_should_be_running = True
@@ -534,11 +560,10 @@ class VideoPreview(Gtk.Widget):
         buf = Gst.Buffer.new_allocate(None, len(data), None)
         buf.fill(0, data)
         buf.duration = self.frame_duration_ns
-        timestamp = self.frame_num * self.frame_duration_ns
-        buf.pts = int(timestamp)
-        buf.offset = self.frame_num
+        buf.pts = int(self.current_timestamp_ns)
+        buf.offset = video_utils.offset_ns_to_frame_num(int(self.current_timestamp_ns), self.video_metadata.video_fps_exact)
         self.appsrc.emit('push-buffer', buf)
-        self.frame_num += 1
+        self.current_timestamp_ns += self.frame_duration_ns
 
     def on_need_data(self, src, length):
         self.frame_restorer_thread_queue.put("work worker, work!")
@@ -548,8 +573,7 @@ class VideoPreview(Gtk.Widget):
         if res and position >= 0:
             label_text = self.get_time_label_text(position)
             self.label_current_time.set_text(label_text)
-            position_frames = int(position * self.file_duration_frames / self.file_duration_ns)
-            self.widget_timeline.set_property("playhead-position", position_frames)
+            self.widget_timeline.set_property("playhead-position", position)
         return True
 
     def get_time_label_text(self, time_ns):
@@ -566,7 +590,6 @@ class VideoPreview(Gtk.Widget):
             return time
 
     def setup_frame_restorer(self, start_ns=0):
-        self.frame_restorer_lock.acquire()
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
@@ -589,10 +612,9 @@ class VideoPreview(Gtk.Widget):
             self.frame_restorer = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
                                                 self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
                                                 mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
-        self.frame_restorer.start(start_ns=start_ns)
+        self.frame_restorer.start(start_ns=int(start_ns))
 
-        self.frame_num = video_utils.offset_ns_to_frame_num(start_ns, self.video_metadata.video_fps_exact)
-        self.frame_restorer_lock.release()
+        self.current_timestamp_ns = start_ns
 
     def _setup_shortcuts(self):
         self._application.shortcuts.register_group("preview", "Preview")
