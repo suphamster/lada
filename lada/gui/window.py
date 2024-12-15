@@ -69,6 +69,8 @@ class MainWindow(Adw.ApplicationWindow):
         application.shortcuts.register_group("preview", "Preview")
         application.shortcuts.add("preview", "toggle-preview", "p", lambda *args: self.toggle_button_preview_video_callback(self.toggle_button_preview_video), "Enable/Disable preview mode")
 
+        self.connect("close-request", self.close)
+
     @Gtk.Template.Callback()
     def button_open_file_callback(self, button_clicked):
         self.show_open_dialog()
@@ -134,3 +136,7 @@ class MainWindow(Adw.ApplicationWindow):
     def switch_to_main_view(self):
         self.stack.set_visible_child_name("page_main")
         self.button_export_video.set_sensitive(True)
+
+    def close(self, *args):
+        self.widget_video_preview.close()
+        print("widget_video_preview closed")

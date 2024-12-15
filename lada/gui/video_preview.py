@@ -621,6 +621,10 @@ class VideoPreview(Gtk.Widget):
         self._application.shortcuts.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
         self._application.shortcuts.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
 
+    def close(self):
+        if self.frame_restorer:
+            self.frame_restorer.stop()
+            self.stop_frame_restorer_worker()
 
 class PassthroughFrameRestorer:
     def __init__(self, video_file):

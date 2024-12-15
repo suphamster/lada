@@ -21,7 +21,7 @@ class LadaApplication(Adw.Application):
     def __init__(self):
         super().__init__(application_id='io.github.ladaapp.lada',
                          flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
-        self.create_action('quit', lambda *_: self.quit(), ['<primary>q'])
+        self.create_action('quit', self.on_close, ['<primary>q'])
         self.create_action('about', self.on_about_action)
         self.create_action('shortcuts', self.on_shortcut_action)
 
@@ -34,14 +34,22 @@ class LadaApplication(Adw.Application):
 
         self.shortcuts = ShortcutsManager(self)
 
+        self.window = None
+
         Gst.init(None)
 
     def do_activate(self):
         win = self.props.active_window
         if not win:
             win = MainWindow(application=self)
+            self.window = win
             self.shortcuts.init(win.shortcut_controller)
         win.present()
+
+    def on_close(self, *args):
+        if self.window:
+            self.window.close()
+            self.quit()
 
     def on_about_action(self, *args):
         about = Adw.AboutDialog(application_name='lada',
