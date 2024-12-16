@@ -292,6 +292,7 @@ class FrameRestorer:
                     if not self.stop_requested:
                         self.eof = True
                         self.frame_restoration_thread_should_be_running = False
+                        self.frame_restoration_queue.put(None)
                     break
                 else:
                     mosaic_detected, frame, frame_pts = _frame_result
@@ -328,6 +329,8 @@ class FrameRestorer:
                 elem = self.frame_restoration_queue.get()
                 if self.stop_requested:
                     logger.debug("frame_restoration_queue consumer unblocked")
+                if elem is None and not self.stop_requested:
+                    raise StopIteration
                 return elem
 
     def get_frame_restoration_queue(self):
