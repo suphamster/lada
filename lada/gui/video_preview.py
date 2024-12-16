@@ -59,6 +59,7 @@ class VideoPreview(Gtk.Widget):
         self.video_buffer_queue: Gst.Queue | None = None
         self.audio_buffer_queue: Gst.Queue | None = None
         self.pipeline_audio_elements = []
+        self.eos = False
 
         self.appsource_thread: threading.Thread | None = None
         self.appsource_queue: queue.Queue = queue.Queue()
@@ -208,6 +209,8 @@ class VideoPreview(Gtk.Widget):
     def button_play_pause_callback(self, button_clicked):
         if not self._video_preview_init_done:
             return
+        if self.eos:
+            self.seek_video(0)
         pipe_state = self.pipeline.get_state(20 * Gst.MSECOND)
         if pipe_state.state == Gst.State.PLAYING:
             self.should_be_paused = True
@@ -244,6 +247,7 @@ class VideoPreview(Gtk.Widget):
             self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
 
     def seek_video(self, seek_position_ns):
+        self.eos = False
         self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
 
     def show_cursor_position(self, cursor_position_ns):
@@ -473,6 +477,7 @@ class VideoPreview(Gtk.Widget):
                 case Gst.MessageType.EOS:
                     print(msg.src, "eos")
                     self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
+                    self.eos = True
                 case Gst.MessageType.ERROR:
                     (err, _) = msg.parse_error()
                     print(f'Error from {msg.src.get_path_string()}: {err}')
