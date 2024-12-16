@@ -52,6 +52,7 @@ class VideoPreview(Gtk.Widget):
         self._application: Adw.Application | None = None
 
         self.appsrc: GstApp | None = None
+        self.video_sink = None
         self.audio_uridecodebin: Gst.UriDecodeBin | None = None
         self.audio_volume = None
         self.pipeline: Gst.Pipeline | None = None
@@ -186,6 +187,10 @@ class VideoPreview(Gtk.Widget):
     def application(self, value):
         self._application = value
         self._setup_shortcuts()
+
+    @GObject.Signal(name="video-preview-reinit")
+    def video_preview_init_start_signal(self):
+        pass
 
     @GObject.Signal(name="video-preview-init-done")
     def video_preview_init_done_signal(self):
@@ -375,15 +380,8 @@ class VideoPreview(Gtk.Widget):
         buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)  # ns
         buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
 
-        def on_running(queue):
-            current_level_time = queue.get_property('current-level-time')
-            if not self._video_preview_init_done and current_level_time > 0:
-                self._video_preview_init_done = True
-                self.emit('video-preview-init-done')
-
         buffer_queue.connect("underrun", lambda queue: self.autopause_if_not_enough_data_buffered())
         buffer_queue.connect("overrun", lambda queue: self.autoplay_if_enough_data_buffered())
-        buffer_queue.connect('running', on_running)
         self.pipeline.add(buffer_queue)
 
         gtksink = Gst.ElementFactory.make('gtk4paintablesink', None)
@@ -406,6 +404,7 @@ class VideoPreview(Gtk.Widget):
         self.appsrc = appsrc
         self.video_buffer_queue = buffer_queue
         self.picture_video_preview.set_paintable(paintable)
+        self.video_sink = video_sink
 
     def pipeline_remove_audio(self):
         for audio_element in self.pipeline_audio_elements:
@@ -472,17 +471,22 @@ class VideoPreview(Gtk.Widget):
         def on_bus_msg(_, msg):
             match msg.type:
                 case Gst.MessageType.EOS:
-                    print("eos")
+                    print(msg.src, "eos")
                     self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
                 case Gst.MessageType.ERROR:
                     (err, _) = msg.parse_error()
                     print(f'Error from {msg.src.get_path_string()}: {err}')
                 case Gst.MessageType.STATE_CHANGED:
-                    old_state, new_state, pending_state = msg.parse_state_changed()
-                    if old_state == Gst.State.PAUSED and new_state == Gst.State.PLAYING:
-                        self.button_image_play_pause.set_property("icon-name", "media-playback-pause-symbolic")
-                    elif old_state == Gst.State.PLAYING and new_state == Gst.State.PAUSED:
-                        self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
+                    if msg.src == self.pipeline:
+                        old_state, new_state, pending_state = msg.parse_state_changed()
+                        if old_state == Gst.State.PAUSED and new_state == Gst.State.PLAYING:
+                            self.button_image_play_pause.set_property("icon-name", "media-playback-pause-symbolic")
+                        elif old_state == Gst.State.PLAYING and new_state == Gst.State.PAUSED:
+                            self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
+                        if not self._video_preview_init_done and new_state == Gst.State.PLAYING:
+                            self._video_preview_init_done = True
+                            self.emit('video-preview-init-done')
+
                 case Gst.MessageType.STREAM_STATUS:
                     pass
                 case _:
@@ -504,8 +508,8 @@ class VideoPreview(Gtk.Widget):
         if offset_ns == self.current_timestamp_ns:
             return True
         print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}, current position (sec): {self.current_timestamp_ns / Gst.SECOND}")
-        self.pipeline.set_state(Gst.State.PAUSED)
         self.frame_restorer_lock.acquire()
+        self.pipeline.set_state(Gst.State.PAUSED)
         self.stop_appsource_worker()
         self.setup_frame_restorer()
         self.start_appsource_worker(start_ns=offset_ns)
@@ -513,14 +517,19 @@ class VideoPreview(Gtk.Widget):
         return True
 
     def reset_appsource_worker(self):
-        self.pipeline.set_state(Gst.State.NULL)
-        self.frame_restorer_lock.acquire()
-        self.stop_appsource_worker()
-        self.setup_frame_restorer()
-        self.start_appsource_worker(start_ns=self.current_timestamp_ns)
-        self.frame_restorer_lock.release()
-        self.pipeline.set_state(Gst.State.PLAYING)
-        print("finished reset")
+        self.emit('video-preview-reinit')
+
+        def reset():
+            self._video_preview_init_done = False
+            self.pipeline.set_state(Gst.State.NULL)
+            self.stop_appsource_worker()
+            self.setup_frame_restorer()
+            self.start_appsource_worker(start_ns=0)
+            self.pipeline.set_state(Gst.State.PLAYING)
+
+        exporter_thread = threading.Thread(target=reset)
+        exporter_thread.start()
+
 
     def start_appsource_worker(self, start_ns):
         self.appsource_thread_stop_requested = False
@@ -571,7 +580,8 @@ class VideoPreview(Gtk.Widget):
             self.appsource_thread_should_be_running = False
             if not self.appsource_thread_stop_requested:
                 self.appsrc.emit("end-of-stream")
-            return True
+                return True
+            return False
         else:
             frame, frame_pts = result
 

@@ -5,7 +5,8 @@
 
     <template class="ConfigSidebar" parent="GtkScrolledWindow">
         <child>
-            <object class="GtkListBox">
+            <object class="GtkListBox" id="list_box">
+                <property name="sensitive">true</property>
                 <property name="selection-mode">none</property>
                 <style>
                     <class name="boxed-list"/>

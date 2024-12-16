@@ -105,16 +105,23 @@ class MainWindow(Adw.ApplicationWindow):
     def open_file(self, file: Gio.File):
         self.opened_file = file
         self.set_title(os.path.basename(file.get_path()))
+        self.config_sidebar.set_property("disabled", True)
         self.switch_to_main_view()
 
-        if self.stack_video_preview.get_visible_child() == self.widget_video_preview:
+        def show_spinner(*args):
+            self.config_sidebar.set_property("disabled", True)
             self.stack_video_preview.set_visible_child(self.spinner_video_preview)
 
-        def show_video_preview(obj):
+        def show_video_preview(*args):
+            self.config_sidebar.set_property("disabled", False)
             self.stack_video_preview.set_visible_child(self.widget_video_preview)
             self.widget_video_preview.grab_focus()
 
+        if self.stack_video_preview.get_visible_child() == self.widget_video_preview:
+            show_spinner()
+
         self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
+        self.widget_video_preview.connect("video-preview-reinit", show_spinner)
         self.widget_video_preview.open_video_file(file, self.config_sidebar.get_property("mute_audio"))
 
     def start_export(self, file: Gio.File):
@@ -139,4 +146,3 @@ class MainWindow(Adw.ApplicationWindow):
 
     def close(self, *args):
         self.widget_video_preview.close()
-        print("widget_video_preview closed")

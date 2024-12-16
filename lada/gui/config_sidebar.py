@@ -22,6 +22,7 @@ class ConfigSidebar(Gtk.ScrolledWindow):
     spin_row_clip_max_duration = Gtk.Template.Child()
     switch_row_mosaic_cleaning = Gtk.Template.Child()
     switch_row_mute_audio = Gtk.Template.Child()
+    list_box = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -201,6 +202,14 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         self.notify('export-codec')
         if self.save_config:
             self.config.save()
+
+    @GObject.Property()
+    def disabled(self):
+        return self.list_box.get_property("sensitive")
+
+    @disabled.setter
+    def disabled(self, value):
+        self.list_box.set_property("sensitive", not value)
 
     @Gtk.Template.Callback()
     def toggle_button_mosaic_detection_callback(self, button_clicked):
