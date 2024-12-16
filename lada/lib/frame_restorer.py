@@ -120,9 +120,6 @@ class FrameRestorer:
         self.frame_restoration_thread.start()
 
     def stop(self):
-        if self.clip_restoration_thread is None and self.frame_restoration_thread is None:
-            logger.debug("Tried to stop already stopped FrameRestorer. Ignoring...")
-            return
         logger.debug("FrameRestorer: stopping...")
         start = time.time()
         self.stop_requested = True
@@ -155,8 +152,8 @@ class FrameRestorer:
         # garbage collection
         threading_utils.empty_out_queue(self.mosaic_clip_queue, "mosaic_clip_queue")
         threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
-        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
         threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
+        threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
 
         logger.debug(f"FrameRestorer: stopped, took {time.time() - start}")
 
@@ -240,7 +237,6 @@ class FrameRestorer:
                     self.restored_clip_queue.put(None)
                     logger.debug("clip restoration worker: restored_clip_queue producer unblocked")
             else:
-                logger.debug(f"clip restoration worker: read mosaic clip, waited for {waited_for_mosaic_clip}s", )
                 self._restore_clip(clip)
                 self.restored_clip_queue.put(clip)
                 if self.stop_requested:
@@ -260,7 +256,6 @@ class FrameRestorer:
         elem = self.frame_detection_queue.get()
         if self.stop_requested:
             logger.debug("frame restoration worker: frame_detection_queue consumer unblocked")
-        if self.stop_requested:
             return None
         assert elem is not None, "Illegal state: Expected to read detection result from detection queue but received None (EOF marker)"
         detection_frame_num, mosaic_detected = elem
@@ -277,7 +272,6 @@ class FrameRestorer:
             return False
         assert self.stop_requested or clip.frame_start >= current_frame_num, "clip queue out of sync!"
         clip_buffer.append(clip)
-        logger.debug(f"frame restoration worker: read restored clip, waited for {waited_for_restored_clip}s")
         return True
 
     def _frame_restoration_worker(self):
@@ -335,3 +329,6 @@ class FrameRestorer:
                 if self.stop_requested:
                     logger.debug("frame_restoration_queue consumer unblocked")
                 return elem
+
+    def get_frame_restoration_queue(self):
+        return self.frame_restoration_queue

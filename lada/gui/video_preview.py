@@ -4,6 +4,8 @@ import pathlib
 import tempfile
 import threading
 import queue
+import time
+
 import numpy as np
 from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
 
@@ -57,9 +59,10 @@ class VideoPreview(Gtk.Widget):
         self.audio_buffer_queue: Gst.Queue | None = None
         self.pipeline_audio_elements = []
 
-        self.frame_restorer_thread: threading.Thread | None = None
-        self.frame_restorer_thread_queue: queue.Queue = queue.Queue()
-        self.worker_should_be_running: bool = False
+        self.appsource_thread: threading.Thread | None = None
+        self.appsource_queue: queue.Queue = queue.Queue()
+        self.appsource_thread_should_be_running: bool = False
+        self.appsource_thread_stop_requested = False
 
         self.frame_restorer: FrameRestorer | None = None
         self.frame_restorer_lock: threading.Lock = threading.Lock()
@@ -85,7 +88,7 @@ class VideoPreview(Gtk.Widget):
             return
         self._passthrough = value
         if self._video_preview_init_done:
-            self.reset_frame_restorer()
+            self.reset_appsource_worker()
 
     @GObject.Property()
     def device(self):
@@ -98,7 +101,7 @@ class VideoPreview(Gtk.Widget):
         self._device = value
         self.models_cache = None
         if self._video_preview_init_done:
-            self.reset_frame_restorer()
+            self.reset_appsource_worker()
 
     @property
     def buffer_queue_min_thresh_time_auto(self):
@@ -125,7 +128,7 @@ class VideoPreview(Gtk.Widget):
         self._max_clip_length = value
         if self._video_preview_init_done and self._buffer_queue_min_thresh_time == 0:
             self.buffer_queue_min_thresh_time_auto = float(self._max_clip_length / self.video_metadata.video_fps_exact)
-            self.reset_frame_restorer()
+            self.reset_appsource_worker()
 
     @GObject.Property()
     def buffer_queue_min_thresh_time(self):
@@ -149,7 +152,7 @@ class VideoPreview(Gtk.Widget):
             return
         self._mosaic_restoration_model_name = value
         if self._video_preview_init_done:
-            self.reset_frame_restorer()
+            self.reset_appsource_worker()
 
     @GObject.Property()
     def mosaic_cleaning(self):
@@ -161,7 +164,7 @@ class VideoPreview(Gtk.Widget):
             return
         self._mosaic_cleaning = value
         if self._video_preview_init_done:
-            self.reset_frame_restorer()
+            self.reset_appsource_worker()
 
     @GObject.Property()
     def mosaic_detection(self):
@@ -173,7 +176,7 @@ class VideoPreview(Gtk.Widget):
             return
         self._mosaic_detection = value
         if self._video_preview_init_done:
-            self.reset_frame_restorer()
+            self.reset_appsource_worker()
 
     @GObject.Property(type=Adw.Application)
     def application(self):
@@ -251,7 +254,7 @@ class VideoPreview(Gtk.Widget):
 
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)
-            self.stop_frame_restorer_worker()
+            self.stop_appsource_worker()
             self._video_preview_init_done = False
 
         self.video_metadata = video_utils.get_video_meta_data(file_path)
@@ -260,8 +263,8 @@ class VideoPreview(Gtk.Widget):
         self.button_mute_unmute.set_sensitive(self.has_audio)
         self.set_speaker_icon(mute=not self.has_audio)
 
-        self.setup_frame_restorer(start_ns=0)
-        self.start_frame_restorer_worker()
+        self.setup_frame_restorer()
+        self.start_appsource_worker(start_ns=0)
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
@@ -282,7 +285,10 @@ class VideoPreview(Gtk.Widget):
             self.pipeline.set_state(Gst.State.NULL)
         self._video_preview_init_done = False
         self._mosaic_detection = False
-        self.setup_frame_restorer(start_ns=0)
+        if self.frame_restorer:
+            self.frame_restorer.stop()
+        self.setup_frame_restorer()
+        self.start_appsource_worker(start_ns=0)
 
         def run_export():
             video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(file_path)[0])}.tmp{os.path.splitext(file_path)[1]}")
@@ -500,55 +506,74 @@ class VideoPreview(Gtk.Widget):
         print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}, current position (sec): {self.current_timestamp_ns / Gst.SECOND}")
         self.pipeline.set_state(Gst.State.PAUSED)
         self.frame_restorer_lock.acquire()
-        self.stop_frame_restorer_worker()
-        self.setup_frame_restorer(start_ns=offset_ns)
-        self.start_frame_restorer_worker()
+        self.stop_appsource_worker()
+        self.setup_frame_restorer()
+        self.start_appsource_worker(start_ns=offset_ns)
         self.frame_restorer_lock.release()
         return True
 
-    def reset_frame_restorer(self):
+    def reset_appsource_worker(self):
         self.pipeline.set_state(Gst.State.NULL)
         self.frame_restorer_lock.acquire()
-        self.stop_frame_restorer_worker()
-        self.setup_frame_restorer(start_ns=self.current_timestamp_ns)
-        self.start_frame_restorer_worker()
+        self.stop_appsource_worker()
+        self.setup_frame_restorer()
+        self.start_appsource_worker(start_ns=self.current_timestamp_ns)
         self.frame_restorer_lock.release()
+        self.pipeline.set_state(Gst.State.PLAYING)
+        print("finished reset")
 
-    def start_frame_restorer_worker(self):
-        self.worker_should_be_running = True
-        self.frame_restorer_thread = threading.Thread(target=self.frame_restorer_worker)
-        self.frame_restorer_thread.start()
+    def start_appsource_worker(self, start_ns):
+        self.appsource_thread_stop_requested = False
+        self.appsource_thread_should_be_running = True
+        self.current_timestamp_ns = start_ns
 
-    def stop_frame_restorer_worker(self):
-        self.worker_should_be_running = False
+        self.frame_restorer.start(start_ns=int(start_ns))
+
+        self.appsource_thread = threading.Thread(target=self._appsource_worker)
+        self.appsource_thread.start()
+
+    def stop_appsource_worker(self):
+        start = time.time()
+        self.appsource_thread_stop_requested = True
+        self.appsource_thread_should_be_running = False
+
+        self.frame_restorer.stop()
 
         # unblock consumer
-        threading_utils.put_closing_queue_marker(self.frame_restorer_thread_queue, "frame_restorer_thread_queue")
+        threading_utils.put_closing_queue_marker(self.appsource_queue, "appsource_queue")
+        threading_utils.put_closing_queue_marker(self.frame_restorer.get_frame_restoration_queue(), "frame_restorer_thread_queue")
 
-        self.frame_restorer_thread.join()
-        self.frame_restorer_thread = None
+        self.appsource_thread.join()
+        self.appsource_thread = None
 
         # garbage collection
-        threading_utils.empty_out_queue(self.frame_restorer_thread_queue, "frame_restorer_thread_queue")
-        logger.debug("VideoPreview frame restorer worker: stopped")
+        threading_utils.empty_out_queue(self.appsource_queue, "appsource_queue")
+        threading_utils.put_closing_queue_marker(self.frame_restorer.get_frame_restoration_queue(), "frame_restorer_thread_queue")
+        logger.debug(f"appsource worker: stopped, took {time.time() - start}")
 
-    def frame_restorer_worker(self):
-        logger.debug("VideoPreview frame restorer worker: started")
-        while self.worker_should_be_running:
-            self.frame_restorer_thread_queue.get()
-            self.read_next_frame()
-            self.frame_restorer_thread_queue.task_done()
+    def _appsource_worker(self):
+        logger.debug("appsource worker: started")
+        eof = False
+        while self.appsource_thread_should_be_running:
+            self.appsource_queue.get()
+            if self.appsource_thread_stop_requested:
+                logger.debug("appsource worker: consumer unblocked")
+            eof = self._appsource_read_next_frame()
+            self.appsource_queue.task_done()
+        if eof:
+            logger.debug("appsource worker: stopped itself, EOF")
 
-    def read_next_frame(self):
-        try:
-            result = next(self.frame_restorer)
-            if result is None:
-                assert self.frame_restorer.stop_requested, "Illegal state: Received None (stop marker) from frame restorer but it wasn't requested to stop"
-                return
+    def _appsource_read_next_frame(self) -> bool:
+        result = self.frame_restorer.get_frame_restoration_queue().get()
+        if self.appsource_thread_stop_requested:
+            logger.debug("appsource worker: frame_restoration_queue consumer unblocked")
+        if result is None:
+            self.appsource_thread_should_be_running = False
+            if not self.appsource_thread_stop_requested:
+                self.appsrc.emit("end-of-stream")
+            return True
+        else:
             frame, frame_pts = result
-        except StopIteration:
-            self.appsrc.emit("end-of-stream")
-            return
 
         width = frame.shape[1]
         # TODO: see reasoning for this zero padding in TODO where we specify appsrc Caps
@@ -564,9 +589,10 @@ class VideoPreview(Gtk.Widget):
         buf.offset = video_utils.offset_ns_to_frame_num(int(self.current_timestamp_ns), self.video_metadata.video_fps_exact)
         self.appsrc.emit('push-buffer', buf)
         self.current_timestamp_ns += self.frame_duration_ns
+        return False
 
     def on_need_data(self, src, length):
-        self.frame_restorer_thread_queue.put("work worker, work!")
+        self.appsource_queue.put("work worker, work!")
 
     def update_current_position(self):
         res, position = self.pipeline.query_position(Gst.Format.TIME)
@@ -589,7 +615,7 @@ class VideoPreview(Gtk.Widget):
             time = f"{minutes}:{seconds:02d}" if hours == 0 else f"{hours}:{minutes:02d}:{seconds:02d}"
             return time
 
-    def setup_frame_restorer(self, start_ns=0):
+    def setup_frame_restorer(self):
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
@@ -604,17 +630,12 @@ class VideoPreview(Gtk.Widget):
                                      mosaic_edge_detection_model=mosaic_edge_detection_model,
                                      mosaic_restoration_model_preferred_pad_mode=mosaic_restoration_model_preferred_pad_mode)
 
-        if self.frame_restorer:
-            self.frame_restorer.stop()
         if self._passthrough:
             self.frame_restorer = PassthroughFrameRestorer(self.video_metadata.video_file)
         else:
             self.frame_restorer = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
                                                 self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
                                                 mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
-        self.frame_restorer.start(start_ns=int(start_ns))
-
-        self.current_timestamp_ns = start_ns
 
     def _setup_shortcuts(self):
         self._application.shortcuts.register_group("preview", "Preview")
@@ -623,32 +644,36 @@ class VideoPreview(Gtk.Widget):
 
     def close(self):
         if self.frame_restorer:
-            self.frame_restorer.stop()
-            self.stop_frame_restorer_worker()
+            self.stop_appsource_worker()
 
 class PassthroughFrameRestorer:
     def __init__(self, video_file):
         self.video_file = video_file
         self.video_reader: video_utils.VideoReader | None = None
-        self.video_frames_generator = None
-        self.stop_requested = False
+        self.frame_restoration_queue = None
 
     def start(self, start_ns=0):
         self.video_reader = video_utils.VideoReader(self.video_file)
-        self.video_reader.__enter__()
+        self.video_reader = self.video_reader.__enter__()
         if start_ns == 0:
             self.video_reader.seek(start_ns)
-        self.video_frames_generator = self.video_reader.frames()
+        self.frame_restoration_queue = PassthroughFrameRestorer.PassthroughQueue(self.video_reader.frames())
 
     def stop(self):
         self.video_reader.__exit__(None, None, None)
-        self.stop_requested = True
 
-    def __iter__(self):
-        return self
+    def get_frame_restoration_queue(self):
+        return self.frame_restoration_queue
 
-    def __next__(self):
-        """
-        returns None if being called while FrameRestorer is being stopped
-        """
-        return next(self.video_frames_generator)
+    class PassthroughQueue:
+        def __init__(self, video_frames_generator):
+            self.video_frames_generator = video_frames_generator
+
+        def get(self, block=True, timeout=None):
+            try:
+                return next(self.video_frames_generator)
+            except StopIteration:
+                return None
+
+        def put(self, item, block=True, timeout=None):
+            pass

@@ -270,6 +270,8 @@ class MosaicDetector:
     def _create_or_append_scenes_based_on_prediction_result(self, results: Results, scenes: list[Scene], frame_num):
         mosaic_detected = len(results.boxes) > 0
         self.frame_detection_queue.put((frame_num, mosaic_detected))
+        if self.stop_requested:
+            logger.debug("frame detector worker: frame_detection_queue producer unblocked")
         for i in range(len(results.boxes)):
             mask = convert_yolo_mask(results.masks[i], results.orig_shape)
             box = convert_yolo_box(results.boxes[i], results.orig_shape)
@@ -307,6 +309,8 @@ class MosaicDetector:
                     eof = True
                     self.frame_feeder_thread_should_be_running = False
                 self.frame_feeder_queue.put((frames, frame_num, eof))
+                if self.stop_requested:
+                    logger.debug("frame feeder worker: frame_feeder_queue producer unblocked")
                 frame_num += len(frames)
             if eof:
                 logger.debug("frame feeder worker: stopped itself, EOF")

@@ -70,7 +70,11 @@ class LadaApplication(Adw.Application):
 
 def main():
     app = LadaApplication()
-    return app.run(sys.argv)
+    try:
+        return app.run(sys.argv)
+    except KeyboardInterrupt:
+        print("Ctrl-C, quitting")
+        app.on_close()
 
 if __name__ == "__main__":
     main()
