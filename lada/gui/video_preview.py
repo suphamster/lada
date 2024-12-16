@@ -114,7 +114,7 @@ class VideoPreview(Gtk.Widget):
         value = min(self._buffer_queue_min_thresh_time_auto_max, max(self._buffer_queue_min_thresh_time_auto_min, value))
         if self._buffer_queue_min_thresh_time_auto == value:
             return
-        print("adjusted buffer_queue_min_thresh_time_auto to", value)
+        logger.info(f"adjusted buffer_queue_min_thresh_time_auto to {value}")
         self._buffer_queue_min_thresh_time_auto = value
         if self._video_preview_init_done:
             self.update_gst_buffers()
@@ -219,7 +219,7 @@ class VideoPreview(Gtk.Widget):
             self.should_be_paused = False
             self.pipeline.set_state(Gst.State.PLAYING)
         else:
-            print("unhandled pipeline state in button_play_pause_callback", pipe_state.nick_value)
+            logger.warning(f"unhandled pipeline state in button_play_pause_callback: {pipe_state.nick_value}")
 
     @Gtk.Template.Callback()
     def button_mute_unmute_callback(self, button_clicked):
@@ -475,12 +475,11 @@ class VideoPreview(Gtk.Widget):
         def on_bus_msg(_, msg):
             match msg.type:
                 case Gst.MessageType.EOS:
-                    print(msg.src, "eos")
                     self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
                     self.eos = True
                 case Gst.MessageType.ERROR:
                     (err, _) = msg.parse_error()
-                    print(f'Error from {msg.src.get_path_string()}: {err}')
+                    logger.error(f"Error from {msg.src.get_path_string()}: {err}")
                 case Gst.MessageType.STATE_CHANGED:
                     if msg.src == self.pipeline:
                         old_state, new_state, pending_state = msg.parse_state_changed()
@@ -512,7 +511,7 @@ class VideoPreview(Gtk.Widget):
     def on_seek_data(self, appsrc, offset_ns):
         if offset_ns == self.current_timestamp_ns:
             return True
-        print(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}, current position (sec): {self.current_timestamp_ns / Gst.SECOND}")
+        logger.debug(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}, current position (sec): {self.current_timestamp_ns / Gst.SECOND}")
         self.frame_restorer_lock.acquire()
         self.pipeline.set_state(Gst.State.PAUSED)
         self.stop_appsource_worker()
@@ -632,7 +631,7 @@ class VideoPreview(Gtk.Widget):
 
     def setup_frame_restorer(self):
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
-            print(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
+            logger.info(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
             mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, mosaic_restoration_model_preferred_pad_mode = load_models(
                 self._device, self._mosaic_restoration_model_name, mosaic_restoration_model_path, None,
