@@ -297,21 +297,25 @@ class VideoPreview(Gtk.Widget):
         if self.frame_restorer:
             self.frame_restorer.stop()
         self.setup_frame_restorer()
-        self.start_appsource_worker(start_ns=0)
 
         def run_export():
-            video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(file_path)[0])}.tmp{os.path.splitext(file_path)[1]}")
-            video_writer = video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
-                                       self.video_metadata.video_height, self.video_metadata.video_fps_exact,
-                                       time_base=self.video_metadata.time_base, codec=video_codec, crf=crf)
-
             progress_update_step_size = 100
-            for frame_num, (restored_frame, restored_frame_pts) in enumerate(self.frame_restorer):
-                video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
-                if frame_num % progress_update_step_size == 0:
-                    self.emit('video-export-progress', frame_num / self.video_metadata.frames_count)
+            try:
+                self.frame_restorer.start(start_ns=0)
 
-            video_writer.release()
+                video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(file_path)[0])}.tmp{os.path.splitext(file_path)[1]}")
+                video_writer = video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
+                                           self.video_metadata.video_height, self.video_metadata.video_fps_exact,
+                                           time_base=self.video_metadata.time_base, codec=video_codec, crf=crf)
+                try:
+                    for frame_num, (restored_frame, restored_frame_pts) in enumerate(self.frame_restorer):
+                        video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
+                        if frame_num % progress_update_step_size == 0:
+                            self.emit('video-export-progress', frame_num / self.video_metadata.frames_count)
+                finally:
+                    video_writer.release()
+            finally:
+                self.frame_restorer.stop()
 
             audio_utils.combine_audio_video_files(self.video_metadata.video_file, video_tmp_file_output_path, file_path)
             self.emit('video-export-progress', 1.0)
