@@ -45,7 +45,7 @@ lada-cli --input <input video path> --output <output video path>
 <img src="assets/screenshot_cli_1.png" alt="screenshot showing video export" width="45%">
 
 > [!TIP]
-> If you've installed the app via flathub then the command would look like this (instead of *host* permissions you could also use `--file-forwarding` option)
+> If you've installed the app via Flathub then the command would look like this (instead of *host* permissions you could also use `--file-forwarding` option)
 >  ```shell
 >  flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada --input <input video path> --output <output video path>
 >  ```
@@ -53,6 +53,11 @@ lada-cli --input <input video path> --output <output video path>
 > ```shell
 > alias lada-cli="flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada"
 >  ```
+
+> [!TIP]
+> Lada will write the restored video first to a temporary file before it is being combined with the audio stream from the original file and written to the selected destination.
+> Default location is `/tmp`. You can overwrite it by setting the `TMPDIR` environment variable.
+> On flatpak you can either pass `--env=TMPDIR=/my/custom/tempdir` to the run command or you can use Flatseal to overwrite this permanently.
 
 You can find out more about additional options by using the `--help` argument.
 
