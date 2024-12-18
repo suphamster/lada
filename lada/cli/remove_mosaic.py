@@ -58,21 +58,37 @@ def cli():
 
     frame_restorer = FrameRestorer(args.device, args.input, args.preserve_relative_scale, args.max_clip_length, args.mosaic_restoration_model,
                  mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode, mosaic_cleaning=args.mosaic_cleaning)
+    success = True
+    video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
     try:
         frame_restorer.start()
 
-        video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
         video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front, time_base=video_metadata.time_base)
         try:
-            for restored_frame, restored_frame_pts in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
+            for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
+                if elem is None:
+                    success = False
+                    print("Error on export: frame restorer stopped prematurely")
+                    break
+                (restored_frame, restored_frame_pts) = elem
                 video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
         finally:
             video_writer.release()
+    except (Exception, KeyboardInterrupt) as e:
+        success = False
+        if isinstance(e, KeyboardInterrupt):
+            print("Ctrl-C, stop currently running restore")
+        else:
+            print("Error on export", e)
     finally:
         frame_restorer.stop()
 
-    print("Processing audio")
-    audio_utils.combine_audio_video_files(args.input, video_tmp_file_output_path, args.output)
+    if success:
+        print("Processing audio")
+        audio_utils.combine_audio_video_files(args.input, video_tmp_file_output_path, args.output)
+    else:
+        if os.path.exists(video_tmp_file_output_path):
+            os.remove(video_tmp_file_output_path)
 
 
 if __name__ == '__main__':
