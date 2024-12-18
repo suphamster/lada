@@ -77,7 +77,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def button_export_video_callback(self, button_clicked):
-        self.widget_video_preview.pause_if_currently_playing()
+        self.show_export_dialog()
 
     @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
