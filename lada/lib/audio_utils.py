@@ -4,15 +4,28 @@ import os
 import subprocess
 import shutil
 from typing import Optional
+from lada.lib import video_utils
 
-def combine_audio_video_files(av_video_input_path, tmp_v_video_input_path, av_video_output_path):
-    audio_codec = get_audio_codec(av_video_input_path)
+def combine_audio_video_files(av_video_metadata: video_utils.VideoMetadata, tmp_v_video_input_path, av_video_output_path):
+    audio_codec = get_audio_codec(av_video_metadata.video_file)
     if audio_codec:
-        needs_reencoding = not is_output_container_compatible_with_input_audio_codec(audio_codec, av_video_output_path)
-        if needs_reencoding:
-            os.system("ffmpeg -y -loglevel quiet -i '%s' -i '%s' -c:v copy -map 0:v:0 -map 1:a:0 '%s'" % (tmp_v_video_input_path, av_video_input_path, av_video_output_path))
+        needs_audio_reencoding = not is_output_container_compatible_with_input_audio_codec(audio_codec, av_video_output_path)
+        needs_video_delay = av_video_metadata.start_pts > 0
+
+        cmd = ["ffmpeg", "-y", "-loglevel", "quiet"]
+        cmd += ["-i", av_video_metadata.video_file]
+        if needs_video_delay > 0:
+            delay_in_seconds = float(av_video_metadata.start_pts * av_video_metadata.time_base)
+            cmd += ["-itsoffset", str(delay_in_seconds)]
+        cmd += ["-i", tmp_v_video_input_path]
+        if needs_audio_reencoding:
+            cmd += ["-c:v", "copy"]
         else:
-            os.system("ffmpeg -y -loglevel quiet -i '%s' -i '%s' -c copy -map 0:v:0 -map 1:a:0 '%s'" % (tmp_v_video_input_path, av_video_input_path, av_video_output_path))
+            cmd += ["-c", "copy"]
+        cmd += ["-map", "1:v:0"]
+        cmd += ["-map", "0:a:0"]
+        cmd += [av_video_output_path]
+        subprocess.run(cmd, stdout=subprocess.PIPE)
         os.remove(tmp_v_video_input_path)
     else:
         shutil.move(tmp_v_video_input_path, av_video_output_path)

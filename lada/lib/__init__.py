@@ -37,3 +37,4 @@ class VideoMetadata:
     frames_count: int
     duration: float
     time_base: Fraction
+    start_pts: int

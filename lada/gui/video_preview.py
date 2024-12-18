@@ -352,7 +352,7 @@ class VideoPreview(Gtk.Widget):
                 self.frame_restorer.stop()
 
             if success:
-                audio_utils.combine_audio_video_files(self.video_metadata.video_file, video_tmp_file_output_path, file_path)
+                audio_utils.combine_audio_video_files(self.video_metadata, video_tmp_file_output_path, file_path)
                 self.emit('video-export-progress', 1.0)
                 self.emit('video-export-finished')
             else:

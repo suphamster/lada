@@ -85,7 +85,7 @@ def cli():
 
     if success:
         print("Processing audio")
-        audio_utils.combine_audio_video_files(args.input, video_tmp_file_output_path, args.output)
+        audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, args.output)
     else:
         if os.path.exists(video_tmp_file_output_path):
             os.remove(video_tmp_file_output_path)

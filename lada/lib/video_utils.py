@@ -269,6 +269,8 @@ def get_video_meta_data(path: str) -> VideoMetadata:
         # print("frame count opencv", frame_count)
     frame_count=int(frame_count)
 
+    start_pts = json_video_stream.get('start_pts')
+
     metadata = VideoMetadata(
         video_file=path,
         video_height=int(json_video_stream['height']),
@@ -279,7 +281,8 @@ def get_video_meta_data(path: str) -> VideoMetadata:
         codec_name=json_video_stream['codec_name'],
         frames_count=frame_count,
         duration=float(json_video_stream.get('duration', json_video_format['duration'])),
-        time_base=time_base
+        time_base=time_base,
+        start_pts=start_pts
     )
     return metadata
 
