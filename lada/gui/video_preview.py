@@ -632,6 +632,8 @@ class VideoPreview(Gtk.Widget):
         else:
             frame, frame_pts = result
 
+        frame_timestamp_ns = int((frame_pts * self.video_metadata.time_base) * Gst.SECOND)
+
         width = frame.shape[1]
         # TODO: see reasoning for this zero padding in TODO where we specify appsrc Caps
         if width % 4 != 0:
@@ -642,10 +644,10 @@ class VideoPreview(Gtk.Widget):
         buf = Gst.Buffer.new_allocate(None, len(data), None)
         buf.fill(0, data)
         buf.duration = self.frame_duration_ns
-        buf.pts = int(self.current_timestamp_ns)
-        buf.offset = video_utils.offset_ns_to_frame_num(int(self.current_timestamp_ns), self.video_metadata.video_fps_exact)
+        buf.pts = frame_timestamp_ns
+        buf.offset = video_utils.offset_ns_to_frame_num(frame_timestamp_ns, self.video_metadata.video_fps_exact)
         self.appsrc.emit('push-buffer', buf)
-        self.current_timestamp_ns += self.frame_duration_ns
+        self.current_timestamp_ns = frame_timestamp_ns
         return False
 
     def on_need_data(self, src, length):

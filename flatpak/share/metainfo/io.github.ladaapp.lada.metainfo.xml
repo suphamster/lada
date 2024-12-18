@@ -54,8 +54,9 @@
             <description>
                 <p>Fixes:</p>
                 <ul>
-                    <li>Fix occasional GUI freeze when app gets closed</li>
-                    <li>Fix occasional GUI freeze when seeking the video</li>
+                    <li>GUI: Fix occasional freeze when app gets closed</li>
+                    <li>GUI: Fix occasional freeze when seeking a video</li>
+                    <li>GUI: Fix audio/video getting out-of-sync</li>
                     <li>Clean up temporary file after hitting an error or program is closed while export is running</li>
                     <li>Fix always limiting queue sizes to 1 when setting up restoration pipeline. Caused reduced throughput</li>
                 </ul>
