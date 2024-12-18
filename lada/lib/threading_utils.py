@@ -1,5 +1,6 @@
 import logging
-from queue import Queue, Full
+from queue import Queue, Full, Empty
+from threading import Thread
 
 from lada import LOG_LEVEL
 
@@ -23,3 +24,20 @@ def empty_out_queue(queue: Queue, debug_queue_name: str):
         queue.get()
         queue.task_done()
     logger.debug(f"purged all remaining elements from queue {debug_queue_name}")
+
+def empty_out_queue_until_producer_is_done(queue: Queue, debug_queue_name: str, producer_thread: Thread):
+    """
+    Use it only if producer we're waiting for can produce an unknown number of items before it stops and could therefore
+    potentially block on put() if queue size is limited.
+    """
+    def consumer():
+        while (producer_thread and producer_thread.is_alive()) or not queue.empty():
+            try:
+                queue.get(timeout=0.02)
+                queue.task_done()
+            except Empty:
+                pass
+        logger.debug(f"purged all remaining elements from queue {debug_queue_name}")
+    consumer_thread = Thread(target=consumer)
+    consumer_thread.start()
+    return consumer_thread

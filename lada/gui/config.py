@@ -55,13 +55,13 @@ class Config:
         with open(config_file_path, 'w') as f:
             config_dict = self._as_dict()
             json.dump(config_dict, f)
-            logger.info("saved config file {config_file_path}: {config_dict}")
+            logger.info(f"saved config file {config_file_path}: {config_dict}")
 
     def load_config(self):
         config_file_path = get_config_file_path()
         success = False
         if not config_file_path.exists():
-            logger.info("config file doesnt exist at f{config_file_path}")
+            logger.info(f"config file doesnt exist at f{config_file_path}")
         else:
             try:
                 with open(config_file_path, 'r') as f:

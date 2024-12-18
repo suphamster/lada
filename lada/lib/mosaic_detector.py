@@ -230,11 +230,14 @@ class MosaicDetector:
         # unblock consumer
         threading_utils.put_closing_queue_marker(self.frame_feeder_queue, "frame_feeder_queue")
         # unblock producer
-        threading_utils.empty_out_queue(self.mosaic_clip_queue, "mosaic_clip_queue")
-        threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
+        clean_up_threads = [
+            threading_utils.empty_out_queue_until_producer_is_done(self.mosaic_clip_queue, "mosaic_clip_queue", self.frame_detector_thread),
+            threading_utils.empty_out_queue_until_producer_is_done(self.mosaic_clip_queue, "frame_detection_queue", self.frame_detector_thread)]
         if self.frame_detector_thread:
             self.frame_detector_thread.join()
             logger.debug("frame detector worker: stopped")
+        for clean_up_thread in clean_up_threads:
+            clean_up_thread.join()
         self.frame_detector_thread = None
 
         # garbage collection
@@ -263,6 +266,9 @@ class MosaicDetector:
             elif self.dont_preserve_relative_scale:
                 clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
                 self.mosaic_clip_queue.put(clip)
+            if self.stop_requested:
+                logger.debug("frame detector worker: mosaic_clip_queue producer unblocked")
+                return
             #print(f"frame {frame_num}, yielding clip starting {clip.frame_start}, ending {clip.frame_end}, all scene starts: {[s.frame_start for s in scenes]}, completed scenes: {[s.frame_start for s in completed_scenes]}")
             scenes.remove(completed_scene)
             self.clip_counter += 1
@@ -272,6 +278,7 @@ class MosaicDetector:
         self.frame_detection_queue.put((frame_num, mosaic_detected))
         if self.stop_requested:
             logger.debug("frame detector worker: frame_detection_queue producer unblocked")
+            return
         for i in range(len(results.boxes)):
             mask = convert_yolo_mask(results.masks[i], results.orig_shape)
             box = convert_yolo_box(results.boxes[i], results.orig_shape)
