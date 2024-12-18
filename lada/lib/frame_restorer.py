@@ -78,11 +78,13 @@ class FrameRestorer:
         self.frame_restoration_queue = queue.Queue(maxsize=max_frames_in_frame_restoration_queue)
 
         # limit queue size to approx 512MB
-        max_clips_in_mosaic_clips_queue = min(1, (512 * 1024 * 1024) // (self.max_clip_length * 256 * 256 * 4)) # 4 = 3 color channels + mask
+        max_clips_in_mosaic_clips_queue = max(1, (512 * 1024 * 1024) // (self.max_clip_length * 256 * 256 * 4)) # 4 = 3 color channels + mask
+        logger.debug(f"Set queue size of queue mosaic_clip_queue to {max_clips_in_mosaic_clips_queue}")
         self.mosaic_clip_queue = queue.Queue(maxsize=max_clips_in_mosaic_clips_queue)
 
         # limit queue size to approx 512MB
-        max_clips_in_restored_clips_queue = min(1, (512 * 1024 * 1024) // (self.max_clip_length * 256 * 256 * 4)) # 4 = 3 color channels + mask
+        max_clips_in_restored_clips_queue = max(1, (512 * 1024 * 1024) // (self.max_clip_length * 256 * 256 * 4)) # 4 = 3 color channels + mask
+        logger.debug(f"Set queue size of queue restored_clip_queue to {max_clips_in_restored_clips_queue}")
         self.restored_clip_queue = queue.Queue(maxsize=max_clips_in_restored_clips_queue)
 
         # no queue size limit needed, elements are tiny
