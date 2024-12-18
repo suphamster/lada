@@ -69,7 +69,7 @@ If your GPU is not fast enough to watch the video in real-time you'll have to ex
 If your card has at least 4-6GB of VRAM then it should work out of the box.
 
 The CPU is used for re-encoding the restored video so shouldn't be too slow either. The app uses a lot of RAM for buffering to increase throughput.
-For 1080p content you should be fine with 16GB RAM (general recommendation, this can be lowered by fine-tuning some params in the code though).
+For 1080p content you should be fine with 6-8GB RAM, 4K will need more. This could be lowered by fine-tuning some knowbs in the code if you're that low on RAM.
 
 Technically running the app on your CPU is also supported where *supported* is defined as: It will not crash but processing will be so slow you wish you haven't given it a try.
 
