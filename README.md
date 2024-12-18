@@ -73,7 +73,7 @@ For 1080p content you should be fine with 16GB RAM (general recommendation, this
 
 Technically running the app on your CPU is also supported where *supported* is defined as: It will not crash but processing will be so slow you wish you haven't given it a try.
 
-Here are some speed performance numbers using Lada v0.4.0 (at time of writing, unreleased version) on my available hardware to give you an idea what to expect:
+Here are some speed performance numbers using Lada v0.4.0 on my available hardware to give you an idea what to expect:
 
 | Video name | Video description                                                                                    | Video<br>duration / resolution / FPS | Lada<br>runtime / FPS<br>Nvidia RTX 3050<br>(*Laptop GPU*) | Lada<br>runtime / FPS<br>Nvidia RTX 3090<br>(Desktop GPU) |
 |------------|------------------------------------------------------------------------------------------------------|--------------------------------------|------------------------------------------------------------|-----------------------------------------------------------|

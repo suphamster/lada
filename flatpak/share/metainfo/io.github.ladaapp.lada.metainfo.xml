@@ -50,6 +50,21 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-18" version="0.4.1">
+            <description>
+                <p>Fixes:</p>
+                <ul>
+                    <li>Fix occasional GUI freeze when app gets closed</li>
+                    <li>Fix occasional GUI freeze when seeking the video</li>
+                    <li>Clean up temporary file after hitting an error or program is closed while export is running</li>
+                    <li>Fix always limiting queue sizes to 1 when setting up restoration pipeline. Caused reduced throughput</li>
+                </ul>
+                <p>Changes:</p>
+                <ul>
+                    <li>GUI: Pause video if export button is clicked to select a file destination</li>
+                </ul>
+            </description>
+        </release>
         <release date="2024-12-15" version="0.4.0">
             <description>
                 <p>Huge speed boost on high-performant hardware:</p>

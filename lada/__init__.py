@@ -7,6 +7,6 @@ if "FLATPAK_ID" in os.environ:
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
-VERSION = '0.4.0-dev'
+VERSION = '0.4.1-dev'
 
 LOG_LEVEL = os.environ["LOG_LEVEL"] if "LOG_LEVEL" in os.environ else 'WARNING'
