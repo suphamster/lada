@@ -78,7 +78,6 @@ class MainWindow(Adw.ApplicationWindow):
     @Gtk.Template.Callback()
     def button_export_video_callback(self, button_clicked):
         self.widget_video_preview.pause_if_currently_playing()
-        self.show_export_dialog()
 
     @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
@@ -94,6 +93,7 @@ class MainWindow(Adw.ApplicationWindow):
         file_dialog.open(callback=lambda dialog, result: self.open_file(dialog.open_finish(result)))
 
     def show_export_dialog(self):
+        self.widget_video_preview.pause_if_currently_playing()
         file_dialog = Gtk.FileDialog()
         video_file_filter = Gtk.FileFilter()
         video_file_filter.add_mime_type("video/*")
@@ -107,14 +107,17 @@ class MainWindow(Adw.ApplicationWindow):
         self.opened_file = file
         self.set_title(os.path.basename(file.get_path()))
         self.config_sidebar.set_property("disabled", True)
+        self.toggle_button_preview_video.set_property("sensitive", False)
         self.switch_to_main_view()
 
         def show_spinner(*args):
             self.config_sidebar.set_property("disabled", True)
+            self.toggle_button_preview_video.set_property("sensitive", False)
             self.stack_video_preview.set_visible_child(self.spinner_video_preview)
 
         def show_video_preview(*args):
             self.config_sidebar.set_property("disabled", False)
+            self.toggle_button_preview_video.set_property("sensitive", True)
             self.stack_video_preview.set_visible_child(self.widget_video_preview)
             self.widget_video_preview.grab_focus()
 

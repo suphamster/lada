@@ -319,6 +319,7 @@ class VideoPreview(Gtk.Widget):
                 self.pipeline.set_state(Gst.State.NULL)
             self._video_preview_init_done = False
             self._mosaic_detection = False
+            self._passthrough = False
             if self.frame_restorer:
                 self.frame_restorer.stop()
             self.setup_frame_restorer()
@@ -715,25 +716,30 @@ class PassthroughFrameRestorer:
         self.video_file = video_file
         self.video_reader: video_utils.VideoReader | None = None
         self.frame_restoration_queue = None
+        self.stopped = False
 
     def start(self, start_ns=0):
         self.video_reader = video_utils.VideoReader(self.video_file)
         self.video_reader = self.video_reader.__enter__()
-        if start_ns == 0:
+        if start_ns >= 0:
             self.video_reader.seek(start_ns)
-        self.frame_restoration_queue = PassthroughFrameRestorer.PassthroughQueue(self.video_reader.frames())
+        self.frame_restoration_queue = PassthroughFrameRestorer.PassthroughQueue(self)
 
     def stop(self):
+        self.stopped = True
         self.video_reader.__exit__(None, None, None)
 
     def get_frame_restoration_queue(self):
         return self.frame_restoration_queue
 
     class PassthroughQueue:
-        def __init__(self, video_frames_generator):
-            self.video_frames_generator = video_frames_generator
+        def __init__(self, frame_restorer):
+            self.video_frames_generator = frame_restorer.video_reader.frames()
+            self.frame_restorer = frame_restorer
 
         def get(self, block=True, timeout=None):
+            if self.frame_restorer.stopped:
+                return None
             try:
                 return next(self.video_frames_generator)
             except StopIteration:
