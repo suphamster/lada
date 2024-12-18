@@ -305,16 +305,24 @@ class VideoPreview(Gtk.Widget):
 
         self.pipeline.set_state(Gst.State.PLAYING)
 
-    def export_video(self, file_path, video_codec, crf):
-        if self.pipeline:
-            self.pipeline.set_state(Gst.State.NULL)
-        self._video_preview_init_done = False
-        self._mosaic_detection = False
-        if self.frame_restorer:
-            self.frame_restorer.stop()
-        self.setup_frame_restorer()
+    def pause_if_currently_playing(self):
+        if not self._video_preview_init_done:
+            return
+        pipe_state = self.pipeline.get_state(20 * Gst.MSECOND)
+        if pipe_state.state == Gst.State.PLAYING:
+            self.should_be_paused = True
+            self.pipeline.set_state(Gst.State.PAUSED)
 
+    def export_video(self, file_path, video_codec, crf):
         def run_export():
+            if self.pipeline:
+                self.pipeline.set_state(Gst.State.NULL)
+            self._video_preview_init_done = False
+            self._mosaic_detection = False
+            if self.frame_restorer:
+                self.frame_restorer.stop()
+            self.setup_frame_restorer()
+
             progress_update_step_size = 100
             try:
                 self.frame_restorer.start(start_ns=0)
