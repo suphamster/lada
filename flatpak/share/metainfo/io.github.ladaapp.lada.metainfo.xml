@@ -58,11 +58,13 @@
                     <li>GUI: Fix occasional freeze when seeking a video</li>
                     <li>GUI: Fix audio/video getting out-of-sync</li>
                     <li>Clean up temporary file after hitting an error or program is closed while export is running</li>
-                    <li>Fix always limiting queue sizes to 1 when setting up restoration pipeline. Caused reduced throughput</li>
+                    <li>Fix always limiting queue sizes to 1 when setting up restoration pipeline</li>
+                    <li>GUI: Fix broken Passthrough (disabled preview) mode</li>
                 </ul>
                 <p>Changes:</p>
                 <ul>
                     <li>GUI: Pause video if export button is clicked to select a file destination</li>
+                    <li>Support files where video stream has an offset to its audio stream</li>
                 </ul>
             </description>
         </release>
