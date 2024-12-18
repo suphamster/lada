@@ -75,6 +75,8 @@ class VideoPreview(Gtk.Widget):
         self.has_audio: bool = True
         self.models_cache: dict | None = None
         self.should_be_paused = False
+        self.seek_in_progress = False
+        self.waiting_for_data = False
 
         self.widget_timeline.connect('seek_requested', lambda widget, seek_position: self.seek_video(seek_position))
         self.widget_timeline.connect('cursor_position_changed', lambda widget, cursor_position: self.show_cursor_position(cursor_position))
@@ -247,8 +249,22 @@ class VideoPreview(Gtk.Widget):
             self.audio_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
 
     def seek_video(self, seek_position_ns):
-        self.eos = False
-        self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
+        if self.seek_in_progress:
+            return
+        # pipeline.seek_simple is blocking. As we're stopping/starting our appsrc on seek this could potentially take a few seconds and freeze the UI
+        def seek():
+            self.eos = False
+            self.seek_in_progress = True
+            self.spinner_video_preview.set_visible(True)
+            self.label_current_time.set_text(self.get_time_label_text(seek_position_ns))
+            self.widget_timeline.set_property("playhead-position", seek_position_ns)
+            self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
+            self.seek_in_progress = False
+            if not self.waiting_for_data:
+                self.spinner_video_preview.set_visible(False)
+
+        seek_thread = threading.Thread(target=seek, daemon=True)
+        seek_thread.start()
 
     def show_cursor_position(self, cursor_position_ns):
         if cursor_position_ns > 0:
@@ -341,13 +357,15 @@ class VideoPreview(Gtk.Widget):
             self.pipeline_remove_audio()
 
     def autoplay_if_enough_data_buffered(self):
+        self.waiting_for_data = False
+        self.spinner_video_preview.set_visible(False)
         if not self.should_be_paused:
             self.pipeline.set_state(Gst.State.PLAYING)
-            self.spinner_video_preview.set_visible(False)
 
     def autopause_if_not_enough_data_buffered(self):
-        self.pipeline.set_state(Gst.State.PAUSED)
+        self.waiting_for_data = True
         self.spinner_video_preview.set_visible(True)
+        self.pipeline.set_state(Gst.State.PAUSED)
         if self._buffer_queue_min_thresh_time == 0 and self._video_preview_init_done:
             self.buffer_queue_min_thresh_time_auto *= 1.5
             self.update_gst_buffers()
