@@ -43,7 +43,11 @@ class MainWindow(Adw.ApplicationWindow):
             self.banner_no_gpu.set_revealed(True)
 
         self.widget_video_preview.set_property('mosaic-detection', self.config_sidebar.get_property('preview-mode') == 'mosaic-detection')
+
         self.config_sidebar.connect("notify::preview-mode", lambda object, spec: self.widget_video_preview.set_property('mosaic-detection', object.get_property(spec.name) == 'mosaic-detection'))
+
+        self.widget_video_preview.set_property('passthrough', not self.toggle_button_preview_video.get_property("active"))
+        self.widget_video_preview.connect("notify::passthrough", lambda object, spec: self.toggle_button_preview_video.set_property('active', not object.get_property(spec.name)))
 
         self.widget_video_preview.set_property('device', self.config_sidebar.get_property('device'))
         self.config_sidebar.connect("notify::device", lambda object, spec: self.widget_video_preview.set_property('device', object.get_property(spec.name)))
@@ -81,8 +85,8 @@ class MainWindow(Adw.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
-        preview_active = button_clicked.get_property("active")
-        self.widget_video_preview.set_property('passthrough', not preview_active)
+        passthrough = self.widget_video_preview.get_property("passthrough")
+        self.widget_video_preview.set_property('passthrough', not passthrough)
 
     def show_open_dialog(self):
         file_dialog = Gtk.FileDialog()
