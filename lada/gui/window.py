@@ -67,11 +67,21 @@ class MainWindow(Adw.ApplicationWindow):
         self.opened_file: Gio.File = None
 
         application = self.get_application()
+
         application.shortcuts.register_group("files", "Files")
-        application.shortcuts.add("files", "open-file", "o", lambda *args: self.show_open_dialog(), "Open a video file")
-        application.shortcuts.add("files", "export-file", "e", lambda *args: self.show_export_dialog(), "Export recovered video")
+        def on_shortcut_open_file(*args):
+            self.show_open_dialog()
+        application.shortcuts.add("files", "open-file", "o", on_shortcut_open_file, "Open a video file")
+        def on_shortcut_export_file(*args):
+            if self.stack.get_visible_child_name() == "page_main" and self.stack_video_preview.get_visible_child() == self.widget_video_preview:
+                self.show_export_dialog()
+        application.shortcuts.add("files", "export-file", "e", on_shortcut_export_file, "Export recovered video")
+
         application.shortcuts.register_group("preview", "Preview")
-        application.shortcuts.add("preview", "toggle-preview", "p", lambda *args: self.toggle_button_preview_video_callback(self.toggle_button_preview_video), "Enable/Disable preview mode")
+        def on_shortcut_preview_toggle(*args):
+            if self.stack.get_visible_child_name() == "page_main" and self.stack_video_preview.get_visible_child() == self.widget_video_preview:
+                self.toggle_button_preview_video_callback(self.toggle_button_preview_video)
+        application.shortcuts.add("preview", "toggle-preview", "p", on_shortcut_preview_toggle, "Enable/Disable preview mode")
 
         self.connect("close-request", self.close)
 
