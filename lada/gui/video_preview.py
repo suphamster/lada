@@ -575,10 +575,11 @@ class VideoPreview(Gtk.Widget):
 
         def reset():
             self._video_preview_init_done = False
-            self.pipeline.set_state(Gst.State.NULL)
+            self.pipeline.set_state(Gst.State.PAUSED)
             self.stop_appsource_worker()
             self.setup_frame_restorer()
-            self.start_appsource_worker(start_ns=0)
+            self.start_appsource_worker(start_ns=self.current_timestamp_ns)
+            self.seek_video(self.current_timestamp_ns)
             self.pipeline.set_state(Gst.State.PLAYING)
 
         exporter_thread = threading.Thread(target=reset)
