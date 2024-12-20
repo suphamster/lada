@@ -209,7 +209,7 @@ class VideoPreview(Gtk.Widget):
 
     @Gtk.Template.Callback()
     def button_play_pause_callback(self, button_clicked):
-        if not self._video_preview_init_done:
+        if not self._video_preview_init_done or self.seek_in_progress:
             return
         if self.eos:
             self.seek_video(0)
@@ -258,7 +258,13 @@ class VideoPreview(Gtk.Widget):
             self.spinner_video_preview.set_visible(True)
             self.label_current_time.set_text(self.get_time_label_text(seek_position_ns))
             self.widget_timeline.set_property("playhead-position", seek_position_ns)
+            # Pausing before seek seems to fix an issue where calling seek_simple() never returns.
+            # I did not notice it on smaller/shorter files but on long files (>3h) I could reproduce this issue pretty consistently.
+            # Shouldn't be necessary and I don't understand how it helps but apparently it does.
+            self.pipeline.set_state(Gst.State.PAUSED)
             self.pipeline.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, seek_position_ns)
+            logger.debug("returned from pipeline.seek_simple()")
+            self.pipeline.set_state(Gst.State.PLAYING)
             self.seek_in_progress = False
             if not self.waiting_for_data:
                 self.spinner_video_preview.set_visible(False)
