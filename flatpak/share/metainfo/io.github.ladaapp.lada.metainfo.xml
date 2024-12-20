@@ -50,6 +50,15 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2024-12-20" version="0.4.2">
+            <description>
+                <ul>
+                    <li>GUI: keep current playhead position after toggling preview or doing config adjustments</li>
+                    <li>GUI: fix preview/passthrough keyboard shortcut not working</li>
+                    <li>GUI: attempt to fix stuck playback after seeking very long files</li>
+                </ul>
+            </description>
+        </release>
         <release date="2024-12-18" version="0.4.1">
             <description>
                 <p>Fixes:</p>
