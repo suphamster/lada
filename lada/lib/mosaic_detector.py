@@ -14,10 +14,9 @@ from ultralytics.engine.results import Results
 from lada.lib import Box, Mask, Image, VideoMetadata, threading_utils
 from lada.lib import image_utils
 from lada.lib.scene_utils import crop_to_box_v3
-from lada.lib.clean_frames_generator import convert_yolo_box, convert_yolo_mask
 from lada.lib import video_utils
 from lada import LOG_LEVEL
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_yolo_box, convert_yolo_mask
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)

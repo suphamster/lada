@@ -10,7 +10,8 @@ import cv2
 import numpy as np
 from ultralytics import settings, YOLO
 
-from lada.lib.clean_frames_generator import CleanFrameGeneratorSimple, CleanFrame, choose_biggest_detection
+from lada.lib.clean_frames_generator import CleanFrameGeneratorSimple, CleanFrame
+from lada.lib.ultralytics_utils import choose_biggest_detection
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameter
 from lada.lib import visualization, video_utils, mask_utils, degradation_utils, image_utils
 
