@@ -8,22 +8,21 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from ultralytics import settings, YOLO
+from ultralytics import YOLO
 
-from lada.lib.clean_frames_generator import CleanFrameGeneratorSimple, CleanFrame
-from lada.lib.ultralytics_utils import choose_biggest_detection
+from lada.lib.nsfw_frame_detector import NsfwFrameGenerator, NsfwFrame
+from lada.lib.ultralytics_utils import choose_biggest_detection, disable_ultralytics_telemetry
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameter
 from lada.lib import visualization, video_utils, mask_utils, degradation_utils, image_utils
 
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+disable_ultralytics_telemetry()
 
 def crop_to_box(img, box):
     t, l, b, r = box
     cropped_img = img[t:b + 1, l:r + 1]
     return cropped_img
 
-def process_frame(clean_frame: CleanFrame, video_meta_data: video_utils.VideoMetadata, output_root, show=False, window_name="mosaic"):
+def process_frame(clean_frame: NsfwFrame, video_meta_data: video_utils.VideoMetadata, output_root, show=False, window_name="mosaic"):
     if not clean_frame.object_detected:
         return
 
@@ -82,9 +81,9 @@ def process_frame(clean_frame: CleanFrame, video_meta_data: video_utils.VideoMet
 
 def process_video_file(file_path, output_root, model, device, sampling=60, show=False, window_name="mosaic"):
     video_meta_data = video_utils.get_video_meta_data(file_path)
-    clean_frames_generator = CleanFrameGeneratorSimple(model, video_meta_data, device, sampling, random_extend_masks=True, random_start=True, conf=0.75)
+    clean_frames_generator = NsfwFrameGenerator(model, video_meta_data, device, sampling, random_extend_masks=True, random_start=True, conf=0.75)
 
-    clean_frame: CleanFrame
+    clean_frame: NsfwFrame
     for clean_frame in clean_frames_generator():
         process_frame(clean_frame, video_meta_data, output_root, show=show, window_name=window_name)
 
@@ -93,7 +92,7 @@ def process_image_file(file_path, output_root, model, device, show=False, window
     frame = cv2.imread(file_path)
     for results in model.predict(source=frame, stream=False, verbose=False, device=device, conf=0.75):
         yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=False)
-        clean_frame = CleanFrame(0, results.orig_img, yolo_box, yolo_mask, yolo_box is not None, object_id=0, random_extend_masks=True)
+        clean_frame = NsfwFrame(0, results.orig_img, yolo_box, yolo_mask, yolo_box is not None, object_id=0, random_extend_masks=True)
         process_frame(clean_frame, video_meta_data, output_root, show=show, window_name=window_name)
 
 def get_files(dir, filter_func):

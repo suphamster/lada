@@ -11,19 +11,17 @@ import cv2
 import numpy as np
 import ultralytics.engine.results
 from ultralytics import YOLO
-from ultralytics import settings
 
 from lada.lib import VideoMetadata, Mask, mask_utils
 from lada.lib import video_utils, image_utils
-from lada.lib.clean_frames_generator import CleanFramesGenerator
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
 from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size, get_mosaic_block_size_v2
-from lada.lib.scene_generator import SceneGenerator, Scene, CroppedScene
+from lada.lib.nsfw_scene_detector import SceneGenerator, Scene, CroppedScene, NsfwFramesGenerator
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+disable_ultralytics_telemetry()
 
 # based off ultralytics.data.utils.VID_FORMATS
 SUPPORTED_VIDEO_FILE_EXTENSIONS = {".asf", ".avi", "m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".wmv", ".webm"}
@@ -392,7 +390,7 @@ def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: Vid
                  scene_executor_worker_count: int,
                  model_device=None):
     scene_futures = []
-    for scene in SceneGenerator(CleanFramesGenerator(model, video_metadata, model_device, stride_mode_activation_length=None, stride_length=None),
+    for scene in SceneGenerator(NsfwFramesGenerator(model, video_metadata, model_device, stride_mode_activation_length=None, stride_length=None),
                                 file_processing_options.scene_min_length, file_processing_options.scene_max_length,
                                 random_extend_masks=True, stride_length=file_processing_options.stride_length)():
         print(
