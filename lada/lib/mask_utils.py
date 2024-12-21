@@ -5,7 +5,7 @@ import numpy as np
 
 from lada.lib import Box, Mask
 from lada.lib import image_utils
-from lada.lib import visualization
+from lada.lib import visualization_utils
 
 
 def get_box(mask: Mask) -> Box:
@@ -60,12 +60,12 @@ if __name__ == "__main__":
     mask = cv2.imread("mask3.png")
     mask_orig = cv2.cvtColor(mask, cv2.COLOR_RGB2GRAY)
     output_mask_orig = mask_orig.copy()
-    visualization.draw_box(output_mask_orig, get_box(mask_orig))
+    visualization_utils.draw_box(output_mask_orig, get_box(mask_orig))
     cv2.imshow("orig", output_mask_orig)
 
     mask_extended = extend_mask(mask_orig, 1)
     output_mask_extended = mask_extended.copy()
-    visualization.draw_box(output_mask_extended, get_box(mask_extended))
+    visualization_utils.draw_box(output_mask_extended, get_box(mask_extended))
     cv2.imshow("extended", output_mask_extended)
 
     while True:
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             mask_extended = extend_mask(mask_orig, value)
             print(f"took: {time.time()-start}")
             output_mask_extended = mask_extended.copy()
-            visualization.draw_box(output_mask_extended, get_box(mask_extended))
+            visualization_utils.draw_box(output_mask_extended, get_box(mask_extended))
             cv2.imshow("extended", output_mask_extended)
             print(get_mask_area(mask_extended))
 

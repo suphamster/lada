@@ -12,14 +12,13 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from ultralytics import settings
 
-from lada.lib import visualization, degradation_utils
+from lada.lib import visualization_utils, degradation_utils
 from lada.lib.image_utils import resize, pad_image
 from lada.lib.mosaic_utils import addmosaic_base
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+disable_ultralytics_telemetry()
 
 def read_video_frames(path: str, indices: list[int], mask: bool) -> list[np.ndarray]:
     cap = cv2.VideoCapture(path)
@@ -127,7 +126,7 @@ def process_clip(clip_name, input_root, output_root, show, frame_count_per_clip=
         img_mosaic, final_mosaic_image_pad = pad_image(img_mosaic, out_size, out_size)
 
         if show:
-            show_img = visualization.overlay_edges(img_mosaic, cropped_mosaic_edges, color=(0, 255, 0))
+            show_img = visualization_utils.overlay_edges(img_mosaic, cropped_mosaic_edges, color=(0, 255, 0))
             cv2.imshow(window_name, show_img)
             while True:
                 key_pressed = cv2.waitKey(1)

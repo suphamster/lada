@@ -7,7 +7,7 @@ from time import sleep
 import cv2 as cv
 import numpy as np
 
-from lada.lib import visualization
+from lada.lib import visualization_utils
 from lada.pidinet import pidinet_inference
 
 
@@ -277,7 +277,7 @@ def get_clean_grid_v2(grid_x, grid_y, img, mask, draw=False):
             cv.line(out, (x, 0), (x, h), color=color, thickness=thickness)
         for y in grid_y_clean:
             cv.line(out, (0, y), (w, y), color=color, thickness=thickness)
-        out = visualization.overlay_mask_boundary(out, mask)
+        out = visualization_utils.overlay_mask_boundary(out, mask)
         return out, grid_x_clean, grid_y_clean
     else:
         return grid_x_clean, grid_y_clean

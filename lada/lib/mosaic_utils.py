@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from lada.lib import image_utils
-from lada.lib import visualization
+from lada.lib import visualization_utils
 
 
 def get_mask_area(mask):
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         mosaic_size, mod, rect_ratio, feather_size = mosaic_size, 'squa_mid', 1.5, int(mosaic_size*1.5)
         mosaic_img, mosaic_mask_img = addmosaic_base(img, mask_img, mosaic_size, model=mod, rect_ratio=rect_ratio,
                                                      feather=feather_size)
-        mosaic_img = visualization.overlay_mask(mosaic_img, mask_img)
+        mosaic_img = visualization_utils.overlay_mask(mosaic_img, mask_img)
         return mosaic_img
 
     cv2.createTrackbar('box w', window_name, box_w, img.shape[1], update_box_w)

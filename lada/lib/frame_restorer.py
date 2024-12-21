@@ -9,7 +9,7 @@ from ultralytics import YOLO
 
 from lada import LOG_LEVEL
 from lada.lib import image_utils, video_utils, threading_utils
-from lada.lib import visualization
+from lada.lib import visualization_utils
 from lada.lib.mosaic_detector import MosaicDetector
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
@@ -196,7 +196,7 @@ class FrameRestorer:
         boundaries on each frame.
         """
         if self.mosaic_detection:
-            restored_clip_images = visualization.draw_mosaic_detections(clip)
+            restored_clip_images = visualization_utils.draw_mosaic_detections(clip)
         else:
             if self.mosaic_cleaning:
                 images = []

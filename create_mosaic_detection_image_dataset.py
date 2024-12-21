@@ -13,7 +13,7 @@ from ultralytics import YOLO
 from lada.lib.nsfw_frame_detector import NsfwFrameGenerator, NsfwFrame
 from lada.lib.ultralytics_utils import choose_biggest_detection, disable_ultralytics_telemetry
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameter
-from lada.lib import visualization, video_utils, mask_utils, degradation_utils, image_utils
+from lada.lib import visualization_utils, video_utils, mask_utils, degradation_utils, image_utils
 
 disable_ultralytics_telemetry()
 
@@ -22,13 +22,13 @@ def crop_to_box(img, box):
     cropped_img = img[t:b + 1, l:r + 1]
     return cropped_img
 
-def process_frame(clean_frame: NsfwFrame, video_meta_data: video_utils.VideoMetadata, output_root, show=False, window_name="mosaic"):
-    if not clean_frame.object_detected:
+def process_frame(nsfw_frame: NsfwFrame, video_meta_data: video_utils.VideoMetadata, output_root, show=False, window_name="mosaic"):
+    if not nsfw_frame.object_detected:
         return
 
-    img = clean_frame.frame
-    mask = clean_frame.mask
-    box = clean_frame.box
+    img = nsfw_frame.frame
+    mask = nsfw_frame.mask
+    box = nsfw_frame.box
 
     t, l, b, r = box
     width, height = r - l + 1, b - t + 1
@@ -64,8 +64,8 @@ def process_frame(clean_frame: NsfwFrame, video_meta_data: video_utils.VideoMeta
     img_mosaic = degradation_utils.apply_video_degradation([img_mosaic], degradation_params)[0]
 
     if show:
-        show_img = visualization.overlay_mask_boundary(img_mosaic, mask_mosaic, color=(0, 255, 0))
-        show_img = visualization.overlay_mask_boundary(show_img, mask, color=(255, 0, 0))
+        show_img = visualization_utils.overlay_mask_boundary(img_mosaic, mask_mosaic, color=(0, 255, 0))
+        show_img = visualization_utils.overlay_mask_boundary(show_img, mask, color=(255, 0, 0))
 
         cv2.imshow(window_name, show_img)
 
@@ -75,25 +75,25 @@ def process_frame(clean_frame: NsfwFrame, video_meta_data: video_utils.VideoMeta
                 break
     else:
         name = osp.splitext(os.path.basename(video_meta_data.video_file))[0]
-        cv2.imwrite(f"{output_root}/img/{name}-{clean_frame.frame_number:06d}.jpg", img_mosaic,
+        cv2.imwrite(f"{output_root}/img/{name}-{nsfw_frame.frame_number:06d}.jpg", img_mosaic,
                     [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        cv2.imwrite(f"{output_root}/mask/{name}-{clean_frame.frame_number:06d}.png", mask_mosaic)
+        cv2.imwrite(f"{output_root}/mask/{name}-{nsfw_frame.frame_number:06d}.png", mask_mosaic)
 
 def process_video_file(file_path, output_root, model, device, sampling=60, show=False, window_name="mosaic"):
     video_meta_data = video_utils.get_video_meta_data(file_path)
-    clean_frames_generator = NsfwFrameGenerator(model, video_meta_data, device, sampling, random_extend_masks=True, random_start=True, conf=0.75)
+    nsfw_frame_generator = NsfwFrameGenerator(model, video_meta_data, device, sampling, random_extend_masks=True, random_start=True, conf=0.75)
 
-    clean_frame: NsfwFrame
-    for clean_frame in clean_frames_generator():
-        process_frame(clean_frame, video_meta_data, output_root, show=show, window_name=window_name)
+    nsfw_frame: NsfwFrame
+    for nsfw_frame in nsfw_frame_generator():
+        process_frame(nsfw_frame, video_meta_data, output_root, show=show, window_name=window_name)
 
 def process_image_file(file_path, output_root, model, device, show=False, window_name="mosaic"):
     video_meta_data = video_utils.get_video_meta_data(file_path)
     frame = cv2.imread(file_path)
     for results in model.predict(source=frame, stream=False, verbose=False, device=device, conf=0.75):
         yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=False)
-        clean_frame = NsfwFrame(0, results.orig_img, yolo_box, yolo_mask, yolo_box is not None, object_id=0, random_extend_masks=True)
-        process_frame(clean_frame, video_meta_data, output_root, show=show, window_name=window_name)
+        nsfw_frame = NsfwFrame(0, results.orig_img, yolo_box, yolo_mask, yolo_box is not None, object_id=0, random_extend_masks=True)
+        process_frame(nsfw_frame, video_meta_data, output_root, show=show, window_name=window_name)
 
 def get_files(dir, filter_func):
     file_list = []
