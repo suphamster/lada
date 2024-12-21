@@ -23,9 +23,6 @@ from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 disable_ultralytics_telemetry()
 
-# based off ultralytics.data.utils.VID_FORMATS
-SUPPORTED_VIDEO_FILE_EXTENSIONS = {".asf", ".avi", "m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".wmv", ".webm"}
-
 @dataclass
 class SceneProcessingOptions:
     output_dir: Path

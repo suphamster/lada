@@ -21,7 +21,6 @@ class NsfwFrame:
     _mask: ultralytics.engine.results.Masks
     object_detected: bool = False
     object_id: int = None
-    random_extend_masks: bool = False
 
     @property
     def mask(self) -> Mask:
@@ -254,10 +253,9 @@ def apply_random_mask_extensions(scene: Scene):
         scene.data[i] = img, mask_extended, box_extended
 
 class NsfwFramesGenerator:
-    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device=None, random_extend_masks=False, stride_mode_activation_length=None, stride_length=None):
+    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device=None, stride_mode_activation_length=None, stride_length=None):
         self.model = model
         self.device = torch.device(device) if device is not None else device
-        self.random_extend_masks = random_extend_masks
         self.video_meta_data = video_meta_data
         self.stride_mode_active = False
         self.stride_length_frames = 0
@@ -267,16 +265,16 @@ class NsfwFramesGenerator:
                 self.stride_length_frames = int(round(stride_length * self.video_meta_data.video_fps))
                 print(f"yolo generator: stride mode activated for file {self.video_meta_data.video_file}: file duration: {int(self.video_meta_data.duration / 60)} (min), stride length: {stride_length} (s) / {self.stride_length_frames} (frames)")
 
-    def __call__(self, *args, **kwargs) -> Generator[Image, None, None]:
+    def __call__(self, *args, **kwargs) -> Generator[NsfwFrame, None, None]:
         stride_window_remaining = -self.stride_length_frames
         stride_window_positive = stride_window_remaining >= 0
         for frame_num, results in enumerate(
                 self.model.track(source=self.video_meta_data.video_file, stream=True, verbose=False, tracker="bytetrack.yaml", device=self.device)):
             if not self.stride_mode_active or stride_window_remaining > 0:
                 yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=True)
-
-                nsfw_frame = NsfwFrame(frame_num, results.orig_img, yolo_box, yolo_mask, yolo_box is not None,
-                                        int(yolo_box.id.item()) if yolo_box is not None else None, self.random_extend_masks)
+                object_detected = yolo_box is not None
+                nsfw_frame = NsfwFrame(frame_num, results.orig_img, yolo_box, yolo_mask, object_detected,
+                                        int(yolo_box.id.item()) if object_detected else None)
                 yield nsfw_frame
                 stride_window_remaining -= 1
             elif stride_window_remaining < 0:

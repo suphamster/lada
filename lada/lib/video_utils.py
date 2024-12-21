@@ -509,7 +509,7 @@ class VideoWriter:
         self.output_container.close()
 
 def is_video_file(file_path):
-    SUPPORTED_VIDEO_FILE_EXTENSIONS = {".asf", ".avi", "m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".wmv",
+    SUPPORTED_VIDEO_FILE_EXTENSIONS = {".asf", ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ts", ".wmv",
                                        ".webm"}
 
     file_ext = os.path.splitext(file_path)[1]

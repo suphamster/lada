@@ -10,8 +10,8 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-from lada.lib.nsfw_frame_detector import NsfwFrameGenerator, NsfwFrame
-from lada.lib.ultralytics_utils import choose_biggest_detection, disable_ultralytics_telemetry
+from lada.lib.nsfw_frame_detector import NsfwFramesGenerator, NsfwFrameGenerator, NsfwFrame
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameter
 from lada.lib import visualization_utils, video_utils, mask_utils, degradation_utils, image_utils
 
@@ -22,10 +22,7 @@ def crop_to_box(img, box):
     cropped_img = img[t:b + 1, l:r + 1]
     return cropped_img
 
-def process_frame(nsfw_frame: NsfwFrame, video_meta_data: video_utils.VideoMetadata, output_root, show=False, window_name="mosaic"):
-    if not nsfw_frame.object_detected:
-        return
-
+def process_frame(nsfw_frame: NsfwFrame, file_path, output_root, show=False, window_name="mosaic"):
     img = nsfw_frame.frame
     mask = nsfw_frame.mask
     box = nsfw_frame.box
@@ -74,26 +71,24 @@ def process_frame(nsfw_frame: NsfwFrame, video_meta_data: video_utils.VideoMetad
             if key_pressed & 0xFF == ord("n"):
                 break
     else:
-        name = osp.splitext(os.path.basename(video_meta_data.video_file))[0]
+        name = osp.splitext(os.path.basename(file_path))[0]
         cv2.imwrite(f"{output_root}/img/{name}-{nsfw_frame.frame_number:06d}.jpg", img_mosaic,
                     [int(cv2.IMWRITE_JPEG_QUALITY), 95])
         cv2.imwrite(f"{output_root}/mask/{name}-{nsfw_frame.frame_number:06d}.png", mask_mosaic)
 
 def process_video_file(file_path, output_root, model, device, sampling=60, show=False, window_name="mosaic"):
     video_meta_data = video_utils.get_video_meta_data(file_path)
-    nsfw_frame_generator = NsfwFrameGenerator(model, video_meta_data, device, sampling, random_extend_masks=True, random_start=True, conf=0.75)
+    nsfw_frame_generator = NsfwFramesGenerator(model, video_meta_data, device, sampling, random_extend_masks=True, random_start=True, conf=0.75)
 
     nsfw_frame: NsfwFrame
     for nsfw_frame in nsfw_frame_generator():
-        process_frame(nsfw_frame, video_meta_data, output_root, show=show, window_name=window_name)
+        process_frame(nsfw_frame, file_path, output_root, show=show, window_name=window_name)
 
 def process_image_file(file_path, output_root, model, device, show=False, window_name="mosaic"):
-    video_meta_data = video_utils.get_video_meta_data(file_path)
-    frame = cv2.imread(file_path)
-    for results in model.predict(source=frame, stream=False, verbose=False, device=device, conf=0.75):
-        yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=False)
-        nsfw_frame = NsfwFrame(0, results.orig_img, yolo_box, yolo_mask, yolo_box is not None, object_id=0, random_extend_masks=True)
-        process_frame(nsfw_frame, video_meta_data, output_root, show=show, window_name=window_name)
+    nsfw_frame_generator = NsfwFrameGenerator(model, file_path, device, random_extend_masks=True, conf=0.75)
+    nsfw_frame = nsfw_frame_generator()
+    if nsfw_frame:
+        process_frame(nsfw_frame, file_path, output_root, show=show, window_name=window_name)
 
 def get_files(dir, filter_func):
     file_list = []
@@ -124,6 +119,7 @@ def parse_args():
     parser.add_argument('--show', default=False, action=argparse.BooleanOptionalAction, help="show each sample")
     parser.add_argument('--videos', default=True, action=argparse.BooleanOptionalAction)
     parser.add_argument('--images', default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument('--max-file-limit', type=int, default=None, help="instead of processing all files found in input-root dir it will choose files randomly up to the given limit")
 
     args = parser.parse_args()
     return args
@@ -142,15 +138,20 @@ def main():
         os.makedirs(f"{args.output_root}/img", exist_ok=True)
         jobs = []
 
-    files_list = []
+    selected_files = []
     if args.videos:
-        files_list += get_files(args.input_root, video_utils.is_video_file)
+        video_files = get_files(args.input_root, video_utils.is_video_file)
+        if args.max_file_limit and len(video_files) > args.max_file_limit:
+            video_files = random.choices(video_files, k=args.max_file_limit)
+        selected_files += video_files
     if args.images:
-        files_list += get_files(args.input_root, image_utils.is_image_file)
-        files_list = random.choices(files_list, k=3_000)
+        image_files = get_files(args.input_root, image_utils.is_image_file)
+        if args.max_file_limit and len(image_files) > args.max_file_limit:
+            image_files = random.choices(image_files, k=args.max_file_limit)
+        selected_files += image_files
 
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        for file_idx, file_path in enumerate(files_list):
+        for file_idx, file_path in enumerate(selected_files):
             if file_idx < args.start_index or len(list(args.output_root.glob(f"*/{file_path.name}*"))) > 0:
                 print(f"{file_idx}, Skipping {file_path.name}: Already processed")
                 continue
