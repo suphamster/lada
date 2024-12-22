@@ -14,6 +14,8 @@ def disable_ultralytics_telemetry():
     os.environ["YOLO_AUTOINSTALL"] = "false"
     settings.update({'sync': False})
 
+def set_default_settings():
+    settings.update({'runs_dir': './experiments/yolo', 'datasets_dir': './datasets', 'tensorboard': True})
 
 def convert_yolo_box(yolo_box: ultralytics.engine.results.Boxes, img_shape) -> Box:
     _box = yolo_box.xyxy[0]

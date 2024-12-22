@@ -1,4 +1,4 @@
-path: yolo/datasets/nsfw_detection
+path: nsfw_detection
 train: train/images
 val: val/images
 

@@ -6,7 +6,7 @@ import os
 import argparse
 from ultralytics import YOLO
 
-from lada import disable_ultralytics_telemetry
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 disable_ultralytics_telemetry()
 

@@ -6,7 +6,7 @@ from ultralytics import YOLO
 import argparse
 import hashlib
 
-from lada import disable_ultralytics_telemetry
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 disable_ultralytics_telemetry()
 
@@ -40,12 +40,10 @@ def screenshot(dir):
     global frame
     if dir is None:
         return
-    p = Path(dir)
-    if not p.exists():
-        p.mkdir()
+    os.makedirs(dir, exist_ok=True)
 
     file_path = os.path.join(dir, f"{hashlib.sha256(frame).hexdigest()}-{frame_num}.jpg")
-    print(file_path)
+    print("Saved screenshot:", file_path)
     cv2.imwrite(file_path, frame)
 
 
