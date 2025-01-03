@@ -1,18 +1,18 @@
 import argparse
+import os
 from time import sleep
 
+import cv2
 import numpy as np
 from ultralytics import YOLO
-from ultralytics import settings
 
-settings.update({'sync': False})
-import cv2
-import os
-
-from lada.lib.mosaic_detector import MosaicDetectorDeprecated
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
+from lada.lib.mosaic_detector import MosaicDetectorDeprecated
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
 from lada.pidinet import pidinet_inference
+
+disable_ultralytics_telemetry()
 
 def parse_args():
     parser = argparse.ArgumentParser()

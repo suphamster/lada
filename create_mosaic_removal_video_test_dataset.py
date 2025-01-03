@@ -9,11 +9,11 @@ from ultralytics import settings
 from lada.lib import video_utils
 from lada.lib.mosaic_detector import MosaicDetectorDeprecated
 from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.video_utils import get_video_meta_data
 from lada.pidinet import pidinet_inference
 
-# Disable analytics and crash reporting
-settings.update({'sync': False})
+disable_ultralytics_telemetry()
 
 def save_vid(frame_dir: pathlib.Path, fileprefix: str, imgs: np.ndarray, fps=30, gray=False):
     frame_dir.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,7 @@ from lada.lib import Box, Mask
 def disable_ultralytics_telemetry():
     # Disable analytics and crash reporting
     os.environ["YOLO_AUTOINSTALL"] = "false"
+    os.environ["YOLO_OFFLINE"] = "true"
     settings.update({'sync': False})
 
 def set_default_settings():
