@@ -253,48 +253,23 @@ def apply_random_mask_extensions(scene: Scene):
         scene.data[i] = img, mask_extended, box_extended
 
 class NsfwFramesGenerator:
-    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device=None, stride_mode_activation_length=None, stride_length=None):
+    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device=None):
         self.model = model
         self.device = torch.device(device) if device is not None else device
         self.video_meta_data = video_meta_data
-        self.stride_mode_active = False
-        self.stride_length_frames = 0
-        if stride_mode_activation_length:
-            if self.video_meta_data.duration > stride_mode_activation_length:
-                self.stride_mode_active = True
-                self.stride_length_frames = int(round(stride_length * self.video_meta_data.video_fps))
-                print(f"yolo generator: stride mode activated for file {self.video_meta_data.video_file}: file duration: {int(self.video_meta_data.duration / 60)} (min), stride length: {stride_length} (s) / {self.stride_length_frames} (frames)")
 
     def __call__(self, *args, **kwargs) -> Generator[NsfwFrame, None, None]:
-        stride_window_remaining = -self.stride_length_frames
-        stride_window_positive = stride_window_remaining >= 0
-        for frame_num, results in enumerate(
-                self.model.track(source=self.video_meta_data.video_file, stream=True, verbose=False, tracker="bytetrack.yaml", device=self.device)):
-            if not self.stride_mode_active or stride_window_remaining > 0:
-                yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=True)
-                object_detected = yolo_box is not None
-                nsfw_frame = NsfwFrame(frame_num, results.orig_img, yolo_box, yolo_mask, object_detected,
-                                        int(yolo_box.id.item()) if object_detected else None)
-                yield nsfw_frame
-                stride_window_remaining -= 1
-            elif stride_window_remaining < 0:
-                stride_window_remaining += 1
-            else:
-                if stride_window_positive:
-                    # print(f"NsfwFramesGenerator: finished stride at frame {frame_num:06d}, next stride will be skipped")
-                    stride_window_remaining = -(self.stride_length_frames-1)
-                    stride_window_positive = False
-                else:
-                    # print(f"NsfwFramesGenerator: finished stride at frame {frame_num:06d}, next stride will be processed")
-                    stride_window_remaining = self.stride_length_frames-1
-                    stride_window_positive = True
-
+        for frame_num, results in enumerate(self.model.track(source=self.video_meta_data.video_file, stream=True, verbose=False, tracker="bytetrack.yaml", device=self.device)):
+            yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=True)
+            object_detected = yolo_box is not None
+            nsfw_frame = NsfwFrame(frame_num, results.orig_img, yolo_box, yolo_mask, object_detected, int(yolo_box.id.item()) if object_detected else None)
+            yield nsfw_frame
 
 
 class SceneGenerator:
-    def __init__(self, yolo_object_generator: NsfwFramesGenerator, scene_min_length: int, scene_max_length: int, random_extend_masks=False, stride_length=0):
-        self.nsfw_frames_generator: NsfwFramesGenerator = yolo_object_generator
-        self.video_meta_data = yolo_object_generator.video_meta_data
+    def __init__(self, nsfw_frames_generator: NsfwFramesGenerator, scene_min_length: int, scene_max_length: int, random_extend_masks=False, stride_length=0):
+        self.nsfw_frames_generator: NsfwFramesGenerator = nsfw_frames_generator
+        self.video_meta_data = nsfw_frames_generator.video_meta_data
         self.scene_min_length =  int(math.ceil(scene_min_length * self.video_meta_data.video_fps))
         self.scene_max_length = int(math.ceil(scene_max_length * self.video_meta_data.video_fps))
         self.total_frame_count = self.video_meta_data.frames_count
@@ -330,6 +305,8 @@ class SceneGenerator:
             if scene is not None and nsfw_frame.frame_number == self.total_frame_count - 1:
                 scene_completed = True
 
+            # todo: implementing video strides / discarding frames here is inefficient as we still pass every frame through YOLO / nsfw frames generator.
+            #  We'd need to read and pass only the frames we want to be processed to YOLO instead of passing the video file.
             skip_scene = not (scene_completed and scene.min_length_reached() and (self.previous_scene_frame_end is None or (scene.frame_start - self.previous_scene_frame_end) > self.stride_length_frames))
 
             if not skip_scene:
