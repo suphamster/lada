@@ -4,14 +4,13 @@ from pathlib import Path
 
 import numpy as np
 from ultralytics import YOLO
-from ultralytics import settings
 
 from lada.lib import video_utils
 from lada.lib.mosaic_detector import MosaicDetectorDeprecated
-from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
+from lada.mosaic_cleaning.clean_mosaic_utils import MosaicCleaner
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.video_utils import get_video_meta_data
-from lada.pidinet import pidinet_inference
+from lada.mosaic_cleaning.pidinet.inference import load_model as load_pidinet_model
 
 disable_ultralytics_telemetry()
 
@@ -56,7 +55,8 @@ def main():
     args = parse_args()
 
     mosaic_detection_model = YOLO(args.mosaic_detection_model_path)
-    pidinet_model = None if args.canny else pidinet_inference.load_model(args.mosaic_cleaning_model_path, model_type=args.mosaic_cleaning_model_type, device=args.device)
+    pidinet_model = None if args.canny else load_pidinet_model(args.mosaic_cleaning_model_path, model_type=args.mosaic_cleaning_model_type, device=args.device)
+    mosaic_cleaner = MosaicCleaner(pidinet_model=pidinet_model)
     pad_mode = 'zero'
     file_suffix = '-'
 
@@ -82,13 +82,13 @@ def main():
 
             cleaned_images = []
             for (cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad) in clip_scaling_preserved:
-                cleaned_images.append(clean_cropped_mosaic(cropped_img, cropped_mask, pad, pidinet_model=pidinet_model))
+                cleaned_images.append(mosaic_cleaner.clean_cropped_mosaic(cropped_img, cropped_mask, pad))
             frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, "mosaic_unscaled_cleaned", clip_scaling_preserved.file_path.name, clip_scaling_preserved.id, True, file_suffix, video=True)
             save_vid(frame_dir, file_prefix, cleaned_images, fps = video_metadata.video_fps, gray = False)
 
             cleaned_images = []
             for (cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad) in clip_scaling_not_preserved:
-                cleaned_images.append(clean_cropped_mosaic(cropped_img, cropped_mask, pad, pidinet_model=pidinet_model))
+                cleaned_images.append(mosaic_cleaner.clean_cropped_mosaic(cropped_img, cropped_mask, pad))
             frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, "mosaic_scaled_cleaned", clip_scaling_not_preserved.file_path.name, clip_scaling_not_preserved.id, True, file_suffix, video=True)
             save_vid(frame_dir, file_prefix, cleaned_images, fps = video_metadata.video_fps, gray = False)
 

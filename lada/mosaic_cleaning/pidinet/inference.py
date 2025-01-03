@@ -1,4 +1,4 @@
-from lada.pidinet import models
+from lada.mosaic_cleaning.pidinet import models
 import cv2
 import torch
 import numpy as np

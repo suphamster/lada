@@ -11,9 +11,8 @@ from lada import LOG_LEVEL
 from lada.lib import image_utils, video_utils, threading_utils
 from lada.lib import visualization_utils
 from lada.lib.mosaic_detector import MosaicDetector
-from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
+from lada.mosaic_cleaning.clean_mosaic_utils import MosaicCleaner
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
-from lada.pidinet import pidinet_inference
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
@@ -23,7 +22,8 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
                 mosaic_detection_model_path, mosaic_cleaning_edge_detection_model_path=None):
     mosaic_edge_detection_model = None
     if mosaic_cleaning_edge_detection_model_path:
-        mosaic_edge_detection_model = pidinet_inference.load_model(mosaic_cleaning_edge_detection_model_path, model_type="tiny")
+        from lada.mosaic_cleaning.pidinet.inference import load_model as load_edge_detection_model
+        mosaic_edge_detection_model = load_edge_detection_model(mosaic_cleaning_edge_detection_model_path, model_type="tiny")
 
     if mosaic_restoration_model_name.startswith("rvrt"):
         from lada.rvrt import rvrt_inferencer
@@ -63,7 +63,7 @@ class FrameRestorer:
         self.video_meta_data = video_utils.get_video_meta_data(video_file)
         self.mosaic_detection_model = mosaic_detection_model
         self.mosaic_restoration_model = mosaic_restoration_model
-        self.mosaic_edge_detection_model = mosaic_edge_detection_model
+        self.mosaic_cleaner = MosaicCleaner(pidinet_model=mosaic_edge_detection_model)
         self.preferred_pad_mode = preferred_pad_mode
         self.start_ns = 0
         self.start_frame = 0
@@ -202,8 +202,7 @@ class FrameRestorer:
                 images = []
                 for (
                 cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad_after_resize, pad_before_resize) in clip:
-                    images.append(clean_cropped_mosaic(cropped_img, cropped_mask, pad_after_resize,
-                                                       pidinet_model=self.mosaic_edge_detection_model))
+                    images.append(self.mosaic_cleaner.clean_cropped_mosaic(cropped_img, cropped_mask, pad_after_resize))
             else:
                 images = clip.get_clip_images()
 

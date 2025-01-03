@@ -8,7 +8,7 @@ import cv2 as cv
 import numpy as np
 
 from lada.lib import visualization_utils
-from lada.pidinet import pidinet_inference
+from lada.mosaic_cleaning.pidinet import inference
 
 
 def unsharp_mask(image, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0):
@@ -392,45 +392,49 @@ def mosaic_borders_image(img_unpad, mask_unpad, mosaic_min_size):
     return borders_t, borders_l, borders_b, borders_r
 
 
-def clean_cropped_mosaic(mosaic, mask, pad=(0,0,0,0), draw=False, pidinet_model=None):
-    sharp_amount = 0.0
-    canny_min=8 # 10
-    canny_max=16 # 20
-    hough_min_length=20
+class MosaicCleaner:
+    def __init__(self, pidinet_model=None):
+        self.pidinet_model = pidinet_model
 
-    h, w = mosaic.shape[:2]
-    (pad_h_t, pad_h_b, pad_w_l, pad_w_r) = pad
-    mask = mask.squeeze()
-    mosaic_unpad = mosaic[pad_h_t:h - pad_h_b, pad_w_l:w - pad_w_r]
-    mask_unpad = mask[pad_h_t:h - pad_h_b, pad_w_l:w - pad_w_r]
+    def clean_cropped_mosaic(self, mosaic, mask, pad=(0,0,0,0), draw=False):
+        sharp_amount = 0.0
+        canny_min=8 # 10
+        canny_max=16 # 20
+        hough_min_length=20
 
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-    mask_unpad = cv.dilate(mask_unpad, kernel)
+        h, w = mosaic.shape[:2]
+        (pad_h_t, pad_h_b, pad_w_l, pad_w_r) = pad
+        mask = mask.squeeze()
+        mosaic_unpad = mosaic[pad_h_t:h - pad_h_b, pad_w_l:w - pad_w_r]
+        mask_unpad = mask[pad_h_t:h - pad_h_b, pad_w_l:w - pad_w_r]
 
-    if pidinet_model:
-        edges = pidinet_inference.inference(pidinet_model, [mosaic_unpad])[0]
-    else:
-        gray = cv.cvtColor(mosaic_unpad, cv.COLOR_BGR2GRAY)
-        gray = cv.GaussianBlur(gray, (3, 3), 0)
-        gray = unsharp_mask(gray, kernel_size=(5, 5), sigma=1.0, amount=sharp_amount, threshold=0)
-        edges = cv.Canny(gray,canny_min,canny_max)
-        edges[mask_unpad != 255] = 0
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+        mask_unpad = cv.dilate(mask_unpad, kernel)
 
-    horizontal = get_horizontal(edges)
-    vertical = get_vertical(edges)
-    grid = horizontal + vertical
+        if self.pidinet_model:
+            edges = inference.inference(pidinet_model, [mosaic_unpad])[0]
+        else:
+            gray = cv.cvtColor(mosaic_unpad, cv.COLOR_BGR2GRAY)
+            gray = cv.GaussianBlur(gray, (3, 3), 0)
+            gray = unsharp_mask(gray, kernel_size=(5, 5), sigma=1.0, amount=sharp_amount, threshold=0)
+            edges = cv.Canny(gray,canny_min,canny_max)
+            edges[mask_unpad != 255] = 0
 
-    grid_x, grid_y = get_grid_via_hough(grid, img=mosaic_unpad, draw=False, hough_min_length=hough_min_length)
-    if len(grid_x) == 0 or len(grid_y) == 0:
-        return (mosaic, mosaic) if draw else mosaic
-    if draw:
-        draw_out, grid_x_clean, grid_y_clean = get_clean_grid_v2(grid_x, grid_y, mosaic_unpad, mask_unpad, draw=True)
-        draw_out = np.pad(draw_out, ((pad_h_t, pad_h_b), (pad_w_l, pad_w_r), (0, 0)), mode='constant', constant_values=0)
-    else:
-        grid_x_clean, grid_y_clean = get_clean_grid_v2(grid_x, grid_y, mosaic_unpad, mask_unpad, draw=False)
-    result = get_cleaned_mosaic_raw(mosaic, mosaic_unpad, mask_unpad, pad, grid_x_clean, grid_y_clean)
+        horizontal = get_horizontal(edges)
+        vertical = get_vertical(edges)
+        grid = horizontal + vertical
 
-    return (result, draw_out) if draw else result
+        grid_x, grid_y = get_grid_via_hough(grid, img=mosaic_unpad, draw=False, hough_min_length=hough_min_length)
+        if len(grid_x) == 0 or len(grid_y) == 0:
+            return (mosaic, mosaic) if draw else mosaic
+        if draw:
+            draw_out, grid_x_clean, grid_y_clean = get_clean_grid_v2(grid_x, grid_y, mosaic_unpad, mask_unpad, draw=True)
+            draw_out = np.pad(draw_out, ((pad_h_t, pad_h_b), (pad_w_l, pad_w_r), (0, 0)), mode='constant', constant_values=0)
+        else:
+            grid_x_clean, grid_y_clean = get_clean_grid_v2(grid_x, grid_y, mosaic_unpad, mask_unpad, draw=False)
+        result = get_cleaned_mosaic_raw(mosaic, mosaic_unpad, mask_unpad, pad, grid_x_clean, grid_y_clean)
+
+        return (result, draw_out) if draw else result
 
 if __name__ == "__main__":
     os.environ["QT_QPA_PLATFORM"] = "xcb"
@@ -440,7 +444,7 @@ if __name__ == "__main__":
     input = 'sample_vid.mp4'
 
     mosaic_detection_model = YOLO('yolo/runs/segment/train_mosaic_detection_yolov9c/weights/best.pt')
-    pidinet_model = pidinet_inference.load_model("experiments/pidinet/run1/save_models/checkpoint_019.pth")
+    pidinet_model = inference.load_model("experiments/pidinet/run1/save_models/checkpoint_019.pth")
     mosaic_generator = MosaicDetectorDeprecated(mosaic_detection_model, input, 30, 256, pad_mode='zero')
     quit = False
     for clip_id, clip in enumerate(mosaic_generator()):

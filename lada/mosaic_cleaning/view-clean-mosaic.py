@@ -6,11 +6,10 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-from lada.lib.clean_mosaic_utils import clean_cropped_mosaic
+from lada.mosaic_cleaning.clean_mosaic_utils import MosaicCleaner
 from lada.lib.mosaic_detector import MosaicDetectorDeprecated
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
-from lada.pidinet import pidinet_inference
 
 disable_ultralytics_telemetry()
 
@@ -34,6 +33,7 @@ def main():
     # pidinet_model = pidinet_inference.load_model("experiments/pidinet/run1/save_models/checkpoint_019.pth", model_type="base", device=args.device)
     # pidinet_model = pidinet_inference.load_model("experiments/pidinet/run2_tiny/save_models/checkpoint_019.pth", model_type="tiny", device=args.device)
     pidinet_model = None
+    mosaic_cleaner = MosaicCleaner(pidinet_model=pidinet_model)
 
     mosaic_generator = MosaicDetectorDeprecated(mosaic_detection_model, args.input, args.max_clip_length, args.clip_size, pad_mode='zero', preserve_relative_scale=True, dont_preserve_relative_scale=False, device=args.device)
 
@@ -51,7 +51,7 @@ def main():
         debug_images = []
         orig_images = clip.get_clip_images()
         for i, (cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad) in enumerate(clip):
-            cleaned_image, debug_image = clean_cropped_mosaic(cropped_img, cropped_mask, pad, draw=True, pidinet_model=pidinet_model)
+            cleaned_image, debug_image = mosaic_cleaner.clean_cropped_mosaic(cropped_img, cropped_mask, pad, draw=True)
             images.append(cleaned_image)
             debug_images.append(debug_image)
         for i, (image_clean, image_orig, image_debug) in enumerate(zip(images, orig_images, debug_images)):
