@@ -18,7 +18,10 @@ If you're not interested in training specific models you can use the pretrained 
 
 ## Mosaic restoration model
 Before we can train the model we'll need to create a dataset.
-AFAIK, there are no publicly available datasets for such purpose and I'll not provide one either. But you can create your own dataset for training mosaic removal models this way:
+AFAIK, there are no publicly available datasets for such purpose and I'll not provide one either. But you can create your own dataset for training mosaic removal models with the following procedure:
+
+> [!TIP]
+> To gather source material for your dataset `yt-dlp` and `gallery-dl` are your friends
 
 ```shell
 python create_mosaic_removal_video_dataset.py --input <input dir> --output-root <output dir>
@@ -32,14 +35,15 @@ The script doesn't necessarily need to be called with additional options, but yo
 For example:
 You can optimize worker and memory limits according to your machine. You can also run the script in parallel on different subset of data using different GPUs.
 There are options to create mosaic clips as well which can be useful to inspect generated mosaic clips.
+Depending on your source material use the `--stride-length` option to prevent sampling too many scenes from the same (long) files.
 
 Try it on a small subset of your data first to see how it works.
 Also, check out the code `MosaicVideoDataset` in `mosaic_video_dataset.py` as well as the dataloader/dataset settings in `mosaic_restoration_generic_stage{1,2}.py` in the `config` dir to understand how this generated dataset will be used in training.
 
-For your final dataset you don't need to save mosaic videos as mosaics are created on-the-fly by `MosaicVideoDataset`.
+For your final training dataset you don't need to save mosaic videos as mosaics are created on-the-fly by `MosaicVideoDataset` (default).
+Create mosaics up-front only for the validation dataset (pass `--save-mosaic` and `--degrade-mosaic`).
 
 The script uses the NSFW detection model. It's not perfectly accurate, and you'll have to validate and remove false-positive clips manually after it ran.
-You also want to exclude very low quality video clips by some `jq` magic to filter on the `video_quality.overall` attribute in the created metadata json files. `0.1` seems to be a good value.
 
 Now, with a dataset at hand we're ready to train a model.
 

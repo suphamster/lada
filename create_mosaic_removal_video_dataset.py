@@ -35,6 +35,7 @@ class SceneProcessingOptions:
     save_mosaic: bool
     degrade_mosaic: bool
     save_as_images: bool
+    min_quality: float
 
 @dataclass
 class FileProcessingOptions:
@@ -139,6 +140,52 @@ def get_dir_and_file_prefix(output_dir, name, file_name, scene_id, save_flat=Fal
             frame_dir = output_dir.joinpath(name).joinpath(file_name).joinpath(f"{scene_id:06d}")
     return frame_dir, file_prefix
 
+def save_scene(output_dir, scene, scene_processing_options, io_executor, data, target_fps):
+    #########
+    ## IO
+    #########
+    file_suffix = '-'
+    io_futures = []
+    def _save_imgs(imgs, name, file_extension):
+        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
+                                                         scene_processing_options.save_flat,
+                                                         file_suffix, video=False)
+        io_futures.append(io_executor.submit(save_imgs, frame_dir, file_prefix, file_extension, imgs))
+    def _save_vid(imgs, name, gray=False):
+        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
+                                                         scene_processing_options.save_flat,
+                                                         file_suffix, video=True)
+        io_futures.append(io_executor.submit(save_vid, frame_dir, file_prefix, imgs, target_fps, gray))
+    def _save_meta(meta, name):
+        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
+                                                         scene_processing_options.save_flat,
+                                                         file_suffix, video=True)
+        io_futures.append(io_executor.submit(save_meta, frame_dir, file_prefix, meta))
+
+    if scene_processing_options.save_cropped:
+        if scene_processing_options.resize_crops:
+            _save_meta(data.cropped_scaled.meta, "crop_scaled_meta")
+            _save_imgs(data.cropped_scaled.images, "crop_scaled_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.images, "crop_scaled_img")
+            _save_imgs(data.cropped_scaled.mask_images, "crop_scaled_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mask_images, "crop_scaled_mask", gray=True)
+            if scene_processing_options.save_mosaic:
+                _save_imgs(data.cropped_scaled.mosaic_images, "crop_scaled_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mosaic_images, "crop_scaled_mosaic")
+                _save_imgs(data.cropped_scaled.mosaic_mask_images, "crop_scaled_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mosaic_mask_images, "crop_scaled_mask_mosaic", gray=True)
+        if scene_processing_options.preserve_crops:
+            _save_meta(data.cropped_unscaled.meta, "crop_unscaled_meta")
+            _save_imgs(data.cropped_unscaled.images, "crop_unscaled_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.images, "crop_unscaled_img")
+            _save_imgs(data.cropped_unscaled.mask_images, "crop_unscaled_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mask_images, "crop_unscaled_mask", gray=True)
+            if scene_processing_options.save_mosaic:
+                _save_imgs(data.cropped_unscaled.mosaic_images, "crop_unscaled_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mosaic_images, "crop_unscaled_mosaic")
+                _save_imgs(data.cropped_unscaled.mosaic_mask_images, "crop_unscaled_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mosaic_mask_images, "crop_unscaled_mask_mosaic", gray=True)
+    if scene_processing_options.save_uncropped:
+        _save_meta(data.uncropped.meta, "orig_meta")
+        _save_imgs(data.uncropped.images, "orig_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.uncropped.images, "orig_img")
+        _save_imgs(data.uncropped.mask_images, "orig_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mask_images, "orig_mask", gray=True)
+        if scene_processing_options.save_mosaic:
+            _save_imgs(data.uncropped.mosaic_images, "orig_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mosaic_images, "orig_mosaic")
+            _save_imgs(data.uncropped.mosaic_mask_images, "orig_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mosaic_mask_images, "orig_mask_mosaic", gray=True)
+
+    wait(io_futures, return_when=ALL_COMPLETED)
 
 def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_processing_options: SceneProcessingOptions, data: SceneProcessingDataContainer, scene_max_height, scene_max_width, start_idx=0, end_exclusive_idx=None):
     if end_exclusive_idx is None:
@@ -207,7 +254,7 @@ def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_proce
 
 def process_scene(scene: Scene, output_dir: Path, io_executor,
                   video_quality_evaluator: VideoQualityEvaluator, scene_processing_options: SceneProcessingOptions):
-    print("processing scene", scene.id)
+    print("Started processing scene", scene.id)
     cropped_scene = CroppedScene(scene, target_size=(scene_processing_options.out_size,scene_processing_options.out_size), border_size=0.08)
 
     data = SceneProcessingDataContainer(
@@ -332,53 +379,22 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     if scene_processing_options.save_uncropped:
         data.uncropped.meta["video_quality"] = data.uncropped.quality_score
 
-    #########
-    ## IO
-    #########
-    file_suffix = '-'
-    io_futures = []
-    def _save_imgs(imgs, name, file_extension):
-        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
-                                                         scene_processing_options.save_flat,
-                                                         file_suffix, video=False)
-        io_futures.append(io_executor.submit(save_imgs, frame_dir, file_prefix, file_extension, imgs))
-    def _save_vid(imgs, name, gray=False):
-        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
-                                                         scene_processing_options.save_flat,
-                                                         file_suffix, video=True)
-        io_futures.append(io_executor.submit(save_vid, frame_dir, file_prefix, imgs, target_fps, gray))
-    def _save_meta(meta, name):
-        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
-                                                         scene_processing_options.save_flat,
-                                                         file_suffix, video=True)
-        io_futures.append(io_executor.submit(save_meta, frame_dir, file_prefix, meta))
+    if scene_processing_options.save_cropped and scene_processing_options.preserve_crops:
+        scene_quality = data.cropped_unscaled.meta["video_quality"]["overall"]
+    elif scene_processing_options.save_cropped and scene_processing_options.resize_crops:
+        scene_quality = data.cropped_scaled.meta["video_quality"]["overall"]
+    elif scene_processing_options.save_uncropped:
+        scene_quality = data.uncropped.meta["video_quality"]["overall"]
+    else:
+        scene_quality = 1.0
 
-    if scene_processing_options.save_cropped:
-        if scene_processing_options.resize_crops:
-            _save_meta(data.cropped_scaled.meta, "crop_scaled_meta")
-            _save_imgs(data.cropped_scaled.images, "crop_scaled_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.images, "crop_scaled_img")
-            _save_imgs(data.cropped_scaled.mask_images, "crop_scaled_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mask_images, "crop_scaled_mask", gray=True)
-            if scene_processing_options.save_mosaic:
-                _save_imgs(data.cropped_scaled.mosaic_images, "crop_scaled_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mosaic_images, "crop_scaled_mosaic")
-                _save_imgs(data.cropped_scaled.mosaic_mask_images, "crop_scaled_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mosaic_mask_images, "crop_scaled_mask_mosaic", gray=True)
-        if scene_processing_options.preserve_crops:
-            _save_meta(data.cropped_unscaled.meta, "crop_unscaled_meta")
-            _save_imgs(data.cropped_unscaled.images, "crop_unscaled_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.images, "crop_unscaled_img")
-            _save_imgs(data.cropped_unscaled.mask_images, "crop_unscaled_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mask_images, "crop_unscaled_mask", gray=True)
-            if scene_processing_options.save_mosaic:
-                _save_imgs(data.cropped_unscaled.mosaic_images, "crop_unscaled_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mosaic_images, "crop_unscaled_mosaic")
-                _save_imgs(data.cropped_unscaled.mosaic_mask_images, "crop_unscaled_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mosaic_mask_images, "crop_unscaled_mask_mosaic", gray=True)
-    if scene_processing_options.save_uncropped:
-        _save_meta(data.uncropped.meta, "orig_meta")
-        _save_imgs(data.uncropped.images, "orig_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.uncropped.images, "orig_img")
-        _save_imgs(data.uncropped.mask_images, "orig_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mask_images, "orig_mask", gray=True)
-        if scene_processing_options.save_mosaic:
-            _save_imgs(data.uncropped.mosaic_images, "orig_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mosaic_images, "orig_mosaic")
-            _save_imgs(data.uncropped.mosaic_mask_images, "orig_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mosaic_mask_images, "orig_mask_mosaic", gray=True)
+    skip_scene = scene_quality < scene_processing_options.min_quality
 
-    wait(io_futures, return_when=ALL_COMPLETED)
-    print("done processing scene", scene.id)
-
+    if skip_scene:
+        print(f"Skipped scene {scene.id} because of low quality ({scene_quality:.4f}<{scene_processing_options.min_quality})")
+    else:
+        save_scene(output_dir, scene, scene_processing_options, io_executor, data, target_fps)
+        print("Finished processing scene", scene.id)
 
 def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: VideoMetadata, output_dir: Path,
                  scenes_executor, io_executor, video_quality_evaluator,
@@ -390,8 +406,7 @@ def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: Vid
     for scene in SceneGenerator(NsfwFramesGenerator(model, video_metadata, model_device),
                                 file_processing_options.scene_min_length, file_processing_options.scene_max_length,
                                 random_extend_masks=True, stride_length=file_processing_options.stride_length)():
-        print(
-            f"found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
+        print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
         scene_futures.append(
             scenes_executor.submit(process_scene, scene, output_dir,
                                    io_executor, video_quality_evaluator, scene_processing_options))
@@ -436,6 +451,8 @@ def parse_args():
     parser.add_argument('--scene-max-length', type=int, default=8,
                         help="maximum length of a scene in number of frames. Scenes longer than that will be cut (in seconds)")
     parser.add_argument('--scene-max-memory', default=6144, type=int, help="limits maximum scene length based on approximate memory consumption of the scene. Value should be given in Megabytes (MB)")
+    parser.add_argument('--scene-min-quality', type=float, default=0.1,
+                        help="minimum quality of a scene as determined by quality estimation model DOVER. Range between 0 and 1 were 1 is highest quality. If scene quality is below this threshold it will be skipped and not land in the dataset.")
     parser.add_argument('--out-size', type=int, default=256, help="size in pixel of output images")
     parser.add_argument('--flat', default=True, action=argparse.BooleanOptionalAction,
                         help="Store frames of all videos in output root directory instead of using sub directories per clip")
@@ -446,7 +463,7 @@ def parse_args():
     parser.add_argument('--stride-length', default=0, type=int, help="skip frames in between long videos to prevent sampling too many scenes from a single file. value is in seconds")
     parser.add_argument('--save-mosaic', default=False, action=argparse.BooleanOptionalAction,
                         help="Create and save mosaic images and masks")
-    parser.add_argument('--resize-crops', default=True, action=argparse.BooleanOptionalAction,
+    parser.add_argument('--resize-crops', default=False, action=argparse.BooleanOptionalAction,
                         help="Resize crops to out-size. adds padding if necessary")
     parser.add_argument('--preserve-crops', default=True, action=argparse.BooleanOptionalAction,
                         help="Keeps scale/resolution of cropped scenes. adds padding if necessary")
@@ -504,7 +521,8 @@ def main():
                                                           preserve_crops=args.preserve_crops,
                                                           save_mosaic=args.save_mosaic,
                                                           degrade_mosaic=args.degrade_mosaic,
-                                                          save_as_images=args.save_as_images)
+                                                          save_as_images=args.save_as_images,
+                                                          min_quality=args.scene_min_quality)
 
         file_processing_options = FileProcessingOptions(scene_max_length=scene_max_length,
                                                         scene_min_length=args.scene_min_length,
