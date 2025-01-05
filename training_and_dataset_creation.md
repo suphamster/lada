@@ -1,9 +1,10 @@
 # Training
-The app consists of two models: mosaic detection and mosaic restoration.
+The app uses two models: mosaic detection and mosaic restoration.
 The goal of the mosaic detection model is to detect for each frame of the video if and where pixelated/mosaic regions exist.
 It will try to crop and cut small clips and hand them over to the mosaic restoration model. This will try to recover what it can from those degraded frames and come up with a somewhat plausible replacement for those images.
 These restored clip will replace the original content when they're reassembled with the original frames.
-> There is also a NSFW detection model used only for dataset creation for the other two models.
+
+There is also a NSFW detection model used only to create the datasets for the other two models.
 
 The following sections describe how to train and create a dataset for each model.
 If you're not interested in training specific models you can use the pretrained model weights from Lada where needed.
@@ -12,16 +13,18 @@ If you're not interested in training specific models you can use the pretrained 
 > Lada models were trained using Python 3.12 / Torch 2.4.1-cuda-12.4 / MMCV 2.2.0 / Ultralytics 8.3.23 but I would suggest to use latest versions as described in the Developer Installation section.
 
 > [!TIP]
+> To gather source material for your dataset [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [gallery-dl](https://github.com/mikf/gallery-dl) are your friends.
+> 
+> To find and remove duplicate files I can recommend the tools [Czkawka](https://github.com/qarmin/czkawka) and [cbird](https://github.com/scrubbbbs/cbird).
+
+> [!TIP]
 > In some scripts OpenCV QT-based GUI features are using for debugging purposes. 
 > OpenCV currently does not support wayland, you may want to force QT to use its X11 backend by setting the following environment variable
-> `export QT_QPA_PLATFORM=xcb`
+> `export QT_QPA_PLATFORM=xcb`.
 
 ## Mosaic restoration model
 Before we can train the model we'll need to create a dataset.
 AFAIK, there are no publicly available datasets for such purpose and I'll not provide one either. But you can create your own dataset for training mosaic removal models with the following procedure:
-
-> [!TIP]
-> To gather source material for your dataset `yt-dlp` and `gallery-dl` are your friends
 
 ```shell
 python create_mosaic_removal_video_dataset.py --input <input dir> --output-root <output dir>
