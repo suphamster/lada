@@ -1,11 +1,9 @@
---- old/.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2024-12-14 09:48:28.831709163 +0100
-+++ new/.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2024-12-14 09:48:05.271568671 +0100
-@@ -34,7 +34,8 @@
-             agnostic=self.args.agnostic_nms,
+--- ./.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2025-01-05 17:33:19.194644332 +0100
++++ new/.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2025-01-05 17:37:32.288827204 +0100
+@@ -35,6 +35,7 @@
              max_det=self.args.max_det,
              nc=len(self.model.names),
--            classes=self.args.classes
-+            classes=self.args.classes,
+             classes=self.args.classes,
 +            max_time_img=0.3
          )
  

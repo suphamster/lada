@@ -11,4 +11,4 @@ parser.add_argument('--config', type=Path, help="path to .yaml config file", def
 args = parser.parse_args()
 
 model = YOLO('yolo11m-seg.yaml')
-model.train(data=args.config, epochs=200, name="train_nsfw_detection_yolo11m")
+model.train(data=args.config, epochs=200, imgsz=640, name="train_nsfw_detection_yolo11m")
