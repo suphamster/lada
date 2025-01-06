@@ -76,6 +76,9 @@ the files in the `config` directory.
 
 I'd recommend to read through [MMengine documentation](https://mmengine.readthedocs.io/en/latest/) first if you're not familiar with that library.
 
+> [!NOTE]
+> Besides this BasicVSR++-based mosaic restoration model you can find training scripts for other/previously used models (like DeepMosaics).
+> I would not recommend working on them anymore but kept them mostly to show how to integrate other restoration/super-resolution models into Lada in case you stumble upon another interesting model.
 
 ## NSFW detection model
 The purpose of this dataset is to train an image segmentation model which we can feed video frames to detect if and where NSFW regions exist in the image (binary segmentation task).

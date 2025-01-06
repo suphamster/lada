@@ -93,7 +93,8 @@ On Linux the easiest way to install the app is to get it from Flathub.
 <a href='https://flathub.org/apps/details/io.github.ladaapp.lada'><img width='200' alt='Download from Flathub' src='https://flathub.org/api/badge?svg&locale=en'/></a>
 
 > [!CAUTION]
-> The flatpak works only with x86_64 CPUs with Nvidia/CUDA GPUs (CPU also, but read the notes in [Status](#Status) first)
+> The flatpak works only with x86_64 CPUs with Nvidia/CUDA GPUs. Make sure your system is using NVIDIAs official driver not `nouveau`.
+> (CPU-only inference technically works also, but read the notes in [Status](#Status) first).
 
 If you don't want to use flatpak, have other hardware specs than what the flatpak is built for or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
 Contributions welcome if someone is able to package the app for other systems.
@@ -148,12 +149,20 @@ This is a Python project so let's install our dependencies from PyPi:
     ````
     These extras are enough to run the model, GUI and CLI. If you want to train the model(s) or work on the dataset(s) install additional extras `training,dataset-creation`.
 
+   > [!CAUTION]
+   > When installing the dataset-creating extra dependencies `albuminations` will be installed. There seems to be an issue with its dependency management as albumentations will install opencv headless even though opencv is already available and you'll end up with both (you can check via `pip freeze | grep opencv`). 
+   > 
+   > If you run into conflicts related to OpenCV then uninstall both `opencv-python-headless` and `opencv-python` and install only `opencv-python`. (Noticed on version `albumentations==1.4.24`).
 
 5) Apply patches
 
-    In order to fix resume training of the mosaic restoration model apply the following patch not currently present in latest upstream package(`mmengine`/`0.10.5`):
+    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.5`):
     ```bash
     patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
+    ```
+
+    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit (tested with `ultralytics==8.3.58`):
+    ```bash
     patch -u ./.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py patches/increase_mms_time_limit.patch
     ```
 
