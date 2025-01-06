@@ -6,7 +6,9 @@ setup(
     version=str(VERSION),
     description="Remove and recover pixelated areas in adult videos",
     packages=find_packages(where='.',include=['lada','lada.*']),
-    install_requires=['torch', 'ultralytics==8.3.58', 'numpy', 'opencv-python', 'tqdm', 'av'], # ultralytics pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
+    # ultralytics pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
+    # todo: pin av down to 13.1.0. With av >=14.0.0 lada gets stuck on export for some reason. needs to be investigated
+    install_requires=['torch', 'ultralytics==8.3.58', 'numpy', 'opencv-python', 'tqdm', 'av==13.1.0'], 
     extras_require={
         'rvrt': [],
         'tecogan': ['scikit-image'],
