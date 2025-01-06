@@ -59,8 +59,7 @@ basicvsr = BasicVSR(dict(
     num_blocks=15,
     is_low_res_input=False,
     cpu_cache_length=1000,
-    spynet_pretrained='https://download.openmmlab.com/mmediting/restorers/'
-                      'basicvsr/spynet_20210409-c6c1bd09.pth'),
+    spynet_pretrained='model_weights/3rd_party/spynet_20210409-c6c1bd09.pth'),
     dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'))
 
 load_checkpoint(basicvsr, BASICVSRPP_WEIGHTS_PATH, strict=True)

@@ -7,11 +7,6 @@ from lada.gui.config_sidebar import ConfigSidebar
 
 here = pathlib.Path(__file__).parent.resolve()
 
-VIDEO_MIME_TYPES = [
-    'video/mp4',
-    'video/x-matroska',
-]
-
 @Gtk.Template(filename=here / 'window.ui')
 class MainWindow(Adw.ApplicationWindow):
     __gtype_name__ = 'MainWindow'
