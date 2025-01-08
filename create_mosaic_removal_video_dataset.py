@@ -448,40 +448,53 @@ def determine_max_scene_length(video_metadata: VideoMetadata, limit_seconds: int
     return scene_max_length
 
 def parse_args():
-    parser = argparse.ArgumentParser("Create video dataset")
-    parser.add_argument('--output-root', type=Path, default='video_dataset', help="set output root directory")
-    parser.add_argument('--input', type=Path, help="path to video file or directory")
-    parser.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model.pt",
-                        help="path to YOLO model")
-    parser.add_argument('--model-device', type=str, default="cuda", help="device to run the YOLO model on. E.g. 'cuda' or 'cuda:0'")
-    parser.add_argument('--quality-model-device', type=str, default="cuda", help="device to run the video quality model on. E.g. 'cuda' or 'cuda:0'")
+    parser = argparse.ArgumentParser("Create mosaic restoration dataset")
     parser.add_argument('--workers', type=int, default=4, help="Set number of multiprocessing workers")
-    parser.add_argument('--start-index', type=int, default=0, help="Can be used to continue a previous run. Note the index number next to last processed file name")
-    parser.add_argument('--scene-min-length', type=int, default=2.,
-                        help="minimal length of a scene in number of frames in order to be detected (in seconds)")
-    parser.add_argument('--scene-max-length', type=int, default=8,
-                        help="maximum length of a scene in number of frames. Scenes longer than that will be cut (in seconds)")
-    parser.add_argument('--scene-max-memory', default=6144, type=int, help="limits maximum scene length based on approximate memory consumption of the scene. Value should be given in Megabytes (MB)")
-    parser.add_argument('--scene-min-quality', type=float, default=0.1,
-                        help="minimum quality of a scene as determined by quality estimation model DOVER. Range between 0 and 1 were 1 is highest quality. If scene quality is below this threshold it will be skipped and not land in the dataset.")
-    parser.add_argument('--out-size', type=int, default=256, help="size in pixel of output images")
-    parser.add_argument('--flat', default=True, action=argparse.BooleanOptionalAction,
-                        help="Store frames of all videos in output root directory instead of using sub directories per clip")
-    parser.add_argument('--save-uncropped', default=False, action=argparse.BooleanOptionalAction,
+
+    input = parser.add_argument_group('Input')
+    input.add_argument('--input', type=Path, help="path to a video file or a directory containing NSFW videos")
+    input.add_argument('--start-index', type=int, default=0, help="Can be used to continue a previous run. Note the index number next to last processed file name")
+    input.add_argument('--stride-length', default=0, type=int, help="skip frames in between long videos to prevent sampling too many scenes from a single file. value is in seconds")
+
+    output = parser.add_argument_group('Output')
+    output.add_argument('--output-root', type=Path, default='video_dataset', help="path to directory where dataset should be stored")
+    output.add_argument('--out-size', type=int, default=256, help="size (in pixel) of output images")
+    output.add_argument('--save-uncropped', default=False, action=argparse.BooleanOptionalAction,
                         help="Save uncropped, full-size images and masks")
-    parser.add_argument('--save-cropped', default=True, action=argparse.BooleanOptionalAction,
+    output.add_argument('--save-cropped', default=True, action=argparse.BooleanOptionalAction,
                         help="Save cropped images and masks")
-    parser.add_argument('--stride-length', default=0, type=int, help="skip frames in between long videos to prevent sampling too many scenes from a single file. value is in seconds")
-    parser.add_argument('--save-mosaic', default=False, action=argparse.BooleanOptionalAction,
-                        help="Create and save mosaic images and masks")
-    parser.add_argument('--resize-crops', default=False, action=argparse.BooleanOptionalAction,
-                        help="Resize crops to out-size. adds padding if necessary")
-    parser.add_argument('--preserve-crops', default=True, action=argparse.BooleanOptionalAction,
+    output.add_argument('--resize-crops', default=False, action=argparse.BooleanOptionalAction,
+                        help="Resize crops to out-size (zooms in/out to match out-size). adds padding if necessary")
+    output.add_argument('--preserve-crops', default=True, action=argparse.BooleanOptionalAction,
                         help="Keeps scale/resolution of cropped scenes. adds padding if necessary")
-    parser.add_argument('--save-as-images', default=False, action=argparse.BooleanOptionalAction,
+    output.add_argument('--flat', default=True, action=argparse.BooleanOptionalAction,
+                        help="Store frames of all videos in output root directory instead of using sub directories per clip")
+    output.add_argument('--save-as-images', default=False, action=argparse.BooleanOptionalAction,
                         help="Save as images instead of videos")
-    parser.add_argument('--degrade-mosaic', default=False, action=argparse.BooleanOptionalAction,
-                        help="degrades mosaic and clean video clips to better match real world samples")
+
+    nsfw_detection = parser.add_argument_group('NSFW detection')
+    nsfw_detection.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model.pt",
+                        help="path to YOLO model")
+    nsfw_detection.add_argument('--model-device', type=str, default="cuda", help="device to run the YOLO model on. E.g. 'cuda' or 'cuda:0'")
+
+    scene_duration_filter = parser.add_argument_group('Scene duration filter')
+    scene_duration_filter.add_argument('--scene-min-length', type=int, default=2.,
+                        help="minimal length of a scene in number of frames in order to be detected (in seconds)")
+    scene_duration_filter.add_argument('--scene-max-length', type=int, default=8,
+                        help="maximum length of a scene in number of frames. Scenes longer than that will be cut (in seconds)")
+    scene_duration_filter.add_argument('--scene-max-memory', default=6144, type=int, help="limits maximum scene length based on approximate memory consumption of the scene. Value should be given in Megabytes (MB)")
+
+    scene_quality_filter = parser.add_argument_group('Scene quality filter')
+    scene_quality_filter.add_argument('--quality-model-device', type=str, default="cuda", help="device to run the video quality model on. E.g. 'cuda' or 'cuda:0'")
+    scene_quality_filter.add_argument('--scene-min-quality', type=float, default=0.1,
+                        help="minimum quality of a scene as determined by quality estimation model DOVER. Range between 0 and 1 were 1 is highest quality. If scene quality is below this threshold it will be skipped and not land in the dataset.")
+
+    mosaic_creation = parser.add_argument_group('Mosaic creation')
+    mosaic_creation.add_argument('--save-mosaic', default=False, action=argparse.BooleanOptionalAction,
+                        help="Create and save mosaic images and masks")
+    mosaic_creation.add_argument('--degrade-mosaic', default=False, action=argparse.BooleanOptionalAction,
+                        help="degrades mosaic and NSFW video clips to better match real world video sources (e.g. video compression artifacts)")
+
     args = parser.parse_args()
     return args
 
