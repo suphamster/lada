@@ -13,6 +13,8 @@ import lada.lib.video_utils as video_utils
 from lada.lib.mosaic_utils import addmosaic_base
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_video_degradation
+from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV1
+
 
 # import cv2
 # import os
@@ -42,26 +44,25 @@ class MosaicVideoDataset(data.Dataset):
         self.mosaic_params = []
         self.base_mosaic_block_sizes = []
         for meta_path in glob.glob(os.path.join(self.meta_root, '*')):
-            with open(meta_path, 'r') as meta_file:
-                meta_json = json.load(meta_file)
-                clip_name = f"{os.path.splitext(os.path.basename(meta_path))[0]}"
-                frame_num = meta_json.get('frame_count', meta_json.get("frames_count"))
-                assert frame_num is not None
-                if frame_num < self.min_frame_count:
-                    continue
-                self.clip_names.append(clip_name)
-                self.fps.append(meta_json["fps"])
-                self.total_num_frames.append(frame_num)
-                self.pads.append(meta_json["pad"])
-                self.mosaic_params.append(meta_json.get("mosaic"))
-                self.base_mosaic_block_sizes.append(meta_json.get("base_mosaic_block_size"))
+            meta = RestorationDatasetMetadataV1.from_json_file(meta_path)
+            clip_name = f"{os.path.splitext(os.path.basename(meta_path))[0]}"
+            frame_num = meta.frames_count if meta.frames_count else meta.frame_count
+            assert frame_num is not None
+            if frame_num < self.min_frame_count:
+                continue
+            self.clip_names.append(clip_name)
+            self.fps.append(meta.fps)
+            self.total_num_frames.append(frame_num)
+            self.pads.append(meta.pad)
+            self.mosaic_params.append(meta.mosaic)
+            self.base_mosaic_block_sizes.append(meta.base_mosaic_block_size)
 
     def get_block_size(self, index):
         base_mosaic_block_size = self.base_mosaic_block_sizes[index]
         if self.random_mosaic_block_size and base_mosaic_block_size:
-            mosaic_size = int(base_mosaic_block_size["mosaic_size_v1_normal"] * random.uniform(0.8, 2.2))
+            mosaic_size = int(base_mosaic_block_size.mosaic_size_v1_normal * random.uniform(0.8, 2.2))
         else:
-            mosaic_size = self.mosaic_params[index]["mosaic_size"]
+            mosaic_size = self.mosaic_params[index].mosaic_size
         return mosaic_size
 
     def __getitem__(self, index):
@@ -101,9 +102,9 @@ class MosaicVideoDataset(data.Dataset):
                 img_lq, mask_lq = addmosaic_base(unpad_image(img_gt, pad),
                                                  unpad_image(mask_gt, pad),
                                                  mosaic_size,
-                                                 model=mosaic_params["mod"],
-                                                 rect_ratio=mosaic_params["rect_ratio"],
-                                                 feather=mosaic_params["feather_size"])
+                                                 model=mosaic_params.mod,
+                                                 rect_ratio=mosaic_params.rect_ratio,
+                                                 feather=mosaic_params.feather_size)
                 img_lqs.append(pad_image_by_pad(img_lq, pad))
             if self.degrade:
                 degradation_params = MosaicRandomDegradationParams(should_down_sample=True, should_add_noise=True,

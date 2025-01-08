@@ -1,5 +1,4 @@
 import argparse
-import json
 import pathlib
 from concurrent import futures
 from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
@@ -12,7 +11,7 @@ import numpy as np
 import ultralytics.engine.results
 from ultralytics import YOLO
 
-from lada.lib import VideoMetadata, Mask, mask_utils
+from lada.lib import VideoMetadata, Mask, mask_utils, restoration_dataset_metadata
 from lada.lib import video_utils, image_utils
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
@@ -52,10 +51,10 @@ class SceneProcessingData:
         self.mosaic_mask_images = []
         self.mosaic_pads = []
         self.meta = {}
-        self.quality_score = None
+        self.quality_score = None | restoration_dataset_metadata.VisualQualityScoreV1
 
 
-def get_base_mosaic_block_size(scene: Scene):
+def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.MosaicBlockSizeV1:
     box_sizes = [(r - l + 1) * (b - t + 1) for t, l, b, r in scene.get_boxes()]
     median_idx = np.argsort(box_sizes)[len(box_sizes) // 2]
     _, mask_image_representative, box = scene[median_idx]
@@ -66,7 +65,7 @@ def get_base_mosaic_block_size(scene: Scene):
 
     # not sure what we'll use later, lets save all variants for now
 
-    mosaic_block_size = dict(
+    mosaic_block_size = restoration_dataset_metadata.MosaicBlockSizeV1(
         mosaic_size_v2=get_mosaic_block_size_v2(mask_image_representative),
         mosaic_size_v1_normal=get_mosaic_block_size(mask_image_representative, 'normal'),
         mosaic_size_v1_bounding=get_mosaic_block_size(mask_image_representative, 'bounding'))
@@ -107,10 +106,10 @@ def save_vid(frame_dir: pathlib.Path, fileprefix: str, imgs: list[np.ndarray[np.
     else:
         video_utils.write_frames_to_video_file(imgs, str(frame_dir.joinpath(f"{fileprefix}.mp4").absolute()), fps)
 
-def save_meta(frame_dir: pathlib.Path, fileprefix: str, meta: dict):
+def save_meta(frame_dir: pathlib.Path, fileprefix: str, meta: restoration_dataset_metadata.RestorationDatasetMetadataV1):
     frame_dir.mkdir(parents=True, exist_ok=True)
-    with open(str(frame_dir.joinpath(f"{fileprefix}.json").absolute()), 'w', encoding='utf-8') as f:
-        json.dump(meta, f, ensure_ascii=False)
+    path = str(frame_dir.joinpath(f"{fileprefix}.json").absolute())
+    meta.to_json_file(path)
 
 def save_imgs(frame_dir: pathlib.Path, fileprefix: str, file_ext: str, imgs: np.ndarray,
               jpeg_quality_level=95):
@@ -156,7 +155,7 @@ def save_scene(output_dir, scene, scene_processing_options, io_executor, data, t
                                                          scene_processing_options.save_flat,
                                                          file_suffix, video=True)
         io_futures.append(io_executor.submit(save_vid, frame_dir, file_prefix, imgs, target_fps, gray))
-    def _save_meta(meta, name):
+    def _save_meta(meta: restoration_dataset_metadata.RestorationDatasetMetadataV1, name):
         frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
                                                          scene_processing_options.save_flat,
                                                          file_suffix, video=True)
@@ -326,65 +325,77 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
             if scene_processing_options.save_mosaic:
                 assert len(scene) == len(data.cropped_unscaled.mosaic_images) == len(data.cropped_unscaled.mosaic_mask_images) == len(data.cropped_unscaled.mosaic_pads), assert_msg
 
+    if scene_processing_options.save_cropped:
+        if scene_processing_options.resize_crops:
+            score = video_quality_evaluator.evaluate(data.cropped_scaled.images)
+            data.cropped_scaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+        if scene_processing_options.preserve_crops:
+            score = video_quality_evaluator.evaluate(data.cropped_unscaled.images)
+            data.cropped_unscaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+    if scene_processing_options.save_uncropped:
+        score = video_quality_evaluator.evaluate(data.uncropped.images)
+        data.uncropped.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+
     #########
     ## META
     #########
     target_fps = int(round(scene.video_meta_data.video_fps))
-
-    if scene_processing_options.save_uncropped:
-        data.uncropped.meta["width"] = scene.video_meta_data.video_width
-        data.uncropped.meta["height"] = scene.video_meta_data.video_height
-
-    common_meta = []
-    if scene_processing_options.save_cropped:
-        if scene_processing_options.resize_crops:
-            common_meta.append(data.cropped_scaled.meta)
-        if scene_processing_options.preserve_crops:
-            common_meta.append(data.cropped_unscaled.meta)
-    if scene_processing_options.save_uncropped:
-        common_meta.append(data.uncropped.meta)
-    for meta in common_meta:
-        meta["fps"] = target_fps
-        meta["frames_count"] = len(scene)
-        meta["name"] = scene.file_path.name
-        meta["orig_width"] = scene.video_meta_data.video_width
-        meta["orig_height"] = scene.video_meta_data.video_height
-        meta["base_mosaic_block_size"] = scene_base_mosaic_block_size
-
-    if scene_processing_options.save_mosaic:
-        for meta in common_meta:
-            meta["mosaic"] = {}
-            meta["mosaic"]["mod"] = data.mosaic_params.mosaic_mod
-            meta["mosaic"]["rect_ratio"] = data.mosaic_params.mosaic_rectangle_ratio
-            meta["mosaic"]["mosaic_size"] = data.mosaic_params.mosaic_size
-            meta["mosaic"]["feather_size"] = data.mosaic_params.mosaic_feather_size
+    frames_count = len(scene)
+    mosaic_metadata = restoration_dataset_metadata.MosaicMetadataV1(mod=data.mosaic_params.mosaic_mod,
+                                                                    rect_ratio=data.mosaic_params.mosaic_rectangle_ratio,
+                                                                    mosaic_size=data.mosaic_params.mosaic_size,
+                                                                    feather_size=data.mosaic_params.mosaic_feather_size) if scene_processing_options.save_mosaic else None
 
     if scene_processing_options.save_cropped:
         if scene_processing_options.resize_crops:
-            data.cropped_scaled.quality_score = video_quality_evaluator.evaluate(data.cropped_scaled.images)
+            data.cropped_scaled.meta = restoration_dataset_metadata.RestorationDatasetMetadataV1(
+                fps=target_fps,
+                frames_count=frames_count,
+                name=scene.file_path.name,
+                orig_width=scene.video_meta_data.video_width,
+                orig_height=scene.video_meta_data.video_height,
+                base_mosaic_block_size=scene_base_mosaic_block_size,
+                mosaic=mosaic_metadata,
+                pad=data.cropped_scaled.pads,
+                height=data.cropped_scaled.images[0].shape[0],
+                width=data.cropped_scaled.images[0].shape[1],
+                video_quality=data.cropped_scaled.quality_score,
+            )
         if scene_processing_options.preserve_crops:
-            data.cropped_unscaled.quality_score = video_quality_evaluator.evaluate(data.cropped_unscaled.images)
+            data.cropped_unscaled.meta = restoration_dataset_metadata.RestorationDatasetMetadataV1(
+                fps=target_fps,
+                frames_count=frames_count,
+                name=scene.file_path.name,
+                orig_width=scene.video_meta_data.video_width,
+                orig_height=scene.video_meta_data.video_height,
+                base_mosaic_block_size=scene_base_mosaic_block_size,
+                mosaic=mosaic_metadata,
+                pad=data.cropped_unscaled.pads,
+                height=data.cropped_unscaled.images[0].shape[0],
+                width=data.cropped_unscaled.images[0].shape[1],
+                video_quality=data.cropped_unscaled.quality_score,
+            )
     if scene_processing_options.save_uncropped:
-        data.uncropped.quality_score = video_quality_evaluator.evaluate(data.uncropped.images)
-
-    if scene_processing_options.save_cropped:
-        if scene_processing_options.resize_crops:
-            data.cropped_scaled.meta["pad"] = data.cropped_scaled.pads
-            data.cropped_scaled.meta["height"], data.cropped_scaled.meta["width"] = data.cropped_scaled.images[0].shape[:2]
-            data.cropped_scaled.meta["video_quality"] = data.cropped_scaled.quality_score
-        if scene_processing_options.preserve_crops:
-            data.cropped_unscaled.meta["pad"] = data.cropped_unscaled.pads
-            data.cropped_unscaled.meta["height"], data.cropped_unscaled.meta["width"] = data.cropped_unscaled.images[0].shape[:2]
-            data.cropped_unscaled.meta["video_quality"] = data.cropped_unscaled.quality_score
-    if scene_processing_options.save_uncropped:
-        data.uncropped.meta["video_quality"] = data.uncropped.quality_score
+        data.uncropped.meta = restoration_dataset_metadata.RestorationDatasetMetadataV1(
+            fps=target_fps,
+            frames_count=frames_count,
+            name=scene.file_path.name,
+            orig_width=scene.video_meta_data.video_width,
+            orig_height=scene.video_meta_data.video_height,
+            base_mosaic_block_size=scene_base_mosaic_block_size,
+            mosaic=mosaic_metadata,
+            pad=None,
+            height=scene.video_meta_data.video_height,
+            width=scene.video_meta_data.video_width,
+            video_quality=data.uncropped.quality_score,
+        )
 
     if scene_processing_options.save_cropped and scene_processing_options.preserve_crops:
-        scene_quality = data.cropped_unscaled.meta["video_quality"]["overall"]
+        scene_quality = data.cropped_unscaled.quality_score.overall
     elif scene_processing_options.save_cropped and scene_processing_options.resize_crops:
-        scene_quality = data.cropped_scaled.meta["video_quality"]["overall"]
+        scene_quality = data.cropped_scaled.quality_score.overall
     elif scene_processing_options.save_uncropped:
-        scene_quality = data.uncropped.meta["video_quality"]["overall"]
+        scene_quality = data.uncropped.quality_score.overall
     else:
         scene_quality = 1.0
 

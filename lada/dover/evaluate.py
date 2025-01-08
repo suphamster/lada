@@ -43,7 +43,7 @@ class VideoQualityEvaluator:
 
     def evaluate(
             self, video, seed: int = 42
-    ) -> str:
+    ) -> dict:
         """Predict method to process video and output scores"""
         # Set seed for reproducibility
         self.set_seed(seed)
@@ -87,7 +87,7 @@ class VideoQualityEvaluator:
 
         return fused_results
 
-    def fuse_results(self, results):
+    def fuse_results(self, results) -> dict:
         """Fuse aesthetic and technical results into final scores"""
         t, a = (results[0] - 0.1107) / 0.07355, (results[1] + 0.08285) / 0.03774
         x = t * 0.6104 + a * 0.3896
