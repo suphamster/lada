@@ -10,7 +10,7 @@ from lada.basicvsrpp.mmagic.data_sample import DataSample
 from lada.basicvsrpp.mmagic.registry import DATASETS
 
 import lada.lib.video_utils as video_utils
-from lada.lib.mosaic_utils import addmosaic_base
+from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_video_degradation
 from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV1
@@ -34,7 +34,7 @@ class MosaicVideoDataset(data.Dataset):
         self.mask_root = opt.get('dataroot_mask')
         self.max_frame_count = opt['num_frame']
         self.min_frame_count = opt['min_num_frame'] if 'min_num_frame' in opt else opt['num_frame']
-        self.random_mosaic_block_size = opt.get('random_mosaic_block_size', True)
+        self.random_mosaic_params = opt.get('random_mosaic_params', True)
         self.repad = False
 
         self.clip_names = []
@@ -57,13 +57,14 @@ class MosaicVideoDataset(data.Dataset):
             self.mosaic_params.append(meta.mosaic)
             self.base_mosaic_block_sizes.append(meta.base_mosaic_block_size)
 
-    def get_block_size(self, index):
+    def get_mosaic_params(self, index):
         base_mosaic_block_size = self.base_mosaic_block_sizes[index]
-        if self.random_mosaic_block_size and base_mosaic_block_size:
-            mosaic_size = int(base_mosaic_block_size.mosaic_size_v1_normal * random.uniform(0.8, 2.2))
+        if self.random_mosaic_params and base_mosaic_block_size:
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = get_random_parameters_by_block_size(base_mosaic_block_size.mosaic_size_v1_normal, randomize_size=True)
         else:
-            mosaic_size = self.mosaic_params[index].mosaic_size
-        return mosaic_size
+            params = self.mosaic_params[index]
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = params.mosaic_size, params.mod, params.rect_ratio, params.feather_size
+        return mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size
 
     def __getitem__(self, index):
         clip_name = self.clip_names[index]
@@ -94,17 +95,16 @@ class MosaicVideoDataset(data.Dataset):
         else:
             vid_mask_gt_path = os.path.join(self.mask_root, clip_name + ".mkv")
             mask_gts = video_utils.read_video_frames(vid_mask_gt_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx, binary_frames=True)
-            mosaic_params = self.mosaic_params[index]
-            mosaic_size = self.get_block_size(index)
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = self.get_mosaic_params(index)
 
             img_lqs = []
             for img_gt, mask_gt, pad in zip(img_gts, mask_gts, pads):
                 img_lq, mask_lq = addmosaic_base(unpad_image(img_gt, pad),
                                                  unpad_image(mask_gt, pad),
                                                  mosaic_size,
-                                                 model=mosaic_params.mod,
-                                                 rect_ratio=mosaic_params.rect_ratio,
-                                                 feather=mosaic_params.feather_size)
+                                                 model=mosaic_mod,
+                                                 rect_ratio=mosaic_rectangle_ratio,
+                                                 feather=mosaic_feather_size)
                 img_lqs.append(pad_image_by_pad(img_lq, pad))
             if self.degrade:
                 degradation_params = MosaicRandomDegradationParams(should_down_sample=True, should_add_noise=True,

@@ -138,23 +138,24 @@ def get_random_parameter(mask, randomize_size=True, v2=False):
         mosaic_size = get_mosaic_block_size_v2(mask)
     else:
         mosaic_size = get_mosaic_block_size(mask,area_type = mod)
-    if randomize_size:
-        mosaic_size = int(mosaic_size*random.uniform(0.9,2.2))
 
+    return get_random_parameters_by_block_size(mosaic_size, randomize_size)
+
+def get_random_parameters_by_block_size(mosaic_base_size, randomize_size):
+    mosaic_size = int(mosaic_base_size * random.uniform(0.9, 2.2)) if randomize_size else mosaic_base_size
     # mosaic mod
     p = np.array([0.25, 0.3, 0.45])
-    mod = np.random.choice(['squa_mid','squa_avg','rect_avg'], p = p.ravel())
+    mod = np.random.choice(['squa_mid', 'squa_avg', 'rect_avg'], p=p.ravel())
 
     # rect_rat for rect_avg
-    rect_rat = random.uniform(1.1,1.6)
-    
+    rect_rat = random.uniform(1.1, 1.6)
+
     # feather size
     feather = -1
-    if random.random()<0.7:
-        feather = int(mosaic_size*random.uniform(0,1.5))
+    if random.random() < 0.7:
+        feather = int(mosaic_size * random.uniform(0, 1.5))
 
-    return mosaic_size,mod,rect_rat,feather
-
+    return mosaic_size, mod, rect_rat, feather
 
 if __name__ == '__main__':
     window_name = 'mosaic'
