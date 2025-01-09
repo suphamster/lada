@@ -58,10 +58,7 @@ train_dataloader = dict(
     sampler=dict(type='InfiniteSampler', shuffle=True),
     dataset=dict(
         type='MosaicVideoDataset',
-        dataroot_gt=data_root + "/train/crop_unscaled_img",
-        dataroot_lq=None,
-        dataroot_mask=data_root + "/train/crop_unscaled_mask",
-        dataroot_meta=data_root + "/train/crop_unscaled_meta",
+        metadata_root_dir=data_root + "/train/crop_unscaled_meta",
         num_frame=16,
         degrade=True,
         use_hflip=True,
@@ -76,9 +73,7 @@ val_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False),
     dataset=dict(
         type='MosaicVideoDataset',
-        dataroot_gt=data_root + "/val/crop_unscaled_img",
-        dataroot_lq=data_root + "/val/crop_unscaled_mosaic",
-        dataroot_meta=data_root + "/val/crop_unscaled_meta",
+        metadata_root_dir=data_root + "/val/crop_unscaled_meta",
         num_frame=-1,
         degrade=False,
         use_hflip=False,

@@ -1,7 +1,7 @@
 import glob
-import json
 import os.path
 import random
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -13,12 +13,8 @@ import lada.lib.video_utils as video_utils
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_video_degradation
-from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV1
+from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV2
 
-
-# import cv2
-# import os
-# os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 @DATASETS.register_module()
 class MosaicVideoDataset(data.Dataset):
@@ -27,75 +23,61 @@ class MosaicVideoDataset(data.Dataset):
         self.opt = opt
         self.scale = opt.get('scale', 1)
         self.lq_size = opt.get('lq_size', 256)
-        self.gt_root, self.meta_root = opt['dataroot_gt'], opt['dataroot_meta']
-        self.lq_root = opt.get('dataroot_lq')
+        self.meta_root = Path(opt['metadata_root_dir'])
         self.use_hflip = opt.get('use_hflip', False)
         self.degrade = opt.get('degrade', False)
-        self.mask_root = opt.get('dataroot_mask')
         self.max_frame_count = opt['num_frame']
         self.min_frame_count = opt['min_num_frame'] if 'min_num_frame' in opt else opt['num_frame']
         self.random_mosaic_params = opt.get('random_mosaic_params', True)
         self.repad = False
 
-        self.clip_names = []
-        self.fps = []
-        self.total_num_frames = []
-        self.pads = []
-        self.mosaic_params = []
-        self.base_mosaic_block_sizes = []
-        for meta_path in glob.glob(os.path.join(self.meta_root, '*')):
-            meta = RestorationDatasetMetadataV1.from_json_file(meta_path)
-            clip_name = f"{os.path.splitext(os.path.basename(meta_path))[0]}"
-            frame_num = meta.frames_count if meta.frames_count else meta.frame_count
-            assert frame_num is not None
-            if frame_num < self.min_frame_count:
+        self.metadata = []
+        for meta_path in glob.glob(os.path.join(opt['metadata_root_dir'], '*')):
+            meta = RestorationDatasetMetadataV2.from_json_file(meta_path)
+            if meta.frames_count < self.min_frame_count:
                 continue
-            self.clip_names.append(clip_name)
-            self.fps.append(meta.fps)
-            self.total_num_frames.append(frame_num)
-            self.pads.append(meta.pad)
-            self.mosaic_params.append(meta.mosaic)
-            self.base_mosaic_block_sizes.append(meta.base_mosaic_block_size)
+            self.metadata.append(meta)
 
-    def get_mosaic_params(self, index):
-        base_mosaic_block_size = self.base_mosaic_block_sizes[index]
-        if self.random_mosaic_params and base_mosaic_block_size:
-            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = get_random_parameters_by_block_size(base_mosaic_block_size.mosaic_size_v1_normal, randomize_size=True)
+    def get_mosaic_params(self, meta: RestorationDatasetMetadataV2):
+        if self.random_mosaic_params:
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = get_random_parameters_by_block_size(meta.base_mosaic_block_size.mosaic_size_v1_normal, randomize_size=True)
         else:
-            params = self.mosaic_params[index]
-            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = params.mosaic_size, params.mod, params.rect_ratio, params.feather_size
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = meta.mosaic.mosaic_size, meta.mosaic.mod, meta.mosaic.rect_ratio, meta.mosaic.feather_size
         return mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size
 
-    def __getitem__(self, index):
-        clip_name = self.clip_names[index]
-        total_num_frames = self.total_num_frames[index]
-
+    def get_end_frame_index(self, meta):
         if self.max_frame_count == -1:
             # select the full clip
             start_frame_idx = 0
-            end_frame_idx = total_num_frames - 1
+            end_frame_idx = meta.frames_count - 1
         else:
             # randomly select shorter clip of length num_frame
-            start_frame_idx = random.randint(0, total_num_frames - self.max_frame_count)
+            start_frame_idx = random.randint(0, meta.frames_count - self.max_frame_count)
             end_frame_idx = start_frame_idx + self.max_frame_count
+        return end_frame_idx, start_frame_idx
 
-        pads = self.pads[index][start_frame_idx:end_frame_idx]
+    def __getitem__(self, index):
+        meta = self.metadata[index]
 
-        vid_gt_path = os.path.join(self.gt_root, clip_name + ".mp4")
+        end_frame_idx, start_frame_idx = self.get_end_frame_index(meta)
+
+        pads = meta.pad[start_frame_idx:end_frame_idx]
+
+        vid_gt_path = str(Path(self.meta_root).joinpath(meta.relative_nsfw_video_path))
         img_gts = video_utils.read_video_frames(vid_gt_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx)
         if self.repad:
             img_gts = repad_image(img_gts, pads)
 
-        if self.lq_root:
-            vid_lq_path = os.path.join(self.lq_root, clip_name + ".mp4")
+        if not self.random_mosaic_params:
+            vid_lq_path = str(Path(self.meta_root).joinpath(meta.relative_mosaic_nsfw_video_path))
             img_lqs = video_utils.read_video_frames(vid_lq_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx)
             
             if self.repad:
                 img_lqs = repad_image(img_lqs, pads)
         else:
-            vid_mask_gt_path = os.path.join(self.mask_root, clip_name + ".mkv")
+            vid_mask_gt_path = str(Path(self.meta_root).joinpath(meta.relative_mask_video_path))
             mask_gts = video_utils.read_video_frames(vid_mask_gt_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx, binary_frames=True)
-            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = self.get_mosaic_params(index)
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = self.get_mosaic_params(meta)
 
             img_lqs = []
             for img_gt, mask_gt, pad in zip(img_gts, mask_gts, pads):
@@ -119,11 +101,6 @@ class MosaicVideoDataset(data.Dataset):
             img_gts = [np.fliplr(img) for img in img_gts]
             img_lqs = [np.fliplr(img) for img in img_lqs]
 
-        # for gt, lq in zip(img_gts, img_lqs):
-        #     cv2.imshow("gt", gt)
-        #     cv2.imshow("lq", lq)
-        #     cv2.waitKey(500)
-
         img_gts = video_utils.img2tensor(img_gts, float32=False, bgr2rgb=True)
         img_lqs = video_utils.img2tensor(img_lqs, float32=False, bgr2rgb=True)
 
@@ -138,12 +115,12 @@ class MosaicVideoDataset(data.Dataset):
             'gt_path': vid_gt_path,
             'gt_channel_order': 'rgb',
             'gt_color_type': 'color',
-            'key': clip_name,
-            'fps': self.fps[index]
+            'key': meta.name,
+            'fps': meta.fps
         })
         inputs = torch.stack(img_lqs, dim=0)
         # inputs = tensor (T,C,H,W)
         return {'inputs': inputs, 'data_samples': data_sample}
 
     def __len__(self):
-        return len(self.clip_names)
+        return len(self.metadata)

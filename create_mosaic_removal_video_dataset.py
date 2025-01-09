@@ -5,18 +5,20 @@ from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
+from typing import Literal
 
 import cv2
 import numpy as np
 import ultralytics.engine.results
 from ultralytics import YOLO
 
-from lada.lib import VideoMetadata, Mask, mask_utils, restoration_dataset_metadata
+from lada.lib import VideoMetadata, mask_utils, restoration_dataset_metadata
 from lada.lib import video_utils, image_utils
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
-from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, get_mosaic_block_size_v2
+from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, \
+    get_mosaic_block_size_v2, get_mosaic_block_size_v3
 from lada.lib.nsfw_scene_detector import SceneGenerator, Scene, CroppedScene, NsfwFramesGenerator
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
@@ -54,7 +56,7 @@ class SceneProcessingData:
         self.quality_score = None | restoration_dataset_metadata.VisualQualityScoreV1
 
 
-def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.MosaicBlockSizeV1:
+def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.MosaicBlockSizeV2:
     box_sizes = [(r - l + 1) * (b - t + 1) for t, l, b, r in scene.get_boxes()]
     median_idx = np.argsort(box_sizes)[len(box_sizes) // 2]
     _, mask_image_representative, box = scene[median_idx]
@@ -65,7 +67,8 @@ def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.Mos
 
     # not sure what we'll use later, lets save all variants for now
 
-    mosaic_block_size = restoration_dataset_metadata.MosaicBlockSizeV1(
+    mosaic_block_size = restoration_dataset_metadata.MosaicBlockSizeV2(
+        mosaic_size_v3=get_mosaic_block_size_v3((scene.video_meta_data.video_height, scene.video_meta_data.video_width)),
         mosaic_size_v2=get_mosaic_block_size_v2(mask_image_representative),
         mosaic_size_v1_normal=get_mosaic_block_size_v1(mask_image_representative, 'normal'),
         mosaic_size_v1_bounding=get_mosaic_block_size_v1(mask_image_representative, 'bounding'))
@@ -99,23 +102,24 @@ class SceneProcessingDataContainer:
         self.mosaic_params = mosaic_params
 
 
-def save_vid(frame_dir: pathlib.Path, fileprefix: str, imgs: list[np.ndarray[np.uint8]], fps=30, gray=False):
-    frame_dir.mkdir(parents=True, exist_ok=True)
+def save_vid(file_path: pathlib.Path, imgs: list[np.ndarray[np.uint8]], fps=30, gray=False):
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    path = str(file_path.absolute())
     if gray:
-        video_utils.write_masks_to_video_file(imgs, str(frame_dir.joinpath(f"{fileprefix}.mkv").absolute()), fps)
+        video_utils.write_masks_to_video_file(imgs, path, fps)
     else:
-        video_utils.write_frames_to_video_file(imgs, str(frame_dir.joinpath(f"{fileprefix}.mp4").absolute()), fps)
+        video_utils.write_frames_to_video_file(imgs, path, fps)
 
-def save_meta(frame_dir: pathlib.Path, fileprefix: str, meta: restoration_dataset_metadata.RestorationDatasetMetadataV1):
-    frame_dir.mkdir(parents=True, exist_ok=True)
-    path = str(frame_dir.joinpath(f"{fileprefix}.json").absolute())
+def save_meta(file_path: pathlib.Path, meta: restoration_dataset_metadata.RestorationDatasetMetadataV2):
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    path = str(file_path.absolute())
     meta.to_json_file(path)
 
-def save_imgs(frame_dir: pathlib.Path, fileprefix: str, file_ext: str, imgs: np.ndarray,
-              jpeg_quality_level=95):
-    frame_dir.mkdir(parents=True, exist_ok=True)
+def save_imgs(file_path_template_format_string: pathlib.Path, imgs: np.ndarray, jpeg_quality_level=95):
+    file_path_template_format_string.parent.mkdir(parents=True, exist_ok=True)
+    file_ext = file_path_template_format_string
     for i in range(len(imgs)):
-        path = str(frame_dir.joinpath(f"{fileprefix}{i:06d}{file_ext}").absolute())
+        path = str(Path(str(file_path_template_format_string).format(i)).absolute())
         try:
             if file_ext == ".jpg":
                 cv2.imwrite(path, imgs[i], [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality_level])
@@ -126,63 +130,86 @@ def save_imgs(frame_dir: pathlib.Path, fileprefix: str, file_ext: str, imgs: np.
             print(e)
 
 
-def get_dir_and_file_prefix(output_dir, name, file_name, scene_id, save_flat=False, file_suffix="-", video=False):
+def get_dir_and_file_prefix(output_dir, name, file_name, scene_id, save_flat=False, file_suffix="-", save_as_images=False):
     if save_flat:
         file_prefix = f"{file_name}-{scene_id:06d}{file_suffix}"
         frame_dir = output_dir.joinpath(name)
     else:
-        if video:
-            file_prefix = f"{scene_id:06d}"
-            frame_dir = output_dir.joinpath(name).joinpath(file_name)
-        else:
+        if save_as_images:
             file_prefix = ""
             frame_dir = output_dir.joinpath(name).joinpath(file_name).joinpath(f"{scene_id:06d}")
+        else:
+            file_prefix = f"{scene_id:06d}"
+            frame_dir = output_dir.joinpath(name).joinpath(file_name)
     return frame_dir, file_prefix
 
-def save_scene(output_dir, scene, scene_processing_options, io_executor, data, target_fps):
-    #########
-    ## IO
-    #########
+def get_io_path(output_dir:str, scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped'], scene:Scene, save_as_images:bool, save_flat:bool, file_type: Literal['mask', 'img', 'meta'], mosaic: bool) -> pathlib.Path:
     file_suffix = '-'
+    subdir_name = 'crop_scaled' if scene_type == 'cropped_scaled' else 'crop_unscaled' if scene_type == 'cropped_unscaled' else 'orig'
+    if not (mosaic and file_type == 'img'):
+        subdir_name += ('_' + file_type)
+    if mosaic:
+        subdir_name += "_mosaic"
+    frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, subdir_name, scene.file_path.name, scene.id, save_flat, file_suffix, save_as_images=save_as_images)
+    if file_type == 'img':
+        if save_as_images:
+            file_extension = ".jpg"
+            file_name_format_string = file_prefix + '{%06d}' + file_extension
+            file_name = file_name_format_string
+        else:
+            file_extension = ".mp4"
+            file_name = file_prefix + file_extension
+    elif file_type == 'mask':
+        if save_as_images:
+            file_extension = ".png"
+            file_name_format_string = file_prefix + '{%06d}' + file_extension
+            file_name = file_name_format_string
+        else:
+            file_extension = ".mkv"
+            file_name = file_prefix + file_extension
+    elif file_type == 'meta':
+        file_extension = ".json"
+        file_name = file_prefix + file_extension
+    else:
+        raise TypeError("expected file_type to be one of: 'mask', 'img' or 'meta'")
+    return frame_dir.joinpath(file_name)
+
+def save_scene(output_dir, scene, scene_processing_options, io_executor, data, target_fps):
     io_futures = []
-    def _save_imgs(imgs, name, file_extension):
-        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
-                                                         scene_processing_options.save_flat,
-                                                         file_suffix, video=False)
-        io_futures.append(io_executor.submit(save_imgs, frame_dir, file_prefix, file_extension, imgs))
-    def _save_vid(imgs, name, gray=False):
-        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
-                                                         scene_processing_options.save_flat,
-                                                         file_suffix, video=True)
-        io_futures.append(io_executor.submit(save_vid, frame_dir, file_prefix, imgs, target_fps, gray))
-    def _save_meta(meta: restoration_dataset_metadata.RestorationDatasetMetadataV1, name):
-        frame_dir, file_prefix = get_dir_and_file_prefix(output_dir, name, scene.file_path.name, scene.id,
-                                                         scene_processing_options.save_flat,
-                                                         file_suffix, video=True)
-        io_futures.append(io_executor.submit(save_meta, frame_dir, file_prefix, meta))
+
+    def _save(data, scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped'], file_type: Literal['mask', 'img', 'meta'], mosaic=False):
+        file_path = get_io_path(output_dir, scene_type, scene, scene_processing_options.save_as_images, scene_processing_options.save_flat, file_type, mosaic)
+        if file_type == 'meta':
+            io_futures.append(io_executor.submit(save_meta, file_path, data))
+        else:
+            if scene_processing_options.save_as_images:
+                io_futures.append(io_executor.submit(save_imgs, file_path, data))
+            else:
+                gray = file_type == 'mask'
+                io_futures.append(io_executor.submit(save_vid,file_path, data, target_fps, gray))
 
     if scene_processing_options.save_cropped:
         if scene_processing_options.resize_crops:
-            _save_meta(data.cropped_scaled.meta, "crop_scaled_meta")
-            _save_imgs(data.cropped_scaled.images, "crop_scaled_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.images, "crop_scaled_img")
-            _save_imgs(data.cropped_scaled.mask_images, "crop_scaled_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mask_images, "crop_scaled_mask", gray=True)
+            _save(data.cropped_scaled.meta, "cropped_scaled", 'meta')
+            _save(data.cropped_scaled.images, "cropped_scaled", 'img')
+            _save(data.cropped_scaled.mask_images, "cropped_scaled", 'mask')
             if scene_processing_options.save_mosaic:
-                _save_imgs(data.cropped_scaled.mosaic_images, "crop_scaled_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mosaic_images, "crop_scaled_mosaic")
-                _save_imgs(data.cropped_scaled.mosaic_mask_images, "crop_scaled_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_scaled.mosaic_mask_images, "crop_scaled_mask_mosaic", gray=True)
+                _save(data.cropped_scaled.mosaic_images, "cropped_scaled", 'img', mosaic=True)
+                _save(data.cropped_scaled.mosaic_mask_images, "cropped_scaled", 'mask', mosaic=True)
         if scene_processing_options.preserve_crops:
-            _save_meta(data.cropped_unscaled.meta, "crop_unscaled_meta")
-            _save_imgs(data.cropped_unscaled.images, "crop_unscaled_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.images, "crop_unscaled_img")
-            _save_imgs(data.cropped_unscaled.mask_images, "crop_unscaled_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mask_images, "crop_unscaled_mask", gray=True)
+            _save(data.cropped_unscaled.meta, "cropped_unscaled", 'meta')
+            _save(data.cropped_unscaled.images, "cropped_unscaled", 'img')
+            _save(data.cropped_unscaled.mask_images, "cropped_unscaled", 'mask')
             if scene_processing_options.save_mosaic:
-                _save_imgs(data.cropped_unscaled.mosaic_images, "crop_unscaled_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mosaic_images, "crop_unscaled_mosaic")
-                _save_imgs(data.cropped_unscaled.mosaic_mask_images, "crop_unscaled_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.cropped_unscaled.mosaic_mask_images, "crop_unscaled_mask_mosaic", gray=True)
+                _save(data.cropped_unscaled.mosaic_images, "cropped_unscaled", 'img', mosaic=True)
+                _save(data.cropped_unscaled.mosaic_mask_images, "cropped_unscaled", 'mask', mosaic=True)
     if scene_processing_options.save_uncropped:
-        _save_meta(data.uncropped.meta, "orig_meta")
-        _save_imgs(data.uncropped.images, "orig_img", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.uncropped.images, "orig_img")
-        _save_imgs(data.uncropped.mask_images, "orig_mask", ".png") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mask_images, "orig_mask", gray=True)
+        _save(data.uncropped.meta, "uncropped", 'meta')
+        _save(data.uncropped.images, "uncropped", 'img')
+        _save(data.uncropped.mask_images, "uncropped", 'mask')
         if scene_processing_options.save_mosaic:
-            _save_imgs(data.uncropped.mosaic_images, "orig_mosaic", ".jpg") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mosaic_images, "orig_mosaic")
-            _save_imgs(data.uncropped.mosaic_mask_images, "orig_mask_mosaic", ".png") if scene_processing_options.save_as_images else _save_vid(data.uncropped.mosaic_mask_images, "orig_mask_mosaic", gray=True)
+            _save(data.uncropped.mosaic_images, "uncropped", 'img', mosaic=True)
+            _save(data.uncropped.mosaic_mask_images, "uncropped", 'mask', mosaic=True)
 
     wait(io_futures, return_when=ALL_COMPLETED)
 
@@ -230,9 +257,10 @@ def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_proce
                     mosaic_image = apply_frame_degradation(mosaic_image, data.mosaic_degradation_params)
                 mosaic_mask_image = np.zeros_like(scene_mask_image, dtype=cropped_mask_mosaic.dtype)
                 mosaic_mask_image[t:b + 1, l:r + 1] = cropped_mask_mosaic
+                pad = [0,0,0,0]
                 data.uncropped.mosaic_images.append(mosaic_image)
                 data.uncropped.mosaic_mask_images.append(mosaic_mask_image)
-
+                data.uncropped.mosaic_pads.append(pad)
         if scene_processing_options.save_cropped:
             if scene_processing_options.resize_crops:
                 resized_rectangle_image = image_utils.resize(cropped_image, scene_processing_options.out_size,
@@ -271,6 +299,7 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     if scene_processing_options.save_uncropped:
         data.uncropped.images = scene.get_images()
         data.uncropped.mask_images = scene.get_masks()
+        data.uncropped.pads = [[0, 0, 0, 0]] * len(scene)
 
     crop_processing_workers = 4
     with ThreadPoolExecutor(max_workers=crop_processing_workers) as crop_processing_executor:
@@ -339,55 +368,84 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     #########
     ## META
     #########
-    target_fps = int(round(scene.video_meta_data.video_fps))
     frames_count = len(scene)
     mosaic_metadata = restoration_dataset_metadata.MosaicMetadataV1(mod=data.mosaic_params.mosaic_mod,
                                                                     rect_ratio=data.mosaic_params.mosaic_rectangle_ratio,
                                                                     mosaic_size=data.mosaic_params.mosaic_size,
                                                                     feather_size=data.mosaic_params.mosaic_feather_size) if scene_processing_options.save_mosaic else None
 
+    def _get_relative_path_dir(scene_type, mosaic):
+        metadata_path = get_io_path(output_dir, scene_type, scene,
+                                    scene_processing_options.save_as_images,
+                                    scene_processing_options.save_flat, 'meta', mosaic)
+
+        img_path = get_io_path(output_dir, scene_type, scene,
+                               scene_processing_options.save_as_images,
+                               scene_processing_options.save_flat, 'img', mosaic)
+
+        mask_path = get_io_path(output_dir, scene_type, scene,
+                                scene_processing_options.save_as_images,
+                                scene_processing_options.save_flat, 'mask', mosaic)
+
+        return str(img_path.relative_to(metadata_path.parent, walk_up=True)), str(mask_path.relative_to(metadata_path.parent, walk_up=True))
+
     if scene_processing_options.save_cropped:
         if scene_processing_options.resize_crops:
-            data.cropped_scaled.meta = restoration_dataset_metadata.RestorationDatasetMetadataV1(
-                fps=target_fps,
-                frames_count=frames_count,
+            relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('cropped_scaled', False)
+            relative_mosaic_nsfw_video_path, relative_mosaic_mask_video_path = _get_relative_path_dir('cropped_scaled', True) if scene_processing_options.save_mosaic else (None, None)
+            data.cropped_scaled.meta = restoration_dataset_metadata.RestorationDatasetMetadataV2(
                 name=scene.file_path.name,
-                orig_width=scene.video_meta_data.video_width,
-                orig_height=scene.video_meta_data.video_height,
+                fps=scene.video_meta_data.video_fps,
+                frames_count=frames_count,
+                orig_shape=(scene.video_meta_data.video_height, scene.video_meta_data.video_width),
+                scene_shape=data.cropped_scaled.images[0].shape[:2],
                 base_mosaic_block_size=scene_base_mosaic_block_size,
-                mosaic=mosaic_metadata,
                 pad=data.cropped_scaled.pads,
-                height=data.cropped_scaled.images[0].shape[0],
-                width=data.cropped_scaled.images[0].shape[1],
+                relative_nsfw_video_path=relative_nsfw_video_path,
+                relative_mask_video_path=relative_mask_video_path,
+                relative_mosaic_nsfw_video_path=relative_mosaic_nsfw_video_path,
+                relative_mosaic_mask_video_path=relative_mosaic_mask_video_path,
+                mosaic=mosaic_metadata,
                 video_quality=data.cropped_scaled.quality_score,
+                watermark_detected=None,
             )
         if scene_processing_options.preserve_crops:
-            data.cropped_unscaled.meta = restoration_dataset_metadata.RestorationDatasetMetadataV1(
-                fps=target_fps,
-                frames_count=frames_count,
+            relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('cropped_unscaled', False)
+            relative_mosaic_nsfw_video_path, relative_mosaic_mask_video_path = _get_relative_path_dir('cropped_unscaled', True) if scene_processing_options.save_mosaic else (None, None)
+            data.cropped_unscaled.meta = restoration_dataset_metadata.RestorationDatasetMetadataV2(
                 name=scene.file_path.name,
-                orig_width=scene.video_meta_data.video_width,
-                orig_height=scene.video_meta_data.video_height,
+                fps=scene.video_meta_data.video_fps,
+                frames_count=frames_count,
+                orig_shape=(scene.video_meta_data.video_height, scene.video_meta_data.video_width),
+                scene_shape=data.cropped_unscaled.images[0].shape[:2],
                 base_mosaic_block_size=scene_base_mosaic_block_size,
-                mosaic=mosaic_metadata,
                 pad=data.cropped_unscaled.pads,
-                height=data.cropped_unscaled.images[0].shape[0],
-                width=data.cropped_unscaled.images[0].shape[1],
+                relative_nsfw_video_path=relative_nsfw_video_path,
+                relative_mask_video_path=relative_mask_video_path,
+                relative_mosaic_nsfw_video_path=relative_mosaic_nsfw_video_path,
+                relative_mosaic_mask_video_path=relative_mosaic_mask_video_path,
+                mosaic=mosaic_metadata,
                 video_quality=data.cropped_unscaled.quality_score,
+                watermark_detected=None,
             )
     if scene_processing_options.save_uncropped:
-        data.uncropped.meta = restoration_dataset_metadata.RestorationDatasetMetadataV1(
-            fps=target_fps,
-            frames_count=frames_count,
+        relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('uncropped', False)
+        relative_mosaic_nsfw_video_path, relative_mosaic_mask_video_path = _get_relative_path_dir('uncropped', True) if scene_processing_options.save_mosaic else (None, None)
+        data.uncropped.meta = restoration_dataset_metadata.RestorationDatasetMetadataV2(
             name=scene.file_path.name,
-            orig_width=scene.video_meta_data.video_width,
-            orig_height=scene.video_meta_data.video_height,
+            fps=scene.video_meta_data.video_fps,
+            frames_count=frames_count,
+            orig_shape=(scene.video_meta_data.video_height, scene.video_meta_data.video_width),
+            scene_shape=data.uncropped.images[0].shape[:2],
             base_mosaic_block_size=scene_base_mosaic_block_size,
+            pad=data.uncropped.pads,
+            relative_nsfw_video_path=relative_nsfw_video_path,
+            relative_mask_video_path=relative_mask_video_path,
+            relative_mosaic_nsfw_video_path=relative_mosaic_nsfw_video_path,
+            relative_mosaic_mask_video_path=relative_mosaic_mask_video_path,
             mosaic=mosaic_metadata,
-            pad=None,
-            height=scene.video_meta_data.video_height,
-            width=scene.video_meta_data.video_width,
             video_quality=data.uncropped.quality_score,
+            watermark_detected=None,
         )
 
     if scene_processing_options.save_cropped and scene_processing_options.preserve_crops:
@@ -404,7 +462,7 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     if skip_scene:
         print(f"Skipped scene {scene.id} because of low quality ({scene_quality:.4f}<{scene_processing_options.min_quality})")
     else:
-        save_scene(output_dir, scene, scene_processing_options, io_executor, data, target_fps)
+        save_scene(output_dir, scene, scene_processing_options, io_executor, data, scene.video_meta_data.video_fps)
         print("Finished processing scene", scene.id)
 
 def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: VideoMetadata, output_dir: Path,
