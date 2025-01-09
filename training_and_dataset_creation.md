@@ -154,6 +154,9 @@ Then you can fire up labelme once more and annotate this file properly.
 
 Repeat these steps to annotate, convert, train, validate a couple of times, and you have built yourself a NSFW detection model.
 
+> [!TIP]
+> After the first training round you can run the model on some other files, convert the predictions from YOLO to labelme and validate and correct them in labelme before adding them to the dataset
+
 ## Mosaic detection model
 Purpose of the mosaic detection model is to detect if and where mosaic regions are in a given video frame. It's used as the first part of the restoration pipeline of Lada.
 Assuming you have a directory of NSFW videos and a trained NSFW detection model (either the pretrained model weights from lada or you've trained your own version following above-mentioned procedure)
@@ -220,3 +223,20 @@ python lada/yolo/train-yolo-mosaic-detection.py
 > Under the hood, `ultralytics` package is used to train the model. You can read their [documentation](https://docs.ultralytics.com/) for further details.
 
 To check its performance you can use the `view-yolo.py` script as described in the training section of the NSFW detection model.
+
+## Watermark detection model
+This model is used to filter out scenes detected by the NSFW model obstructed by watermarks, text or logos. Otherwise, we could introduce unwanted artifacts when
+applying mosaics on them when added to the mosaic restoration dataset.
+
+Luckily for us there exists a public dataset for this! [PITA Dataset](https://huggingface.co/datasets/bastienp/visible-watermark-pita)
+They also provide it in YOLO format so you guessed it, we're training another YOLOv11 model. This time the detection not segmentation variant but it's the same process.
+
+Download the val and train YOLO zip files and extract them to `datasets/watermark_detection/{train,val}`
+
+> [!NOTE]
+> The dataset differentiates two classes 'text' and 'logo'. For our purpose we don't need to know what kind of watermark we're dealing with
+
+In order to train the model run
+```shell
+python lada/yolo/train-yolo-watermark-detection.py
+```
