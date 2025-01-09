@@ -388,12 +388,13 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     #########
     if scene_processing_options.watermark_detection.filter or scene_processing_options.watermark_detection.add_metadata:
         if scene_processing_options.save_cropped:
+            _watermark_detected = watermark_detector.detect(scene.get_images(), cropped_scene.get_boxes())
             if scene_processing_options.resize_crops:
-                data.cropped_scaled.watermark_detected = watermark_detector.detect(data.cropped_scaled.images)
+                data.cropped_scaled.watermark_detected = _watermark_detected
             if scene_processing_options.preserve_crops:
-                data.cropped_unscaled.watermark_detected = watermark_detector.detect(data.cropped_unscaled.images)
+                data.cropped_unscaled.watermark_detected = _watermark_detected
         if scene_processing_options.save_uncropped:
-            data.uncropped.watermark_detected = watermark_detector.detect(data.uncropped.images)
+            data.uncropped.watermark_detected = watermark_detector.detect(scene.get_images())
 
     #########
     ## META

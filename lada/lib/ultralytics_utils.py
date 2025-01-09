@@ -26,6 +26,17 @@ def convert_yolo_box(yolo_box: ultralytics.engine.results.Boxes, img_shape) -> B
     b = int(torch.clip(_box[3], 0, img_shape[0]).item())
     return t, l, b, r
 
+def convert_yolo_boxes(yolo_box: ultralytics.engine.results.Boxes, img_shape) -> list[Box]:
+    _boxes = yolo_box.xyxy
+    boxes = []
+    for _box in _boxes:
+        l = int(torch.clip(_box[0], 0, img_shape[1]).item())
+        t = int(torch.clip(_box[1], 0, img_shape[0]).item())
+        r = int(torch.clip(_box[2], 0, img_shape[1]).item())
+        b = int(torch.clip(_box[3], 0, img_shape[0]).item())
+        box = t, l, b, r
+        boxes.append(box)
+    return boxes
 
 def convert_yolo_mask(yolo_mask: ultralytics.engine.results.Masks, img_shape) -> Mask:
     mask_img = _to_mask_img(yolo_mask.data)
