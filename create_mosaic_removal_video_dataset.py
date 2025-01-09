@@ -16,7 +16,7 @@ from lada.lib import video_utils, image_utils
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
-from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size, get_mosaic_block_size_v2
+from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, get_mosaic_block_size_v2
 from lada.lib.nsfw_scene_detector import SceneGenerator, Scene, CroppedScene, NsfwFramesGenerator
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
@@ -67,8 +67,8 @@ def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.Mos
 
     mosaic_block_size = restoration_dataset_metadata.MosaicBlockSizeV1(
         mosaic_size_v2=get_mosaic_block_size_v2(mask_image_representative),
-        mosaic_size_v1_normal=get_mosaic_block_size(mask_image_representative, 'normal'),
-        mosaic_size_v1_bounding=get_mosaic_block_size(mask_image_representative, 'bounding'))
+        mosaic_size_v1_normal=get_mosaic_block_size_v1(mask_image_representative, 'normal'),
+        mosaic_size_v1_bounding=get_mosaic_block_size_v1(mask_image_representative, 'bounding'))
     return mosaic_block_size
 
 

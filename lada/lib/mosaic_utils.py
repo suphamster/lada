@@ -8,11 +8,19 @@ from lada.lib import image_utils
 from lada.lib import visualization_utils
 
 
-def get_mask_area(mask):
+def get_mask_area_by_contour(mask):
     mask = cv2.threshold(mask,127,255,0)[1]
     contours= cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)[0]
     try:
         area = cv2.contourArea(contours[0])
+    except:
+        area = 0
+    return area
+
+def get_mask_area_by_bounding_box(mask):
+    try:
+        w, h = cv2.boundingRect(mask)[2:]
+        area = w * h
     except:
         area = 0
     return area
@@ -82,19 +90,18 @@ def addmosaic_base(img, mask, n, model='squa_avg', rect_ratio=1.6, feather=0, re
 
     return (img_mosaic, mask_mosaic, block_corner_points) if return_mosaic_edges else (img_mosaic, mask_mosaic)
 
-def get_mosaic_block_size(mask_img,area_type = 'normal'):
+def get_mosaic_block_size_v1(mask_img, area_type ='normal'):
     h,w = mask_img.shape[:2]
     size = np.min([h,w])
     mask = image_utils.resize_simple(mask_img,size)
     alpha = size/512
-    try:
-        if area_type == 'normal':
-            area = get_mask_area(mask)
-        elif area_type == 'bounding':
-            w,h = cv2.boundingRect(mask)[2:]
-            area = w*h
-    except:
-        area = 0
+
+    if area_type == 'normal':
+        area = get_mask_area_by_contour(mask)
+    elif area_type == 'bounding':
+        area = get_mask_area_by_bounding_box(mask)
+    else:
+        raise TypeError("unknown area_type. must be 'normal' or 'bounding'")
     area = area/(alpha*alpha)
     if area>50000:
         size = alpha*((area-50000)/50000+12)
@@ -130,14 +137,19 @@ def get_mosaic_block_size_v2(mask):
     block_size_pixel = block_size_normalized * max(w, h)
     return block_size_pixel
 
-def get_random_parameter(mask, randomize_size=True, v2=False):
+def get_mosaic_block_size_v3(uncropped_scene_shape):
+    # As described in Pixiv Guidelines https://www.pixiv.net/terms/?page=guideline&lang=en
+    # "Mosaics should use squares at least 4x4 pixels in size. If the image is more than 400 pixels long, the dimensions of the mosaic squares should be 1/100 the length of the whole image."
+    height, width = uncropped_scene_shape[:2]
+    length = max(height, width)
+    block_size = max(4, length // 100)
+    return block_size
+
+def get_random_parameter(mask, randomize_size=True):
     # mosaic size
     p = np.array([0.5,0.5])
     mod = np.random.choice(['normal','bounding'], p = p.ravel())
-    if v2:
-        mosaic_size = get_mosaic_block_size_v2(mask)
-    else:
-        mosaic_size = get_mosaic_block_size(mask,area_type = mod)
+    mosaic_size = get_mosaic_block_size_v1(mask, area_type = mod)
 
     return get_random_parameters_by_block_size(mosaic_size, randomize_size)
 
@@ -195,7 +207,7 @@ if __name__ == '__main__':
         cv2.imshow(window_name, create_mosaic_img())
 
     def create_mosaic_img():
-        mosaic_size, mod, rect_ratio, feather_size = get_random_parameter(mask_img, randomize_size=False, v2=False)
+        mosaic_size, mod, rect_ratio, feather_size = get_random_parameter(mask_img, randomize_size=False)
         mosaic_size, mod, rect_ratio, feather_size = mosaic_size, 'squa_mid', 1.5, int(mosaic_size*1.5)
         mosaic_img, mosaic_mask_img = addmosaic_base(img, mask_img, mosaic_size, model=mod, rect_ratio=rect_ratio,
                                                      feather=feather_size)
