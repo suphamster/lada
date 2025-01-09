@@ -40,6 +40,8 @@ You can optimize worker and memory limits according to your machine. You can als
 There are options to create mosaic clips as well which can be useful to inspect generated mosaic clips.
 Depending on your source material use the `--stride-length` option to prevent sampling too many scenes from the same (long) files.
 
+Additional metadata and filtering can be adjusted as well. Check-out the *filter* / *add-metadata* switches.
+
 Try it on a small subset of your data first to see how it works.
 Also, check out the code `MosaicVideoDataset` in `mosaic_video_dataset.py` as well as the dataloader/dataset settings in `mosaic_restoration_generic_stage{1,2}.py` in the `config` dir to understand how this generated dataset will be used in training.
 

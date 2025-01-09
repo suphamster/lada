@@ -5,7 +5,7 @@ from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
-from typing import Literal
+from typing import Literal, Optional
 
 import cv2
 import numpy as np
@@ -21,8 +21,20 @@ from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosa
     get_mosaic_block_size_v2, get_mosaic_block_size_v3
 from lada.lib.nsfw_scene_detector import SceneGenerator, Scene, CroppedScene, NsfwFramesGenerator
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
+from lada.lib.watermark_detector import WatermarkDetector
 
 disable_ultralytics_telemetry()
+
+@dataclass
+class VideoQualityProcessingOptions:
+    filter: bool
+    add_metadata: bool
+    min_quality: float
+
+@dataclass
+class WatermarkDetectionProcessingOptions:
+    filter: bool
+    add_metadata: bool
 
 @dataclass
 class SceneProcessingOptions:
@@ -36,7 +48,8 @@ class SceneProcessingOptions:
     save_mosaic: bool
     degrade_mosaic: bool
     save_as_images: bool
-    min_quality: float
+    quality_evaluation: VideoQualityProcessingOptions
+    watermark_detection: WatermarkDetectionProcessingOptions
 
 @dataclass
 class FileProcessingOptions:
@@ -53,7 +66,8 @@ class SceneProcessingData:
         self.mosaic_mask_images = []
         self.mosaic_pads = []
         self.meta = {}
-        self.quality_score = None | restoration_dataset_metadata.VisualQualityScoreV1
+        self.quality_score: Optional[restoration_dataset_metadata.VisualQualityScoreV1] = None
+        self.watermark_detected: Optional[bool] = None
 
 
 def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.MosaicBlockSizeV2:
@@ -280,7 +294,7 @@ def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_proce
                 data.cropped_unscaled.pads.append(final_image_pad)
 
 def process_scene(scene: Scene, output_dir: Path, io_executor,
-                  video_quality_evaluator: VideoQualityEvaluator, scene_processing_options: SceneProcessingOptions):
+                  video_quality_evaluator: VideoQualityEvaluator, watermark_detector: WatermarkDetector, scene_processing_options: SceneProcessingOptions):
     print("Started processing scene", scene.id)
     cropped_scene = CroppedScene(scene, target_size=(scene_processing_options.out_size,scene_processing_options.out_size), border_size=0.08)
 
@@ -354,16 +368,32 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
             if scene_processing_options.save_mosaic:
                 assert len(scene) == len(data.cropped_unscaled.mosaic_images) == len(data.cropped_unscaled.mosaic_mask_images) == len(data.cropped_unscaled.mosaic_pads), assert_msg
 
-    if scene_processing_options.save_cropped:
-        if scene_processing_options.resize_crops:
-            score = video_quality_evaluator.evaluate(data.cropped_scaled.images)
-            data.cropped_scaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
-        if scene_processing_options.preserve_crops:
-            score = video_quality_evaluator.evaluate(data.cropped_unscaled.images)
-            data.cropped_unscaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
-    if scene_processing_options.save_uncropped:
-        score = video_quality_evaluator.evaluate(data.uncropped.images)
-        data.uncropped.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+    #########
+    ## Video quality evaluation
+    #########
+    if scene_processing_options.quality_evaluation.filter or scene_processing_options.quality_evaluation.add_metadata:
+        if scene_processing_options.save_cropped:
+            if scene_processing_options.resize_crops:
+                score = video_quality_evaluator.evaluate(data.cropped_scaled.images)
+                data.cropped_scaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+            if scene_processing_options.preserve_crops:
+                score = video_quality_evaluator.evaluate(data.cropped_unscaled.images)
+                data.cropped_unscaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+        if scene_processing_options.save_uncropped:
+            score = video_quality_evaluator.evaluate(data.uncropped.images)
+            data.uncropped.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+
+    #########
+    ## Watermark detection
+    #########
+    if scene_processing_options.watermark_detection.filter or scene_processing_options.watermark_detection.add_metadata:
+        if scene_processing_options.save_cropped:
+            if scene_processing_options.resize_crops:
+                data.cropped_scaled.watermark_detected = watermark_detector.detect(data.cropped_scaled.images)
+            if scene_processing_options.preserve_crops:
+                data.cropped_unscaled.watermark_detected = watermark_detector.detect(data.cropped_unscaled.images)
+        if scene_processing_options.save_uncropped:
+            data.uncropped.watermark_detected = watermark_detector.detect(data.uncropped.images)
 
     #########
     ## META
@@ -407,7 +437,7 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
                 relative_mosaic_mask_video_path=relative_mosaic_mask_video_path,
                 mosaic=mosaic_metadata,
                 video_quality=data.cropped_scaled.quality_score,
-                watermark_detected=None,
+                watermark_detected=data.cropped_scaled.watermark_detected,
             )
         if scene_processing_options.preserve_crops:
             relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('cropped_unscaled', False)
@@ -426,7 +456,7 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
                 relative_mosaic_mask_video_path=relative_mosaic_mask_video_path,
                 mosaic=mosaic_metadata,
                 video_quality=data.cropped_unscaled.quality_score,
-                watermark_detected=None,
+                watermark_detected=data.cropped_unscaled.watermark_detected,
             )
     if scene_processing_options.save_uncropped:
         relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('uncropped', False)
@@ -445,28 +475,32 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
             relative_mosaic_mask_video_path=relative_mosaic_mask_video_path,
             mosaic=mosaic_metadata,
             video_quality=data.uncropped.quality_score,
-            watermark_detected=None,
+            watermark_detected=data.uncropped.watermark_detected,
         )
 
     if scene_processing_options.save_cropped and scene_processing_options.preserve_crops:
         scene_quality = data.cropped_unscaled.quality_score.overall
+        watermark_detected = data.cropped_unscaled.watermark_detected
     elif scene_processing_options.save_cropped and scene_processing_options.resize_crops:
         scene_quality = data.cropped_scaled.quality_score.overall
+        watermark_detected = data.cropped_scaled.watermark_detected
     elif scene_processing_options.save_uncropped:
         scene_quality = data.uncropped.quality_score.overall
+        watermark_detected = data.uncropped.watermark_detected
     else:
         scene_quality = 1.0
+        watermark_detected = None
 
-    skip_scene = scene_quality < scene_processing_options.min_quality
-
-    if skip_scene:
-        print(f"Skipped scene {scene.id} because of low quality ({scene_quality:.4f}<{scene_processing_options.min_quality})")
+    if scene_processing_options.quality_evaluation.filter and scene_quality < scene_processing_options.quality_evaluation.min_quality:
+        print(f"Skipped scene {scene.id} because of low visual video quality ({scene_quality:.4f} < {scene_processing_options.quality_evaluation.min_quality})")
+    elif scene_processing_options.watermark_detection.filter and watermark_detected:
+        print(f"Skipped scene {scene.id} because watermark(s) have been detected")
     else:
         save_scene(output_dir, scene, scene_processing_options, io_executor, data, scene.video_meta_data.video_fps)
         print("Finished processing scene", scene.id)
 
 def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: VideoMetadata, output_dir: Path,
-                 scenes_executor, io_executor, video_quality_evaluator,
+                 scenes_executor, io_executor, video_quality_evaluator, watermark_detector: WatermarkDetector,
                  file_processing_options: FileProcessingOptions,
                  scene_processing_options: SceneProcessingOptions,
                  scene_executor_worker_count: int,
@@ -478,7 +512,7 @@ def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: Vid
         print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
         scene_futures.append(
             scenes_executor.submit(process_scene, scene, output_dir,
-                                   io_executor, video_quality_evaluator, scene_processing_options))
+                                   io_executor, video_quality_evaluator, watermark_detector, scene_processing_options))
         while len([future for future in scene_futures if not future.done()]) >= scene_executor_worker_count + 1:
             # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")
             sleep(1)
@@ -532,7 +566,7 @@ def parse_args():
 
     nsfw_detection = parser.add_argument_group('NSFW detection')
     nsfw_detection.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model.pt",
-                        help="path to YOLO model")
+                        help="path to NSFW detection model")
     nsfw_detection.add_argument('--model-device', type=str, default="cuda", help="device to run the YOLO model on. E.g. 'cuda' or 'cuda:0'")
 
     scene_duration_filter = parser.add_argument_group('Scene duration filter')
@@ -542,9 +576,11 @@ def parse_args():
                         help="maximum length of a scene in number of frames. Scenes longer than that will be cut (in seconds)")
     scene_duration_filter.add_argument('--scene-max-memory', default=6144, type=int, help="limits maximum scene length based on approximate memory consumption of the scene. Value should be given in Megabytes (MB)")
 
-    scene_quality_filter = parser.add_argument_group('Scene quality filter')
-    scene_quality_filter.add_argument('--quality-model-device', type=str, default="cuda", help="device to run the video quality model on. E.g. 'cuda' or 'cuda:0'")
-    scene_quality_filter.add_argument('--scene-min-quality', type=float, default=0.1,
+    video_quality_evaluation = parser.add_argument_group('Scene video quality evaluation')
+    video_quality_evaluation.add_argument('--add-video-quality-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will evaluate video quality and add its results to metadata")
+    video_quality_evaluation.add_argument('--enable-video-quality-filter', default=True, action=argparse.BooleanOptionalAction, help="If enabled and scene quality is below scene-min-quality it will be skipped and not land in the dataset.")
+    video_quality_evaluation.add_argument('--video-quality-model-device', type=str, default="cuda", help="device to run the video quality model on. E.g. 'cuda' or 'cuda:0'")
+    video_quality_evaluation.add_argument('--min-video-quality', type=float, default=0.1,
                         help="minimum quality of a scene as determined by quality estimation model DOVER. Range between 0 and 1 were 1 is highest quality. If scene quality is below this threshold it will be skipped and not land in the dataset.")
 
     mosaic_creation = parser.add_argument_group('Mosaic creation')
@@ -552,6 +588,12 @@ def parse_args():
                         help="Create and save mosaic images and masks")
     mosaic_creation.add_argument('--degrade-mosaic', default=False, action=argparse.BooleanOptionalAction,
                         help="degrades mosaic and NSFW video clips to better match real world video sources (e.g. video compression artifacts)")
+
+    watermark_detection = parser.add_argument_group('Watermark detection')
+    watermark_detection.add_argument('--add-watermark-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
+    watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled will scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
+    nsfw_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model.pt",
+                        help="path to watermark detection model")
 
     args = parser.parse_args()
     return args
@@ -566,11 +608,17 @@ def main():
     io_executor = ThreadPoolExecutor(max_workers=4)
     scenes_executor = ThreadPoolExecutor(max_workers=args.workers)
 
-    yolo_device = args.model_device
-    video_quality_evaluator_device = args.quality_model_device
+    nsfw_detection_model = YOLO(args.model)
 
-    model = YOLO(args.model)
-    video_quality_evaluator = VideoQualityEvaluator(device=video_quality_evaluator_device)
+    if args.add_video_quality_metadata or args.enable_video_quality_filter:
+        video_quality_evaluator = VideoQualityEvaluator(device=args.video_quality_model_device)
+    else:
+        video_quality_evaluator = None
+
+    if args.add_watermark_metadata or args.enable_watermark_filter:
+        watermark_detector = WatermarkDetector(YOLO(args.watermark_model_path), args.model)
+    else:
+        watermark_detector = None
 
     output_dir = args.output_root
     if not output_dir.exists():
@@ -604,14 +652,15 @@ def main():
                                                           save_mosaic=args.save_mosaic,
                                                           degrade_mosaic=args.degrade_mosaic,
                                                           save_as_images=args.save_as_images,
-                                                          min_quality=args.scene_min_quality)
+                                                          quality_evaluation=VideoQualityProcessingOptions(args.enable_video_quality_filter, args.add_video_quality_metadata, args.min_video_quality),
+                                                          watermark_detection=WatermarkDetectionProcessingOptions(args.enable_watermark_filter, args.add_watermark_metadata))
 
         file_processing_options = FileProcessingOptions(scene_max_length=scene_max_length,
                                                         scene_min_length=args.scene_min_length,
                                                         stride_length=args.stride_length)
 
-        scene_processing_futures.extend(process_file(model, video_metadata, output_dir, scenes_executor,
-                     io_executor, video_quality_evaluator, file_processing_options, scene_processing_options, args.workers, yolo_device))
+        scene_processing_futures.extend(process_file(nsfw_detection_model, video_metadata, output_dir, scenes_executor,
+                     io_executor, video_quality_evaluator, watermark_detector, file_processing_options, scene_processing_options, args.workers,  args.model_device))
         clean_up_completed_futures(scene_processing_futures)
 
     wait(scene_processing_futures, return_when=ALL_COMPLETED)
