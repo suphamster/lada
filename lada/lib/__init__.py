@@ -23,6 +23,12 @@ H, W, C stand for image height, width and color channels respectively. C is alwa
 type Image = np.ndarray[np.uint8]
 
 """
+Padding of an Image or Mask represented as tuple padding values (number of black pixels) added to each image edge:
+(padding-top, padding-bottom, padding-left, padding-right)
+"""
+type Pad = tuple[int, int, int, int]
+
+"""
 Metadata about a video file
 """
 @dataclass
