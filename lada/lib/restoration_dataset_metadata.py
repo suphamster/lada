@@ -117,6 +117,7 @@ class RestorationDatasetMetadataV2(AbstractRestorationDatasetMetadata):
     mosaic: Optional[MosaicMetadataV1]
     video_quality: Optional[VisualQualityScoreV1]
     watermark_detected: Optional[bool]
+    nudenet_nsfw_detected: Optional[bool]
 
     def _determine_relative_file_paths_by_v1_metadata(path: str, v1_metadata: RestorationDatasetMetadataV1) -> tuple[str, str, Optional[str], Optional[str]]:
         metadata_pathlib_path = Path(path)
@@ -185,6 +186,7 @@ class RestorationDatasetMetadataV2(AbstractRestorationDatasetMetadata):
                 v1_metadata.mosaic,
                 v1_metadata.video_quality,
                 None,
+                None,
             )
         elif version == 2:
             return RestorationDatasetMetadataV2(
@@ -216,4 +218,5 @@ class RestorationDatasetMetadataV2(AbstractRestorationDatasetMetadata):
                     json_dict["video_quality"]["overall"],
                 ) if json_dict.get("video_quality") else None,
                 json_dict.get("watermark_detected"),
+                json_dict.get("nudenet_nsfw_detected"),
             )

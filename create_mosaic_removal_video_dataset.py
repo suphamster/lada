@@ -20,6 +20,7 @@ from lada.lib.image_utils import pad_image
 from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, \
     get_mosaic_block_size_v2, get_mosaic_block_size_v3
 from lada.lib.nsfw_scene_detector import SceneGenerator, Scene, CroppedScene, NsfwFramesGenerator
+from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.watermark_detector import WatermarkDetector
 
@@ -37,6 +38,11 @@ class WatermarkDetectionProcessingOptions:
     add_metadata: bool
 
 @dataclass
+class NudeNetNsfwDetectionProcessingOptions:
+    filter: bool
+    add_metadata: bool
+
+@dataclass
 class SceneProcessingOptions:
     output_dir: Path
     save_flat: bool
@@ -50,6 +56,7 @@ class SceneProcessingOptions:
     save_as_images: bool
     quality_evaluation: VideoQualityProcessingOptions
     watermark_detection: WatermarkDetectionProcessingOptions
+    nudenet_nsfw_detection: NudeNetNsfwDetectionProcessingOptions
 
 @dataclass
 class FileProcessingOptions:
@@ -68,6 +75,7 @@ class SceneProcessingData:
         self.meta = {}
         self.quality_score: Optional[restoration_dataset_metadata.VisualQualityScoreV1] = None
         self.watermark_detected: Optional[bool] = None
+        self.nudenet_nsfw_detected: Optional[bool] = None
 
 
 def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.MosaicBlockSizeV2:
@@ -294,7 +302,7 @@ def process_cropped_scene(cropped_scene: CroppedScene, scene: Scene, scene_proce
                 data.cropped_unscaled.pads.append(final_image_pad)
 
 def process_scene(scene: Scene, output_dir: Path, io_executor,
-                  video_quality_evaluator: VideoQualityEvaluator, watermark_detector: WatermarkDetector, scene_processing_options: SceneProcessingOptions):
+                  video_quality_evaluator: VideoQualityEvaluator, watermark_detector: WatermarkDetector, nudenet_nsfw_detector: NudeNetNsfwDetector, scene_processing_options: SceneProcessingOptions):
     print("Started processing scene", scene.id)
     cropped_scene = CroppedScene(scene, target_size=(scene_processing_options.out_size,scene_processing_options.out_size), border_size=0.08)
 
@@ -397,6 +405,19 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
             data.uncropped.watermark_detected = watermark_detector.detect(scene.get_images())
 
     #########
+    ## NudeNet NSFW detection
+    #########
+    if scene_processing_options.nudenet_nsfw_detection.filter or scene_processing_options.nudenet_nsfw_detection.add_metadata:
+        if scene_processing_options.save_cropped:
+            _nudenet_nsfw_detected = nudenet_nsfw_detector.detect(scene.get_images(), cropped_scene.get_boxes())
+            if scene_processing_options.resize_crops:
+                data.cropped_scaled.nudenet_nsfw_detected =_nudenet_nsfw_detected
+            if scene_processing_options.preserve_crops:
+                data.cropped_unscaled.nudenet_nsfw_detected = _nudenet_nsfw_detected
+        if scene_processing_options.save_uncropped:
+            data.uncropped.nudenet_nsfw_detected = nudenet_nsfw_detector.detect(scene.get_images())
+
+    #########
     ## META
     #########
     frames_count = len(scene)
@@ -439,6 +460,7 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
                 mosaic=mosaic_metadata,
                 video_quality=data.cropped_scaled.quality_score,
                 watermark_detected=data.cropped_scaled.watermark_detected,
+                nudenet_nsfw_detected=data.cropped_scaled.nudenet_nsfw_detected,
             )
         if scene_processing_options.preserve_crops:
             relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('cropped_unscaled', False)
@@ -458,6 +480,7 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
                 mosaic=mosaic_metadata,
                 video_quality=data.cropped_unscaled.quality_score,
                 watermark_detected=data.cropped_unscaled.watermark_detected,
+                nudenet_nsfw_detected=data.cropped_scaled.nudenet_nsfw_detected,
             )
     if scene_processing_options.save_uncropped:
         relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir('uncropped', False)
@@ -477,31 +500,39 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
             mosaic=mosaic_metadata,
             video_quality=data.uncropped.quality_score,
             watermark_detected=data.uncropped.watermark_detected,
+            nudenet_nsfw_detected=data.uncropped.nudenet_nsfw_detected,
         )
 
     if scene_processing_options.save_cropped and scene_processing_options.preserve_crops:
         scene_quality = data.cropped_unscaled.quality_score.overall
         watermark_detected = data.cropped_unscaled.watermark_detected
+        nudenet_nsfw_detected = data.cropped_unscaled.nudenet_nsfw_detected
     elif scene_processing_options.save_cropped and scene_processing_options.resize_crops:
         scene_quality = data.cropped_scaled.quality_score.overall
         watermark_detected = data.cropped_scaled.watermark_detected
+        nudenet_nsfw_detected = data.cropped_scaled.nudenet_nsfw_detected
     elif scene_processing_options.save_uncropped:
         scene_quality = data.uncropped.quality_score.overall
         watermark_detected = data.uncropped.watermark_detected
+        nudenet_nsfw_detected = data.uncropped.nudenet_nsfw_detected
     else:
         scene_quality = 1.0
         watermark_detected = None
+        nudenet_nsfw_detected = None
 
     if scene_processing_options.quality_evaluation.filter and scene_quality < scene_processing_options.quality_evaluation.min_quality:
         print(f"Skipped scene {scene.id} because of low visual video quality ({scene_quality:.4f} < {scene_processing_options.quality_evaluation.min_quality})")
     elif scene_processing_options.watermark_detection.filter and watermark_detected:
         print(f"Skipped scene {scene.id} because watermark(s) have been detected")
+    elif scene_processing_options.nudenet_nsfw_detection.filter and not nudenet_nsfw_detected:
+        print(f"Skipped scene {scene.id} because not NSFW according to NudeNetNsfwDetector")
     else:
         save_scene(output_dir, scene, scene_processing_options, io_executor, data, scene.video_meta_data.video_fps)
         print("Finished processing scene", scene.id)
 
 def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: VideoMetadata, output_dir: Path,
                  scenes_executor, io_executor, video_quality_evaluator, watermark_detector: WatermarkDetector,
+                 nudenet_nsfw_detector: NudeNetNsfwDetector,
                  file_processing_options: FileProcessingOptions,
                  scene_processing_options: SceneProcessingOptions,
                  scene_executor_worker_count: int,
@@ -513,7 +544,7 @@ def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: Vid
         print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
         scene_futures.append(
             scenes_executor.submit(process_scene, scene, output_dir,
-                                   io_executor, video_quality_evaluator, watermark_detector, scene_processing_options))
+                                   io_executor, video_quality_evaluator, watermark_detector, nudenet_nsfw_detector, scene_processing_options))
         while len([future for future in scene_futures if not future.done()]) >= scene_executor_worker_count + 1:
             # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")
             sleep(1)
@@ -590,11 +621,17 @@ def parse_args():
     mosaic_creation.add_argument('--degrade-mosaic', default=False, action=argparse.BooleanOptionalAction,
                         help="degrades mosaic and NSFW video clips to better match real world video sources (e.g. video compression artifacts)")
 
-    watermark_detection = parser.add_argument_group('Watermark detection')
+    watermark_detection = parser.add_argument_group('Watermark detection [WIP, do not use yet]')
     watermark_detection.add_argument('--add-watermark-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
-    watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled will scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
+    watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
     nsfw_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model.pt",
                         help="path to watermark detection model")
+
+    watermark_detection = parser.add_argument_group('NudeNet NSFW detection [WIP, do not use yet]')
+    watermark_detection.add_argument('--add-nudenet-nsfw-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run NudeNet NSFW detection and add its results to metadata")
+    watermark_detection.add_argument('--enable-nudenet-nsfw-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes which aren't also classified by NudeNet as NSFW will be skipped")
+    nsfw_detection.add_argument('--nudenet-nsfw-model-path', type=str, default="model_weights/3rd_party/640m.pt",
+                        help="path to NudeNet NSFW detection model")
 
     args = parser.parse_args()
     return args
@@ -620,6 +657,11 @@ def main():
         watermark_detector = WatermarkDetector(YOLO(args.watermark_model_path), args.model)
     else:
         watermark_detector = None
+
+    if args.add_nudenet_nsfw_metadata or args.enable_nudenet_nsfw_filter:
+        nudenet_nsfw_detector = NudeNetNsfwDetector(YOLO(args.watermark_model_path), args.model)
+    else:
+        nudenet_nsfw_detector = None
 
     output_dir = args.output_root
     if not output_dir.exists():
@@ -654,14 +696,15 @@ def main():
                                                           degrade_mosaic=args.degrade_mosaic,
                                                           save_as_images=args.save_as_images,
                                                           quality_evaluation=VideoQualityProcessingOptions(args.enable_video_quality_filter, args.add_video_quality_metadata, args.min_video_quality),
-                                                          watermark_detection=WatermarkDetectionProcessingOptions(args.enable_watermark_filter, args.add_watermark_metadata))
+                                                          watermark_detection=WatermarkDetectionProcessingOptions(args.enable_watermark_filter, args.add_watermark_metadata),
+                                                          nudenet_nsfw_detection=NudeNetNsfwDetectionProcessingOptions(args.enable_nudenet_nsfw_filter, args.add_nudenet_nsfw_metadata))
 
         file_processing_options = FileProcessingOptions(scene_max_length=scene_max_length,
                                                         scene_min_length=args.scene_min_length,
                                                         stride_length=args.stride_length)
 
         scene_processing_futures.extend(process_file(nsfw_detection_model, video_metadata, output_dir, scenes_executor,
-                     io_executor, video_quality_evaluator, watermark_detector, file_processing_options, scene_processing_options, args.workers,  args.model_device))
+                     io_executor, video_quality_evaluator, watermark_detector, nudenet_nsfw_detector, file_processing_options, scene_processing_options, args.workers,  args.model_device))
         clean_up_completed_futures(scene_processing_futures)
 
     wait(scene_processing_futures, return_when=ALL_COMPLETED)
