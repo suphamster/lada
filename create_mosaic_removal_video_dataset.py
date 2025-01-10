@@ -538,7 +538,7 @@ def parse_args():
 
     video_quality_evaluation = parser.add_argument_group('Scene video quality evaluation')
     video_quality_evaluation.add_argument('--add-video-quality-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will evaluate video quality and add its results to metadata")
-    video_quality_evaluation.add_argument('--enable-video-quality-filter', default=True, action=argparse.BooleanOptionalAction, help="If enabled and scene quality is below scene-min-quality it will be skipped and not land in the dataset.")
+    video_quality_evaluation.add_argument('--enable-video-quality-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled and scene quality is below scene-min-quality it will be skipped and not land in the dataset.")
     video_quality_evaluation.add_argument('--video-quality-model-device', type=str, default="cuda", help="device to run the video quality model on. E.g. 'cuda' or 'cuda:0'")
     video_quality_evaluation.add_argument('--min-video-quality', type=float, default=0.1,
                         help="minimum quality of a scene as determined by quality estimation model DOVER. Range between 0 and 1 were 1 is highest quality. If scene quality is below this threshold it will be skipped and not land in the dataset.")
@@ -549,14 +549,14 @@ def parse_args():
     mosaic_creation.add_argument('--degrade-mosaic', default=False, action=argparse.BooleanOptionalAction,
                         help="degrades mosaic and NSFW video clips to better match real world video sources (e.g. video compression artifacts)")
 
-    watermark_detection = parser.add_argument_group('Watermark detection [WIP, do not use yet]')
-    watermark_detection.add_argument('--add-watermark-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
+    watermark_detection = parser.add_argument_group('Watermark detection')
+    watermark_detection.add_argument('--add-watermark-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
     watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
     watermark_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model.pt",
                         help="path to watermark detection model")
 
-    nsfw_detection = parser.add_argument_group('NudeNet NSFW detection [WIP, do not use yet]')
-    nsfw_detection.add_argument('--add-nudenet-nsfw-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run NudeNet NSFW detection and add its results to metadata")
+    nsfw_detection = parser.add_argument_group('NudeNet NSFW detection')
+    nsfw_detection.add_argument('--add-nudenet-nsfw-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will run NudeNet NSFW detection and add its results to metadata")
     nsfw_detection.add_argument('--enable-nudenet-nsfw-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes which aren't also classified by NudeNet as NSFW will be skipped")
     nsfw_detection.add_argument('--nudenet-nsfw-model-path', type=str, default="model_weights/3rd_party/640m.pt",
                         help="path to NudeNet NSFW detection model")
