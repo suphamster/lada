@@ -16,6 +16,7 @@ from lada.lib.ultralytics_utils import choose_biggest_detection, convert_yolo_ma
 @dataclass
 class NsfwFrame:
     frame_number: int
+    last_frame: bool
     frame: Image
     _box: ultralytics.engine.results.Boxes
     _mask: ultralytics.engine.results.Masks
@@ -259,20 +260,23 @@ class NsfwFramesGenerator:
         self.video_meta_data = video_meta_data
 
     def __call__(self, *args, **kwargs) -> Generator[NsfwFrame, None, None]:
+        nsfw_frame = None
         for frame_num, results in enumerate(self.model.track(source=self.video_meta_data.video_file, stream=True, verbose=False, tracker="bytetrack.yaml", device=self.device)):
+            if nsfw_frame:
+                yield nsfw_frame
             yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=True)
             object_detected = yolo_box is not None
-            nsfw_frame = NsfwFrame(frame_num, results.orig_img, yolo_box, yolo_mask, object_detected, int(yolo_box.id.item()) if object_detected else None)
+            nsfw_frame = NsfwFrame(frame_num, False, results.orig_img, yolo_box, yolo_mask, object_detected, int(yolo_box.id.item()) if object_detected else None)
+        if nsfw_frame: # EOF
+            nsfw_frame.last_frame = True
             yield nsfw_frame
 
-
-class SceneGenerator:
-    def __init__(self, nsfw_frames_generator: NsfwFramesGenerator, scene_min_length: int, scene_max_length: int, random_extend_masks=False, stride_length=0):
-        self.nsfw_frames_generator: NsfwFramesGenerator = nsfw_frames_generator
-        self.video_meta_data = nsfw_frames_generator.video_meta_data
+class NsfwSceneGenerator:
+    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device, scene_min_length: int, scene_max_length: int, random_extend_masks=False, stride_length=0):
+        self.nsfw_frames_generator: NsfwFramesGenerator = NsfwFramesGenerator(model, video_meta_data, device)
+        self.video_meta_data = video_meta_data
         self.scene_min_length =  int(math.ceil(scene_min_length * self.video_meta_data.video_fps))
         self.scene_max_length = int(math.ceil(scene_max_length * self.video_meta_data.video_fps))
-        self.total_frame_count = self.video_meta_data.frames_count
         self.video_file = self.video_meta_data.video_file
         self.random_extend_masks = random_extend_masks
         self.stride_length_frames = stride_length * self.video_meta_data.video_fps
@@ -290,19 +294,17 @@ class SceneGenerator:
             if nsfw_frame.object_detected:
                 if scene is None:
                     scene = Scene(self.video_file, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length, self.video_meta_data)
-                    scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask,
-                                    nsfw_frame.box)
+                    scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask, nsfw_frame.box)
                 else:
                     if scene.id == nsfw_frame.object_id and scene.frame_end + 1 == nsfw_frame.frame_number:
-                        scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask,
-                                        nsfw_frame.box)
+                        scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask, nsfw_frame.box)
                     else:
                         # todo: we'll lose/skip the current frame this way, we should mark the running scene as completed but also create a new scene with the the current frame
                         scene_completed = True
             elif scene is not None:
                 scene_completed = True
 
-            if scene is not None and nsfw_frame.frame_number == self.total_frame_count - 1:
+            if scene is not None and nsfw_frame.last_frame:
                 scene_completed = True
 
             # todo: implementing video strides / discarding frames here is inefficient as we still pass every frame through YOLO / nsfw frames generator.

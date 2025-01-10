@@ -19,7 +19,7 @@ from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
 from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, \
     get_mosaic_block_size_v2, get_mosaic_block_size_v3
-from lada.lib.nsfw_scene_detector import SceneGenerator, Scene, CroppedScene, NsfwFramesGenerator
+from lada.lib.nsfw_scene_detector import NsfwSceneGenerator, Scene, CroppedScene
 from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.watermark_detector import WatermarkDetector
@@ -538,9 +538,9 @@ def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: Vid
                  scene_executor_worker_count: int,
                  model_device=None):
     scene_futures = []
-    for scene in SceneGenerator(NsfwFramesGenerator(model, video_metadata, model_device),
-                                file_processing_options.scene_min_length, file_processing_options.scene_max_length,
-                                random_extend_masks=True, stride_length=file_processing_options.stride_length)():
+    for scene in NsfwSceneGenerator(model, video_metadata, model_device,
+                                    file_processing_options.scene_min_length, file_processing_options.scene_max_length,
+                                    random_extend_masks=True, stride_length=file_processing_options.stride_length)():
         print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
         scene_futures.append(
             scenes_executor.submit(process_scene, scene, output_dir,
