@@ -27,7 +27,7 @@ class NudeNetNsfwDetector:
         batches = [samples[i:i + batch_size] for i in range(0, len(samples), batch_size)]
         positive_detections = 0
         for batch_idx, batch in enumerate(batches):
-            batch_prediction_results = self.model.predict(source=batch, stream=False, verbose=False, device=self.device)
+            batch_prediction_results = self.model.predict(source=batch, stream=False, verbose=False, device=self.device, conf=min_confidence)
             for result_idx, results in enumerate(batch_prediction_results):
                 sample_idx = batch_idx * batch_size + result_idx
                 detections = results.boxes.conf.size(dim=0)
@@ -39,7 +39,7 @@ class NudeNetNsfwDetector:
                     continue
                 conf = results.boxes.conf.tolist()
                 detection_boxes = convert_yolo_boxes(results.boxes, results.orig_shape)
-                single_image_nsfw_detected = any(conf[i] > min_confidence and not samples_boxes or box_overlap(detection_boxes[result_idx], samples_boxes[sample_idx]) for i in detection_ids)
+                single_image_nsfw_detected = any(conf[i] > min_confidence and not samples_boxes or box_overlap(detection_boxes[i], samples_boxes[sample_idx]) for i in detection_ids)
                 if single_image_nsfw_detected:
                     positive_detections += 1
         nsfw_detected = positive_detections > min_positive_detections

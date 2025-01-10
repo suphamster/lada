@@ -571,12 +571,12 @@ def main():
         video_quality_evaluator = None
 
     if args.add_watermark_metadata or args.enable_watermark_filter:
-        watermark_detector = WatermarkDetector(YOLO(args.watermark_model_path), args.model)
+        watermark_detector = WatermarkDetector(YOLO(args.watermark_model_path), device=args.model_device)
     else:
         watermark_detector = None
 
     if args.add_nudenet_nsfw_metadata or args.enable_nudenet_nsfw_filter:
-        nudenet_nsfw_detector = NudeNetNsfwDetector(YOLO(args.watermark_model_path), args.model)
+        nudenet_nsfw_detector = NudeNetNsfwDetector(YOLO(args.nudenet_nsfw_model_path), device=args.model_device)
     else:
         nudenet_nsfw_detector = None
 
