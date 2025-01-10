@@ -624,12 +624,12 @@ def parse_args():
     watermark_detection = parser.add_argument_group('Watermark detection [WIP, do not use yet]')
     watermark_detection.add_argument('--add-watermark-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
     watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
-    nsfw_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model.pt",
+    watermark_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model.pt",
                         help="path to watermark detection model")
 
-    watermark_detection = parser.add_argument_group('NudeNet NSFW detection [WIP, do not use yet]')
-    watermark_detection.add_argument('--add-nudenet-nsfw-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run NudeNet NSFW detection and add its results to metadata")
-    watermark_detection.add_argument('--enable-nudenet-nsfw-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes which aren't also classified by NudeNet as NSFW will be skipped")
+    nsfw_detection = parser.add_argument_group('NudeNet NSFW detection [WIP, do not use yet]')
+    nsfw_detection.add_argument('--add-nudenet-nsfw-metadata', default=False, action=argparse.BooleanOptionalAction, help="If enabled will run NudeNet NSFW detection and add its results to metadata")
+    nsfw_detection.add_argument('--enable-nudenet-nsfw-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes which aren't also classified by NudeNet as NSFW will be skipped")
     nsfw_detection.add_argument('--nudenet-nsfw-model-path', type=str, default="model_weights/3rd_party/640m.pt",
                         help="path to NudeNet NSFW detection model")
 
