@@ -191,7 +191,7 @@ class DatasetItem:
             self._masks.append(mask)
             self._pads.append(pad)
 
-        assert len(scene) == len(self._images) == len(self._masks) == len(self._pads), f"number of images, masks and pads are not the same: {len(scene)} == {len(self._images)} == {len(self._masks)} == {len(self._pads)}"
+        assert len(cropped_scene) == len(self._images) == len(self._masks) == len(self._pads), f"number of images, masks and pads are not the same: {len(cropped_scene)} == {len(self._images)} == {len(self._masks)} == {len(self._pads)}"
 
     def init_meta(self, scene: Scene, scene_base_mosaic_block_size: restoration_dataset_metadata.MosaicBlockSizeV2, output_dir, save_as_images: bool, save_flat: bool, mosaic: bool, mosaic_params: MosaicRandomParams):
         def _get_relative_path_dir(scene_type, mosaic):
@@ -324,6 +324,8 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     dataset_item_crop_unscaled: Optional[DatasetItem] = None
     dataset_item_crop_scaled: Optional[DatasetItem] = None
     dataset_item_uncropped: Optional[DatasetItem] = None
+
+    mosaic_params = MosaicRandomParams(scene) if scene_processing_options.save_mosaic else None
 
     #########
     ## Images, Masks, Pads
