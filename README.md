@@ -174,13 +174,19 @@ wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.1
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth'
 ```
 
-To train the models you'll also need these files
+To train the models and create your own datasets you'll also need these files
 ```shell
 wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
 wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
 wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_nsfw_detection_model.pt'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta/lada_watermark_detection_model.pt'
+wget -P model_weights/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
 ```
+
+> [!CAUTION]
+> The last download command currently doesn't work as the NudeNet project is set to age-restricted.
+> You'll have to be logged into GitHub, then you can download the file manually on their [release page]('https://github.com/notAI-tech/NudeNet/releases/): release `v3.4` / file `640m.pt`
 
 Now you should be able to run the GUI via `lada` or the CLI via `lada-cli`.
 
@@ -196,6 +202,7 @@ This project builds on work done by these fantastic people
 * [YOLO/Ultralytics](https://github.com/ultralytics/ultralytics): Used as model to detect mosaic regions as well as non-mosaic regions for dataset creation
 * [DOVER](https://github.com/VQAssessment/DOVER): Used to assess video quality of created clips during the dataset creation process to filter out low quality videos
 * [PITA Dataset](https://huggingface.co/datasets/bastienp/visible-watermark-pita): Used to train watermark detector used in dataset creation process to filter out scenes obstructed with text
+* [NudeNet](https://github.com/notAI-tech/NudeNet/): Used as an additional NSFW classifier to filter out false positives by our own NSFW segmentation model
 * [Twitter Emoji](https://github.com/twitter/twemoji): Used eggplant emoji as base for the app icon (feel free to contribute a better logo)
 * PyTorch, FFmpeg, GStreamer, GTK and [all other folks building our ecosystem](https://xkcd.com/2347/)
 
