@@ -107,6 +107,7 @@ class DatasetItem:
         self._quality_score: Optional[restoration_dataset_metadata.VisualQualityScoreV1] = None
         self._watermark_detected: Optional[bool] = None
         self._nudenet_nsfw_detected: Optional[bool] = None
+        self._nudenet_nsfw_detected_classes: Optional[restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1] = None
         self._scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped'] = scene_type
 
         self._init_images_masks_and_pad(cropped_scene, scene, mosaic, crop, resize_crops, resize_crop_size, mosaic_params, mosaic_degradation_params)
@@ -146,6 +147,14 @@ class DatasetItem:
     @nudenet_nsfw_detected.setter
     def nudenet_nsfw_detected(self, value):
         self._nudenet_nsfw_detected = value
+
+    @property
+    def nudenet_nsfw_detected_classes(self):
+        return self._nudenet_nsfw_detected_classes
+
+    @nudenet_nsfw_detected_classes.setter
+    def nudenet_nsfw_detected_classes(self, value):
+        self._nudenet_nsfw_detected_classes = value
 
     def _init_images_masks_and_pad(self, cropped_scene: CroppedScene, scene: Optional[Scene], mosaic: bool, crop: bool, resize_crops: bool, resize_crop_size: Optional[int], mosaic_params: Optional[MosaicRandomParams], mosaic_degradation_params: Optional[MosaicRandomDegradationParams]):
 
@@ -223,6 +232,7 @@ class DatasetItem:
             video_quality=self._quality_score,
             watermark_detected=self._watermark_detected,
             nudenet_nsfw_detected=self._nudenet_nsfw_detected,
+            nudenet_nsfw_detected_classes=self._nudenet_nsfw_detected_classes,
         )
 
     def save(self, output_dir, scene, mosaic, save_as_images, save_flat, target_fps, io_executor):
@@ -383,13 +393,14 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
     #########
     if scene_processing_options.nudenet_nsfw_detection.filter or scene_processing_options.nudenet_nsfw_detection.add_metadata:
         if scene_processing_options.save_cropped:
-            _nudenet_nsfw_detected = nudenet_nsfw_detector.detect(scene.get_images(), cropped_scene.get_boxes())
+            _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = nudenet_nsfw_detector.detect(scene.get_images(), cropped_scene.get_boxes())
             if scene_processing_options.resize_crops:
-                dataset_item_crop_scaled.nudenet_nsfw_detected =_nudenet_nsfw_detected
+                dataset_item_crop_scaled.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
             if scene_processing_options.preserve_crops:
-                dataset_item_crop_unscaled.nudenet_nsfw_detected = _nudenet_nsfw_detected
+                dataset_item_crop_unscaled.nudenet_nsfw_detected, dataset_item_crop_unscaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
         if scene_processing_options.save_uncropped:
-            dataset_item_uncropped.nudenet_nsfw_detected = nudenet_nsfw_detector.detect(scene.get_images())
+            _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = nudenet_nsfw_detector.detect(scene.get_images())
+            dataset_item_uncropped.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
 
     #########
     ## META
