@@ -181,7 +181,7 @@ wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb
 wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_nsfw_detection_model.pt'
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta/lada_watermark_detection_model.pt'
-wget -P model_weights/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
+wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
 ```
 
 > [!CAUTION]
