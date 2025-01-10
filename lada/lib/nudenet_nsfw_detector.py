@@ -19,7 +19,7 @@ class NudeNetNsfwDetector:
         self.model = model
         self.device = device
 
-    def detect(self, images:list[Image], boxes:Optional[list[Box]]=None, max_samples=12, min_confidence=0.2, min_positive_detections=3, batch_size=4) -> tuple[bool, bool, bool]:
+    def detect(self, images:list[Image], boxes:Optional[list[Box]]=None, max_samples=20, min_confidence=0.2, min_positive_detections=4, batch_size=4) -> tuple[bool, bool, bool]:
         if boxes:
             indices_of_nsfw_elements = list(range(len(images)))
             indices_of_nsfw_elements = random.sample(indices_of_nsfw_elements, min(len(images), max_samples))

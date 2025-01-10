@@ -14,7 +14,7 @@ class WatermarkDetector:
         self.model = model
         self.device = device
 
-    def detect(self, images:list[Image], boxes:Optional[list[Box]]=None, max_samples=12, min_confidence=0.2, min_positive_detections=3, batch_size=4) -> bool:
+    def detect(self, images:list[Image], boxes:Optional[list[Box]]=None, max_samples=20, min_confidence=0.2, min_positive_detections=4, batch_size=4) -> bool:
         if boxes:
             indices = list(range(len(images)))
             indices = random.sample(indices, min(len(images), max_samples))
