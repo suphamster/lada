@@ -280,17 +280,28 @@ class NsfwSceneGenerator:
         self.video_file = self.video_meta_data.video_file
         self.random_extend_masks = random_extend_masks
         self.stride_length_frames = stride_length * self.video_meta_data.video_fps
-        self.previous_scene_frame_end = None
+        self.previous_completed_scene_frame_end = None
+        self.scenes_counter: int = 0
+
+    def _process_completed_scene(self, completed_scene: Scene) -> Optional[Scene]:
+        """returns Scene if it fits the criteria for a valid completed scene like min/max length"""
+        # todo: implementing video strides / discarding frames here is inefficient as we still pass every frame through YOLO / nsfw frames generator.
+        #  We'd need to read and pass only the frames we want to be processed to YOLO instead of passing the video file.
+        skip_scene = not (completed_scene.min_length_reached() and (self.previous_completed_scene_frame_end is None or (completed_scene.frame_start - self.previous_completed_scene_frame_end) > self.stride_length_frames))
+        if skip_scene:
+            return None
+        self.scenes_counter += 1
+        completed_scene.id = self.scenes_counter
+        self.previous_completed_scene_frame_end = completed_scene.frame_end
+        if self.random_extend_masks:
+            apply_random_mask_extensions(completed_scene)
+        return completed_scene
 
     def __call__(self) -> Generator[Scene, None, None]:
         scene: Scene | None = None
-        scenes_counter: int = 0
-
         nsfw_frame: NsfwFrame
-        for nsfw_frame in self.nsfw_frames_generator():
-            scene_completed = False
-            skip_scene = False
 
+        for nsfw_frame in self.nsfw_frames_generator():
             if nsfw_frame.object_detected:
                 if scene is None:
                     scene = Scene(self.video_file, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length, self.video_meta_data)
@@ -299,26 +310,14 @@ class NsfwSceneGenerator:
                     if scene.id == nsfw_frame.object_id and scene.frame_end + 1 == nsfw_frame.frame_number:
                         scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask, nsfw_frame.box)
                     else:
-                        # todo: we'll lose/skip the current frame this way, we should mark the running scene as completed but also create a new scene with the the current frame
-                        scene_completed = True
-            elif scene is not None:
-                scene_completed = True
+                        completed_scene = self._process_completed_scene(scene)
+                        if completed_scene:
+                            yield completed_scene
+                        scene = Scene(self.video_file, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length, self.video_meta_data)
+                        scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask, nsfw_frame.box)
 
-            if scene is not None and nsfw_frame.last_frame:
-                scene_completed = True
-
-            # todo: implementing video strides / discarding frames here is inefficient as we still pass every frame through YOLO / nsfw frames generator.
-            #  We'd need to read and pass only the frames we want to be processed to YOLO instead of passing the video file.
-            skip_scene = not (scene_completed and scene.min_length_reached() and (self.previous_scene_frame_end is None or (scene.frame_start - self.previous_scene_frame_end) > self.stride_length_frames))
-
-            if not skip_scene:
-                scenes_counter += 1
-                scene_complete = scene
-                scene_complete.id = scenes_counter
-                self.previous_scene_frame_end = scene.frame_end
-                if self.random_extend_masks:
-                    apply_random_mask_extensions(scene_complete)
-                yield scene_complete
-            if scene_completed:
+            if scene is not None and (nsfw_frame.last_frame or not nsfw_frame.object_detected):
+                completed_scene = self._process_completed_scene(scene)
+                if completed_scene:
+                    yield completed_scene
                 scene = None
-                scene_complete = None
