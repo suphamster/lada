@@ -27,7 +27,8 @@ class WatermarkDetector:
         batches = [samples[i:i + batch_size] for i in range(0, len(samples), batch_size)]
         positive_detections = 0
         for batch_idx, batch in enumerate(batches):
-            batch_prediction_results = self.model.predict(source=batch, stream=False, verbose=False, device=self.device, conf=min_confidence)
+            # not exactly sure why but prediction accuracy is horrible if not setting imgsz to 640 even though model was trained with 512 in train-yolo-watermark-detector.py.
+            batch_prediction_results = self.model.predict(source=batch, stream=False, verbose=False, device=self.device, conf=min_confidence, imgsz=640)
             for result_idx, results in enumerate(batch_prediction_results):
                 sample_idx = batch_idx * batch_size + result_idx
                 detections = results.boxes.conf.size(dim=0)
