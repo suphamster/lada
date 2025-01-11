@@ -598,9 +598,8 @@ def main():
 
     nsfw_detector = NsfwDetector(nsfw_detection_model=nsfw_detection_model, device=args.model_device,
                                  file_queue=file_queue,
-                                 # todo: optimize queue sizes
-                                 frame_queue=queue.Queue(30),
-                                 scene_queue=queue.Queue(3),
+                                 frame_queue=queue.Queue(50),
+                                 scene_queue=queue.Queue(2),
                                  file_processing_options=file_processing_options)
     try:
         nsfw_detector.start()

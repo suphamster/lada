@@ -43,6 +43,19 @@ def empty_out_queue_until_producer_is_done(queue: Queue, debug_queue_name: str, 
     consumer_thread.start()
     return consumer_thread
 
+def empty_out_queue_until_futures_are_done(queue: Queue, debug_queue_name: str, futures: list[concurrent_futures.Future]):
+    def consumer():
+        while any([future.running() for future in futures]):
+            try:
+                queue.get(timeout=0.02)
+                queue.task_done()
+            except Empty:
+                pass
+        logger.debug(f"purged all remaining elements from queue {debug_queue_name}")
+    consumer_thread = Thread(target=consumer)
+    consumer_thread.start()
+    return consumer_thread
+
 def check_for_errors(futures: list[concurrent_futures.Future]):
     for job in concurrent_futures.as_completed(futures):
         exception = job.exception()
