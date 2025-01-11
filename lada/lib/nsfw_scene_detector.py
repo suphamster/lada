@@ -360,7 +360,7 @@ class NsfwDetector:
             video_file_index, video_file_path = item
             video_metadata = self._check_file(video_file_index, video_file_path)
             if not video_metadata:
-                break
+                continue
             if video_file_path not in self.metadata:
                 self._init_new_file(video_metadata)
             nsfw_frame = None
