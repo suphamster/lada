@@ -501,7 +501,7 @@ def parse_args():
                         help="Save as images instead of videos")
 
     nsfw_detection = parser.add_argument_group('NSFW detection')
-    nsfw_detection.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model.pt",
+    nsfw_detection.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model_v1.1.pt",
                         help="path to NSFW detection model")
     nsfw_detection.add_argument('--model-device', type=str, default="cuda", help="device to run the YOLO model on. E.g. 'cuda' or 'cuda:0'")
 
@@ -528,7 +528,7 @@ def parse_args():
     watermark_detection = parser.add_argument_group('Watermark detection')
     watermark_detection.add_argument('--add-watermark-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
     watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
-    watermark_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model.pt",
+    watermark_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model_v1.1.pt",
                         help="path to watermark detection model")
 
     nsfw_detection = parser.add_argument_group('NudeNet NSFW detection')
