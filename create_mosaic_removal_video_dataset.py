@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+import queue
 from concurrent import futures
 from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -9,17 +10,16 @@ from typing import Literal, Optional
 
 import cv2
 import numpy as np
-import ultralytics.engine.results
 from ultralytics import YOLO
 
-from lada.lib import VideoMetadata, mask_utils, restoration_dataset_metadata, Pad, Mask, Image
+from lada.lib import mask_utils, restoration_dataset_metadata, Pad, Mask, Image
 from lada.lib import video_utils, image_utils
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
 from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, \
     get_mosaic_block_size_v2, get_mosaic_block_size_v3
-from lada.lib.nsfw_scene_detector import NsfwSceneGenerator, Scene, CroppedScene
+from lada.lib.nsfw_scene_detector import Scene, CroppedScene, NsfwDetector, FileProcessingOptions
 from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.watermark_detector import WatermarkDetector
@@ -59,11 +59,11 @@ class SceneProcessingOptions:
     nudenet_nsfw_detection: NudeNetNsfwDetectionProcessingOptions
 
 @dataclass
-class FileProcessingOptions:
-    scene_min_length: int
-    scene_max_length: int
+class SceneCreationOptions:
     stride_length: int
-
+    scene_min_frames: str
+    scene_max_frames: int
+    random_extend_masks: bool
 
 def get_base_mosaic_block_size(scene: Scene) -> restoration_dataset_metadata.MosaicBlockSizeV2:
     box_sizes = [(r - l + 1) * (b - t + 1) for t, l, b, r in scene.get_boxes()]
@@ -217,7 +217,7 @@ class DatasetItem:
         relative_nsfw_video_path, relative_mask_video_path = _get_relative_path_dir(self._scene_type, False)
         relative_mosaic_nsfw_video_path, relative_mosaic_mask_video_path = _get_relative_path_dir(self._scene_type,True) if mosaic else (None, None)
         self._meta = restoration_dataset_metadata.RestorationDatasetMetadataV2(
-            name=scene.file_path.name,
+            name=pathlib.Path(scene.video_meta_data.video_file).name,
             fps=scene.video_meta_data.video_fps,
             frames_count=len(scene),
             orig_shape=(scene.video_meta_data.video_height, scene.video_meta_data.video_width),
@@ -289,7 +289,7 @@ def get_io_path(output_dir:pathlib.Path, scene_type: Literal['cropped_scaled', '
         subdir_name += ('_' + file_type)
     if mosaic:
         subdir_name += "_mosaic"
-    file_name = scene.file_path.name
+    file_name = pathlib.Path(scene.video_meta_data.video_file).name
     if save_flat:
         file_prefix = f"{file_name}-{scene.id:06d}{file_suffix}"
         frame_dir = output_dir.joinpath(subdir_name)
@@ -458,30 +458,6 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
             dataset_item_uncropped.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor)
         print("Finished processing scene", scene.id)
 
-def process_file(model: ultralytics.models.yolo.model.Model, video_metadata: VideoMetadata, output_dir: Path,
-                 scenes_executor, io_executor, video_quality_evaluator, watermark_detector: WatermarkDetector,
-                 nudenet_nsfw_detector: NudeNetNsfwDetector,
-                 file_processing_options: FileProcessingOptions,
-                 scene_processing_options: SceneProcessingOptions,
-                 scene_executor_worker_count: int,
-                 model_device=None):
-    scene_futures = []
-    for scene in NsfwSceneGenerator(model, video_metadata, model_device,
-                                    file_processing_options.scene_min_length, file_processing_options.scene_max_length,
-                                    random_extend_masks=True, stride_length=file_processing_options.stride_length)():
-        print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
-        scene_futures.append(
-            scenes_executor.submit(process_scene, scene, output_dir,
-                                   io_executor, video_quality_evaluator, watermark_detector, nudenet_nsfw_detector, scene_processing_options))
-        while len([future for future in scene_futures if not future.done()]) >= scene_executor_worker_count + 1:
-            # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")
-            sleep(1)
-            pass  # do nothing until workers become available. Otherwise, we could queue up a lot of futures which use a lot of memory as we pass Scene objects
-        # we don't care about done futures, lets clean them up to potentially free memory
-        clean_up_completed_futures(scene_futures)
-        # print(f"deleted done future. futures now {len(scene_futures)}")
-    return scene_futures
-
 def clean_up_completed_futures(completed_futures):
     for job in futures.as_completed(completed_futures):
         exception = job.exception()
@@ -489,15 +465,6 @@ def clean_up_completed_futures(completed_futures):
             print(f"ERR(main): failed processing scene: {type(exception).__name__}: {exception}")
             raise exception
         completed_futures.remove(job)
-
-def determine_max_scene_length(video_metadata: VideoMetadata, limit_seconds: int | None, limit_memory: int | None):
-    scene_max_length = None
-    if limit_seconds:
-        scene_max_length = limit_seconds
-    if limit_memory:
-        scene_max_length_memory = video_utils.approx_max_length_by_memory_limit(video_metadata, limit_memory)
-        scene_max_length = min(scene_max_length, scene_max_length_memory) if scene_max_length else scene_max_length_memory
-    return scene_max_length
 
 def parse_args():
     parser = argparse.ArgumentParser("Create mosaic restoration dataset")
@@ -596,46 +563,57 @@ def main():
         output_dir.mkdir()
     input_path = args.input
     video_files = input_path.glob("*") if input_path.is_dir() else [input_path]
-    scene_processing_futures = []
 
-    for file_index, file_path in enumerate(video_files):
-        if file_index < args.start_index or len(list(output_dir.glob(f"*/{file_path.name}*"))) > 0:
-            print(f"{file_index}, Skipping {file_path.name}: Already processed")
-            continue
-        if not video_utils.is_video_file(file_path):
-            print(f"{file_index}, Skipping {file_path.name}: Unsupported file format")
-            continue
-        video_metadata = video_utils.get_video_meta_data(file_path)
-        scene_max_length = determine_max_scene_length (video_metadata, args.scene_max_length, args.scene_max_memory)
-        if scene_max_length < args.scene_min_length:
-            print(f"{file_index}, Skipping {file_path.name}: Scene maximum length is less than minimum length")
-            continue
+    file_queue = queue.Queue()
+    file_processing_options = FileProcessingOptions(input_dir=input_path,
+                                                    output_dir=output_dir,
+                                                    start_index=args.start_index,
+                                                    stride_length=args.stride_length,
+                                                    scene_max_length=args.scene_max_length,
+                                                    scene_max_memory=args.scene_max_memory,
+                                                    scene_min_length=args.scene_min_length,
+                                                    random_extend_masks=True)
 
-        print(f"{file_index}, Processing {file_path.name}")
+    scene_processing_options = SceneProcessingOptions(output_dir=output_dir,
+                                                  save_flat=args.flat,
+                                                  out_size=args.out_size,
+                                                  save_cropped=args.save_cropped,
+                                                  save_uncropped=args.save_uncropped,
+                                                  resize_crops=args.resize_crops,
+                                                  preserve_crops=args.preserve_crops,
+                                                  save_mosaic=args.save_mosaic,
+                                                  degrade_mosaic=args.degrade_mosaic,
+                                                  save_as_images=args.save_as_images,
+                                                  quality_evaluation=VideoQualityProcessingOptions(args.enable_video_quality_filter, args.add_video_quality_metadata, args.min_video_quality),
+                                                  watermark_detection=WatermarkDetectionProcessingOptions(args.enable_watermark_filter, args.add_watermark_metadata),
+                                                  nudenet_nsfw_detection=NudeNetNsfwDetectionProcessingOptions(args.enable_nudenet_nsfw_filter, args.add_nudenet_nsfw_metadata))
 
-        scene_processing_options = SceneProcessingOptions(output_dir=output_dir,
-                                                          save_flat=args.flat,
-                                                          out_size=args.out_size,
-                                                          save_cropped=args.save_cropped,
-                                                          save_uncropped=args.save_uncropped,
-                                                          resize_crops=args.resize_crops,
-                                                          preserve_crops=args.preserve_crops,
-                                                          save_mosaic=args.save_mosaic,
-                                                          degrade_mosaic=args.degrade_mosaic,
-                                                          save_as_images=args.save_as_images,
-                                                          quality_evaluation=VideoQualityProcessingOptions(args.enable_video_quality_filter, args.add_video_quality_metadata, args.min_video_quality),
-                                                          watermark_detection=WatermarkDetectionProcessingOptions(args.enable_watermark_filter, args.add_watermark_metadata),
-                                                          nudenet_nsfw_detection=NudeNetNsfwDetectionProcessingOptions(args.enable_nudenet_nsfw_filter, args.add_nudenet_nsfw_metadata))
-
-        file_processing_options = FileProcessingOptions(scene_max_length=scene_max_length,
-                                                        scene_min_length=args.scene_min_length,
-                                                        stride_length=args.stride_length)
-
-        scene_processing_futures.extend(process_file(nsfw_detection_model, video_metadata, output_dir, scenes_executor,
-                     io_executor, video_quality_evaluator, watermark_detector, nudenet_nsfw_detector, file_processing_options, scene_processing_options, args.workers,  args.model_device))
-        clean_up_completed_futures(scene_processing_futures)
-
-    wait(scene_processing_futures, return_when=ALL_COMPLETED)
+    nsfw_detector = NsfwDetector(nsfw_detection_model=nsfw_detection_model, device=args.model_device,
+                                 file_queue=file_queue,
+                                 # todo: optimize queue sizes
+                                 frame_queue=queue.Queue(30),
+                                 scene_queue=queue.Queue(3),
+                                 file_processing_options=file_processing_options)
+    try:
+        nsfw_detector.start()
+        nsfw_detector.add_files(video_files)
+        scene_futures = []
+        for scene in nsfw_detector():
+            print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
+            scene_futures.append(scenes_executor.submit(process_scene, scene, output_dir,
+                                       io_executor, video_quality_evaluator, watermark_detector, nudenet_nsfw_detector,
+                                       scene_processing_options))
+            while len([future for future in scene_futures if not future.done()]) >= args.workers + 1:
+                # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")
+                sleep(1)
+                pass  # do nothing until workers become available. Otherwise, we could queue up a lot of futures which use a lot of memory as we pass Scene objects
+            # we don't care about done futures, lets clean them up to potentially free memory
+            clean_up_completed_futures(scene_futures)
+            # print(f"deleted done future. futures now {len(scene_futures)}")
+        clean_up_completed_futures(scene_futures)
+        wait(scene_futures, return_when=ALL_COMPLETED)
+    finally:
+        nsfw_detector.stop()
 
     io_executor.shutdown(wait=True)
     scenes_executor.shutdown(wait=True)

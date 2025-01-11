@@ -1,20 +1,39 @@
+import logging
 import math
+import pathlib
+import queue
+import concurrent.futures as concurrent_futures
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Generator
+from typing import Generator, Optional, Dict
 
 import numpy as np
 import torch
 import ultralytics.models
+from ultralytics import YOLO
 
-from lada.lib import Mask, Image, Box, VideoMetadata
+from lada import LOG_LEVEL
+from lada.lib import Mask, Image, Box, VideoMetadata, threading_utils, video_utils
 from lada.lib import mask_utils
 from lada.lib.scene_utils import crop_to_box_v3
 from lada.lib.ultralytics_utils import choose_biggest_detection, convert_yolo_mask, convert_yolo_box
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=LOG_LEVEL)
+
+@dataclass
+class FileProcessingOptions:
+    input_dir: str
+    output_dir: pathlib.Path
+    start_index: int
+    stride_length: int
+    scene_min_length: int
+    scene_max_length: int
+    scene_max_memory: int
+    random_extend_masks: bool
 
 @dataclass
 class NsfwFrame:
+    video_metadata: VideoMetadata
     frame_number: int
     last_frame: bool
     frame: Image
@@ -36,9 +55,8 @@ class NsfwFrame:
 
 class Scene:
 
-    def __init__(self, file_path: Path, id, scene_min_length, scene_max_length, video_meta_data):
-        self.file_path = file_path
-        self.video_meta_data = video_meta_data
+    def __init__(self, video_meta_data, id, scene_min_length, scene_max_length):
+        self.video_meta_data: VideoMetadata = video_meta_data
         self.id: int = id
         self.data: list = []
         self.frame_start: int | None = None
@@ -93,7 +111,7 @@ class Scene:
 class CroppedScene:
 
     def __init__(self, scene: Scene, window_in_seconds=1.0, target_size=(400,400), smoothing=True, border_size=0):
-        self.file_path = scene.file_path
+        self.video_meta_data: VideoMetadata = scene.video_meta_data
         self.id: int = scene.id
         self.data: list = []
         self._index: int = 0
@@ -245,6 +263,15 @@ class SmoothSceneBoxes:
         smoothed_boxes = np.stack((new_t, new_l, new_b, new_r), axis=-1)
         return smoothed_boxes.tolist()
 
+def determine_max_scene_length(video_metadata: VideoMetadata, limit_seconds: int | None, limit_memory: int | None):
+    scene_max_length = None
+    if limit_seconds:
+        scene_max_length = limit_seconds
+    if limit_memory:
+        scene_max_length_memory = video_utils.approx_max_length_by_memory_limit(video_metadata, limit_memory)
+        scene_max_length = min(scene_max_length, scene_max_length_memory) if scene_max_length else scene_max_length_memory
+    return scene_max_length
+
 def apply_random_mask_extensions(scene: Scene):
     value = np.random.choice([0, 0, 1, 1, 2])
     for i in range(len(scene)):
@@ -253,58 +280,126 @@ def apply_random_mask_extensions(scene: Scene):
         box_extended = mask_utils.get_box(mask_extended)
         scene.data[i] = img, mask_extended, box_extended
 
-class NsfwFramesGenerator:
-    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device=None):
-        self.model = model
+class NsfwDetector:
+    def __init__(self, nsfw_detection_model: YOLO, device: str, file_queue: queue.Queue, frame_queue: queue.Queue, scene_queue: queue.Queue, file_processing_options: FileProcessingOptions, random_extend_masks=True):
+        self.nsfw_detection_model: YOLO = nsfw_detection_model
         self.device = torch.device(device) if device is not None else device
-        self.video_meta_data = video_meta_data
+        self.file_queue: queue.Queue = file_queue
+        self.frame_queue: queue.Queue = frame_queue
+        self.scene_queue: queue.Queue = scene_queue
+        self.file_processing_options = file_processing_options
 
-    def __call__(self, *args, **kwargs) -> Generator[NsfwFrame, None, None]:
-        nsfw_frame = None
-        for frame_num, results in enumerate(self.model.track(source=self.video_meta_data.video_file, stream=True, verbose=False, tracker="bytetrack.yaml", device=self.device)):
-            if nsfw_frame:
-                yield nsfw_frame
-            yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=True)
-            object_detected = yolo_box is not None
-            nsfw_frame = NsfwFrame(frame_num, False, results.orig_img, yolo_box, yolo_mask, object_detected, int(yolo_box.id.item()) if object_detected else None)
-        if nsfw_frame: # EOF
-            nsfw_frame.last_frame = True
-            yield nsfw_frame
-
-class NsfwSceneGenerator:
-    def __init__(self, model: ultralytics.models.YOLO, video_meta_data: VideoMetadata, device, scene_min_length: int, scene_max_length: int, random_extend_masks=False, stride_length=0):
-        self.nsfw_frames_generator: NsfwFramesGenerator = NsfwFramesGenerator(model, video_meta_data, device)
-        self.video_meta_data = video_meta_data
-        self.scene_min_length =  int(math.ceil(scene_min_length * self.video_meta_data.video_fps))
-        self.scene_max_length = int(math.ceil(scene_max_length * self.video_meta_data.video_fps))
-        self.video_file = self.video_meta_data.video_file
+        self.metadata: Dict[str, VideoMetadata] = {}
+        self.previous_completed_scene_frame_end: Dict[str, Optional[int]] = {}
+        self.scenes_counter: Dict[str, int] = {}
         self.random_extend_masks = random_extend_masks
-        self.stride_length_frames = stride_length * self.video_meta_data.video_fps
-        self.previous_completed_scene_frame_end = None
-        self.scenes_counter: int = 0
+
+        self.stop_requested = False
+        self.thread_pool = concurrent_futures.ThreadPoolExecutor()
+        self._frame_detector_thread_futures: list[concurrent_futures.Future] = []
+        self._scene_detector_thread_futures: list[concurrent_futures.Future] = []
+        self.frame_detector_thread_should_be_running = False
+        self.scene_detector_thread_should_be_running = False
 
     def _process_completed_scene(self, completed_scene: Scene) -> Optional[Scene]:
         """returns Scene if it fits the criteria for a valid completed scene like min/max length"""
         # todo: implementing video strides / discarding frames here is inefficient as we still pass every frame through YOLO / nsfw frames generator.
         #  We'd need to read and pass only the frames we want to be processed to YOLO instead of passing the video file.
-        skip_scene = not (completed_scene.min_length_reached() and (self.previous_completed_scene_frame_end is None or (completed_scene.frame_start - self.previous_completed_scene_frame_end) > self.stride_length_frames))
+        video_file = completed_scene.video_meta_data.video_file
+        skip_scene = not (completed_scene.min_length_reached() and (self.previous_completed_scene_frame_end[video_file] is None or (completed_scene.frame_start - self.previous_completed_scene_frame_end[video_file]) > self.stride_length_frames))
         if skip_scene:
             return None
-        self.scenes_counter += 1
-        completed_scene.id = self.scenes_counter
-        self.previous_completed_scene_frame_end = completed_scene.frame_end
+        self.scenes_counter[video_file] += 1
+        completed_scene.id = self.scenes_counter[video_file]
+        self.previous_completed_scene_frame_end[video_file] = completed_scene.frame_end
         if self.random_extend_masks:
             apply_random_mask_extensions(completed_scene)
         return completed_scene
 
-    def __call__(self) -> Generator[Scene, None, None]:
+    def _init_new_file(self, metadata: VideoMetadata):
+        file_path = metadata.video_file
+        self.metadata[file_path] = metadata
+        self.scene_min_length =  math.ceil(self.file_processing_options.scene_min_length * metadata.video_fps)
+        scene_max_length = determine_max_scene_length (metadata, self.file_processing_options.scene_max_length, self.file_processing_options.scene_max_memory)
+        self.scene_max_length = math.ceil(scene_max_length * metadata.video_fps)
+        self.stride_length_frames = math.ceil(self.file_processing_options.stride_length * metadata.video_fps)
+        self.previous_completed_scene_frame_end[file_path] = None
+        self.scenes_counter[file_path] = 0
+
+    def _check_file(self, file_index: 0, file_path: str) -> Optional[VideoMetadata]:
+        file_name = pathlib.Path(file_path)
+        if file_index < self.file_processing_options.start_index or len(list(self.file_processing_options.output_dir.glob(f"*/{file_path.name}*"))) > 0:
+            print(f"{file_index}, Skipping {file_name}: Already processed")
+            return None
+        if not video_utils.is_video_file(file_path):
+            print(f"{file_index}, Skipping {file_name}: Unsupported file format")
+            return None
+        video_metadata = video_utils.get_video_meta_data(file_path)
+        scene_max_length = determine_max_scene_length (video_metadata, self.file_processing_options.scene_max_length, self.file_processing_options.scene_max_memory)
+        if scene_max_length < self.file_processing_options.scene_min_length:
+            print(f"{file_index}, Skipping {file_name}: Scene maximum length is less than minimum length")
+            return None
+        return video_metadata
+
+    def add_files(self, video_files):
+        for file_index, file_path in enumerate(video_files):
+            self.file_queue.put((file_index, file_path))
+        self.file_queue.put(None)
+
+    def _frame_detector_worker(self):
+        logger.debug("NsfwDetector: frame detector worker: started")
+        while self.frame_detector_thread_should_be_running:
+            item: tuple[int, str] | None = self.file_queue.get()
+            if self.stop_requested:
+                logger.debug("NsfwDetector: frame detector worker: file_queue consumer unblocked")
+            if self.stop_requested:
+                break
+            if not item:
+                self.frame_queue.put(None)
+                break
+            video_file_index, video_file_path = item
+            video_metadata = self._check_file(video_file_index, video_file_path)
+            if not video_metadata:
+                break
+            if video_file_path not in self.metadata:
+                self._init_new_file(video_metadata)
+            nsfw_frame = None
+            print(f"{video_file_index}, Processing {pathlib.Path(video_file_path).name}")
+            for frame_num, results in enumerate(self.nsfw_detection_model.track(source=video_metadata.video_file, stream=True, verbose=False, tracker="bytetrack.yaml", device=self.device)):
+                if nsfw_frame:
+                    self.frame_queue.put(nsfw_frame)
+                    if self.stop_requested:
+                        logger.debug("NsfwDetector: frame detector worker: frame_queue producer unblocked")
+                    if self.stop_requested:
+                        break
+                yolo_box, yolo_mask = choose_biggest_detection(results, tracking_mode=True)
+                object_detected = yolo_box is not None
+                nsfw_frame = NsfwFrame(video_metadata, frame_num, False, results.orig_img, yolo_box, yolo_mask, object_detected, int(yolo_box.id.item()) if object_detected else None)
+            if nsfw_frame and not self.stop_requested:
+                nsfw_frame.last_frame = True
+                self.frame_queue.put(nsfw_frame)
+                if self.stop_requested:
+                    logger.debug("NsfwDetector: frame detector worker: frame_queue producer unblocked")
+
+    def _scene_detector_worker(self):
+        logger.debug("NsfwDetector: scene detector worker: started")
+
         scene: Scene | None = None
         nsfw_frame: NsfwFrame
 
-        for nsfw_frame in self.nsfw_frames_generator():
+        while self.scene_detector_thread_should_be_running:
+            nsfw_frame: NsfwFrame | None = self.frame_queue.get()
+            if self.stop_requested:
+                logger.debug("NsfwDetector: scene detector worker: frame_queue consumer unblocked")
+            if self.stop_requested:
+                break
+            if not nsfw_frame:
+                self.scene_queue.put(None)
+                break
+
             if nsfw_frame.object_detected:
                 if scene is None:
-                    scene = Scene(self.video_file, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length, self.video_meta_data)
+                    scene = Scene(nsfw_frame.video_metadata, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length)
                     scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask, nsfw_frame.box)
                 else:
                     if scene.id == nsfw_frame.object_id and scene.frame_end + 1 == nsfw_frame.frame_number:
@@ -312,12 +407,64 @@ class NsfwSceneGenerator:
                     else:
                         completed_scene = self._process_completed_scene(scene)
                         if completed_scene:
-                            yield completed_scene
-                        scene = Scene(self.video_file, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length, self.video_meta_data)
+                            self.scene_queue.put(completed_scene)
+                            if self.stop_requested:
+                                logger.debug("NsfwDetector: frame detector worker: scene_queue producer unblocked")
+                        scene = Scene(nsfw_frame.video_metadata, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length)
                         scene.add_frame(nsfw_frame.frame_number, nsfw_frame.frame, nsfw_frame.mask, nsfw_frame.box)
 
             if scene is not None and (nsfw_frame.last_frame or not nsfw_frame.object_detected):
                 completed_scene = self._process_completed_scene(scene)
-                if completed_scene:
-                    yield completed_scene
+                if completed_scene and not self.stop_requested:
+                    self.scene_queue.put(completed_scene)
+                    if self.stop_requested:
+                        logger.debug("NsfwDetector: frame detector worker: scene_queue producer unblocked")
                 scene = None
+
+    def __call__(self) -> Generator[Scene, None, None]:
+        while not self.stop_requested:
+            elem = self.scene_queue.get()
+            if self.stop_requested:
+                logger.debug("scene_queue consumer unblocked")
+            if elem is None and not self.stop_requested:
+                self.stop()
+                break
+            yield elem
+
+    def start(self):
+        self.stop_requested = False
+        self.frame_detector_thread_should_be_running = True
+        self.scene_detector_thread_should_be_running = True
+
+        # todo: experiment if multiple worker threads are beneficial
+        self._frame_detector_thread_futures.append(self.thread_pool.submit(self._frame_detector_worker))
+        self._scene_detector_thread_futures.append(self.thread_pool.submit(self._scene_detector_worker))
+
+    def stop(self):
+        logger.debug("NsfwDetector: stopping...")
+        self.stop_requested = True
+        self.frame_detector_thread_should_be_running = False
+        self.scene_detector_thread_should_be_running = False
+
+        # unblock consumer
+        for i in range(len(self._frame_detector_thread_futures)): threading_utils.put_closing_queue_marker(self.file_queue, "file_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.frame_queue, "frame_queue")
+        concurrent_futures.wait(self._frame_detector_thread_futures, return_when=concurrent_futures.ALL_COMPLETED)
+        logger.debug("NsfwDetector: frame detector worker: stopped")
+        self._frame_detector_thread_futures = []
+
+        # unblock consumer
+        for i in range(len(self._scene_detector_thread_futures)): threading_utils.put_closing_queue_marker(self.scene_queue, "scene_queue")
+        # unblock producer
+        threading_utils.empty_out_queue(self.scene_queue, "scene_queue")
+        concurrent_futures.wait(self._scene_detector_thread_futures, return_when=concurrent_futures.ALL_COMPLETED)
+        logger.debug("NsfwDetector: scene detector worker: stopped")
+        self._scene_detector_thread_futures = []
+
+        # garbage collection
+        threading_utils.empty_out_queue(self.file_queue, "file_queue")
+        threading_utils.empty_out_queue(self.file_queue, "frame_queue")
+        threading_utils.empty_out_queue(self.scene_queue, "scene_queue")
+
+        logger.debug(f"NsfwDetector: stopped")
