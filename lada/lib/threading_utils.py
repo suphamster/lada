@@ -1,5 +1,6 @@
 import logging
 from queue import Queue, Full, Empty
+import concurrent.futures as concurrent_futures
 from threading import Thread
 
 from lada import LOG_LEVEL
@@ -41,3 +42,19 @@ def empty_out_queue_until_producer_is_done(queue: Queue, debug_queue_name: str, 
     consumer_thread = Thread(target=consumer)
     consumer_thread.start()
     return consumer_thread
+
+def check_for_errors(futures: list[concurrent_futures.Future]):
+    for job in concurrent_futures.as_completed(futures):
+        exception = job.exception()
+        if exception:
+            print(f"future job failed with: {type(exception).__name__}: {exception}")
+            raise exception
+
+def wait_until_completed(futures: list[concurrent_futures.Future]):
+    concurrent_futures.wait(futures, return_when=concurrent_futures.ALL_COMPLETED)
+    check_for_errors(futures)
+
+def clean_up_completed_futures(completed_futures):
+    check_for_errors(completed_futures)
+    for job in concurrent_futures.as_completed(completed_futures):
+        completed_futures.remove(job)

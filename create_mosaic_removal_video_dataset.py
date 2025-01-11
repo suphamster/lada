@@ -1,8 +1,7 @@
 import argparse
 import pathlib
 import queue
-from concurrent import futures
-from concurrent.futures import wait, ALL_COMPLETED, ThreadPoolExecutor
+import concurrent.futures as concurrent_futures
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
@@ -21,6 +20,7 @@ from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosa
     get_mosaic_block_size_v2, get_mosaic_block_size_v3
 from lada.lib.nsfw_scene_detector import Scene, CroppedScene, NsfwDetector, FileProcessingOptions
 from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
+from lada.lib.threading_utils import wait_until_completed, clean_up_completed_futures
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.watermark_detector import WatermarkDetector
 
@@ -235,7 +235,7 @@ class DatasetItem:
             nudenet_nsfw_detected_classes=self._nudenet_nsfw_detected_classes,
         )
 
-    def save(self, output_dir, scene, mosaic, save_as_images, save_flat, target_fps, io_executor):
+    def save(self, output_dir, scene, mosaic, save_as_images, save_flat, target_fps, io_executor) -> list[concurrent_futures.Future]:
         io_futures = []
 
         def _save(data, file_type: Literal['mask', 'img', 'meta'], mosaic):
@@ -252,8 +252,7 @@ class DatasetItem:
             _save(self._meta, 'meta', mosaic)
         _save(self._images, 'img', mosaic)
         _save(self._masks, 'mask', mosaic)
-
-        wait(io_futures, return_when=ALL_COMPLETED)
+        return io_futures
 
 def save_vid(file_path: pathlib.Path, imgs: list[np.ndarray[np.uint8]], fps=30, gray=False):
     file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -323,7 +322,7 @@ def get_io_path(output_dir:pathlib.Path, scene_type: Literal['cropped_scaled', '
         raise TypeError("expected file_type to be one of: 'mask', 'img' or 'meta'")
     return frame_dir.joinpath(file_name)
 
-def process_scene(scene: Scene, output_dir: Path, io_executor,
+def process_scene(scene: Scene, output_dir: Path,
                   video_quality_evaluator: VideoQualityEvaluator, watermark_detector: WatermarkDetector, nudenet_nsfw_detector: NudeNetNsfwDetector, scene_processing_options: SceneProcessingOptions):
     print("Started processing scene", scene.id)
     cropped_scene = CroppedScene(scene, target_size=(scene_processing_options.out_size,scene_processing_options.out_size), border_size=0.08)
@@ -359,48 +358,57 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
         if scene_processing_options.save_uncropped:
             dataset_item_uncropped = DatasetItem(cropped_scene, scene, False, False, None, None, None, None, 'uncropped')
 
+    scene_analyzers_futures = []
+    with concurrent_futures.ThreadPoolExecutor() as scene_analyzers_executor:
+        #########
+        ## Video quality evaluation
+        #########
+        def _run_video_quality_evaluation():
+            if scene_processing_options.quality_evaluation.filter or scene_processing_options.quality_evaluation.add_metadata:
+                if scene_processing_options.save_cropped:
+                    if scene_processing_options.resize_crops:
+                        score = video_quality_evaluator.evaluate(dataset_item_crop_scaled.images)
+                        dataset_item_crop_scaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+                    if scene_processing_options.preserve_crops:
+                        score = video_quality_evaluator.evaluate(dataset_item_crop_unscaled.images)
+                        dataset_item_crop_unscaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+                if scene_processing_options.save_uncropped:
+                    score = video_quality_evaluator.evaluate(dataset_item_uncropped.images)
+                    dataset_item_uncropped.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+        scene_analyzers_futures.append(scene_analyzers_executor.submit(_run_video_quality_evaluation))
 
-    #########
-    ## Video quality evaluation
-    #########
-    if scene_processing_options.quality_evaluation.filter or scene_processing_options.quality_evaluation.add_metadata:
-        if scene_processing_options.save_cropped:
-            if scene_processing_options.resize_crops:
-                score = video_quality_evaluator.evaluate(dataset_item_crop_scaled.images)
-                dataset_item_crop_scaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
-            if scene_processing_options.preserve_crops:
-                score = video_quality_evaluator.evaluate(dataset_item_crop_unscaled.images)
-                dataset_item_crop_unscaled.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
-        if scene_processing_options.save_uncropped:
-            score = video_quality_evaluator.evaluate(dataset_item_uncropped.images)
-            dataset_item_uncropped.quality_score = restoration_dataset_metadata.VisualQualityScoreV1(**score)
+        #########
+        ## Watermark detection
+        #########
+        def _run_watermark_detection():
+            if scene_processing_options.watermark_detection.filter or scene_processing_options.watermark_detection.add_metadata:
+                if scene_processing_options.save_cropped:
+                    _watermark_detected = watermark_detector.detect(scene.get_images(), cropped_scene.get_boxes())
+                    if scene_processing_options.resize_crops:
+                        dataset_item_crop_scaled.watermark_detected = _watermark_detected
+                    if scene_processing_options.preserve_crops:
+                        dataset_item_crop_unscaled.watermark_detected = _watermark_detected
+                if scene_processing_options.save_uncropped:
+                    dataset_item_uncropped.watermark_detected = watermark_detector.detect(scene.get_images())
+        scene_analyzers_futures.append(scene_analyzers_executor.submit(_run_watermark_detection))
 
-    #########
-    ## Watermark detection
-    #########
-    if scene_processing_options.watermark_detection.filter or scene_processing_options.watermark_detection.add_metadata:
-        if scene_processing_options.save_cropped:
-            _watermark_detected = watermark_detector.detect(scene.get_images(), cropped_scene.get_boxes())
-            if scene_processing_options.resize_crops:
-                dataset_item_crop_scaled.watermark_detected = _watermark_detected
-            if scene_processing_options.preserve_crops:
-                dataset_item_crop_unscaled.watermark_detected = _watermark_detected
-        if scene_processing_options.save_uncropped:
-            dataset_item_uncropped.watermark_detected = watermark_detector.detect(scene.get_images())
+        #########
+        ## NudeNet NSFW detection
+        #########
+        def _run_nudenet_nsfw_detection():
+            if scene_processing_options.nudenet_nsfw_detection.filter or scene_processing_options.nudenet_nsfw_detection.add_metadata:
+                if scene_processing_options.save_cropped:
+                    _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = nudenet_nsfw_detector.detect(scene.get_images(), cropped_scene.get_boxes())
+                    if scene_processing_options.resize_crops:
+                        dataset_item_crop_scaled.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
+                    if scene_processing_options.preserve_crops:
+                        dataset_item_crop_unscaled.nudenet_nsfw_detected, dataset_item_crop_unscaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
+                if scene_processing_options.save_uncropped:
+                    _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = nudenet_nsfw_detector.detect(scene.get_images())
+                    dataset_item_uncropped.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
+        scene_analyzers_futures.append(scene_analyzers_executor.submit(_run_nudenet_nsfw_detection))
 
-    #########
-    ## NudeNet NSFW detection
-    #########
-    if scene_processing_options.nudenet_nsfw_detection.filter or scene_processing_options.nudenet_nsfw_detection.add_metadata:
-        if scene_processing_options.save_cropped:
-            _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = nudenet_nsfw_detector.detect(scene.get_images(), cropped_scene.get_boxes())
-            if scene_processing_options.resize_crops:
-                dataset_item_crop_scaled.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
-            if scene_processing_options.preserve_crops:
-                dataset_item_crop_unscaled.nudenet_nsfw_detected, dataset_item_crop_unscaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
-        if scene_processing_options.save_uncropped:
-            _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = nudenet_nsfw_detector.detect(scene.get_images())
-            dataset_item_uncropped.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
+    wait_until_completed(scene_analyzers_futures)
 
     #########
     ## META
@@ -436,39 +444,40 @@ def process_scene(scene: Scene, output_dir: Path, io_executor,
 
     if scene_processing_options.quality_evaluation.filter and scene_quality < scene_processing_options.quality_evaluation.min_quality:
         print(f"Skipped scene {scene.id} because of low visual video quality ({scene_quality:.4f} < {scene_processing_options.quality_evaluation.min_quality})")
+        return
     elif scene_processing_options.watermark_detection.filter and watermark_detected:
         print(f"Skipped scene {scene.id} because watermark(s) have been detected")
+        return
     elif scene_processing_options.nudenet_nsfw_detection.filter and not nudenet_nsfw_detected:
         print(f"Skipped scene {scene.id} because not NSFW according to NudeNetNsfwDetector")
-    else:
+        return
+
+    #########
+    ## Save
+    #########
+    io_futures = []
+    with concurrent_futures.ThreadPoolExecutor() as io_executor:
         if scene_processing_options.save_mosaic:
             if scene_processing_options.save_cropped:
                 if scene_processing_options.preserve_crops:
-                    dataset_item_mosaic_crop_unscaled.save(output_dir, scene, True, scene_processing_options.save_as_images, scene_processing_options.save_flat, scene.video_meta_data.video_fps, io_executor)
+                    io_futures.extend(dataset_item_mosaic_crop_unscaled.save(output_dir, scene, True, scene_processing_options.save_as_images, scene_processing_options.save_flat, scene.video_meta_data.video_fps, io_executor))
                 if scene_processing_options.resize_crops:
-                    dataset_item_mosaic_crop_scaled.save(output_dir, scene, True, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor)
+                    io_futures.extend(dataset_item_mosaic_crop_scaled.save(output_dir, scene, True, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor))
             if scene_processing_options.save_uncropped:
-                dataset_item_mosaic_uncropped.save(output_dir, scene, True, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor)
+                io_futures.extend(dataset_item_mosaic_uncropped.save(output_dir, scene, True, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor))
         if scene_processing_options.save_cropped:
             if scene_processing_options.preserve_crops:
-                dataset_item_crop_unscaled.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor)
+                io_futures.extend(dataset_item_crop_unscaled.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor))
             if scene_processing_options.resize_crops:
-                dataset_item_crop_scaled.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor)
+                io_futures.extend(dataset_item_crop_scaled.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor))
         if scene_processing_options.save_uncropped:
-            dataset_item_uncropped.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor)
-        print("Finished processing scene", scene.id)
-
-def clean_up_completed_futures(completed_futures):
-    for job in futures.as_completed(completed_futures):
-        exception = job.exception()
-        if exception:
-            print(f"ERR(main): failed processing scene: {type(exception).__name__}: {exception}")
-            raise exception
-        completed_futures.remove(job)
+            io_futures.extend(dataset_item_uncropped.save(output_dir, scene, False, scene_processing_options.save_as_images, scene_processing_options.save_flat,  scene.video_meta_data.video_fps, io_executor))
+    wait_until_completed(io_futures)
+    print("Finished processing scene", scene.id)
 
 def parse_args():
     parser = argparse.ArgumentParser("Create mosaic restoration dataset")
-    parser.add_argument('--workers', type=int, default=4, help="Set number of multiprocessing workers")
+    parser.add_argument('--workers', type=int, default=2, help="Set number of multiprocessing workers")
 
     input = parser.add_argument_group('Input')
     input.add_argument('--input', type=Path, help="path to a video file or a directory containing NSFW videos")
@@ -538,8 +547,7 @@ def main():
         print("No save option given. Specify at least one!")
         return
 
-    io_executor = ThreadPoolExecutor(max_workers=4)
-    scenes_executor = ThreadPoolExecutor(max_workers=args.workers)
+    scenes_executor = concurrent_futures.ThreadPoolExecutor(max_workers=args.workers)
 
     nsfw_detection_model = YOLO(args.model)
 
@@ -601,7 +609,7 @@ def main():
         for scene in nsfw_detector():
             print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
             scene_futures.append(scenes_executor.submit(process_scene, scene, output_dir,
-                                       io_executor, video_quality_evaluator, watermark_detector, nudenet_nsfw_detector,
+                                       video_quality_evaluator, watermark_detector, nudenet_nsfw_detector,
                                        scene_processing_options))
             while len([future for future in scene_futures if not future.done()]) >= args.workers + 1:
                 # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")
@@ -611,11 +619,10 @@ def main():
             clean_up_completed_futures(scene_futures)
             # print(f"deleted done future. futures now {len(scene_futures)}")
         clean_up_completed_futures(scene_futures)
-        wait(scene_futures, return_when=ALL_COMPLETED)
+        wait_until_completed(scene_futures)
     finally:
         nsfw_detector.stop()
 
-    io_executor.shutdown(wait=True)
     scenes_executor.shutdown(wait=True)
 
 
