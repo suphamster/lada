@@ -1,5 +1,6 @@
 import logging
 import math
+import os.path
 import pathlib
 import queue
 import concurrent.futures as concurrent_futures
@@ -340,6 +341,33 @@ class NsfwDetector:
         self.frame_detector_thread_should_be_running = False
         self.scene_detector_thread_should_be_running = False
 
+        self.no_nsfw_scenes_found_file: pathlib.Path = file_processing_options.output_dir.joinpath("no_nsfw_scenes.txt")
+        self.files_with_no_nsfw_scenes_found: list[str] = []
+        if self.no_nsfw_scenes_found_file.exists():
+            with open(self.no_nsfw_scenes_found_file, 'r', encoding='utf-8') as f:
+                for file_path in f:
+                    self.files_with_no_nsfw_scenes_found.append(file_path)
+
+    def _file_marked_as_no_nsfw_found(self, path_to_check: str):
+        for file_path in self.files_with_no_nsfw_scenes_found:
+            file_path = file_path.strip()
+            if os.path.exists(file_path) and os.path.samefile(file_path, path_to_check):
+                return True
+        return False
+
+    def _mark_file_as_no_nsfw_found(self, path_to_save: str):
+        if not os.path.exists(self.no_nsfw_scenes_found_file):
+            self.file_processing_options.output_dir.mkdir(parents=True, exist_ok=True)
+            p = pathlib.Path(self.no_nsfw_scenes_found_file)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.touch()
+        with open(self.no_nsfw_scenes_found_file, 'a', encoding='utf-8') as f:
+            f.write(f"{path_to_save}\n")
+
+    def _file_already_processed(self, path_to_check: str):
+        file_name = pathlib.Path(path_to_check).name
+        return len(list(self.file_processing_options.output_dir.glob(f"*/{file_name}*"))) > 0 or self._file_marked_as_no_nsfw_found(path_to_check)
+
     def _process_completed_scene(self, completed_scene: Scene) -> Optional[Scene]:
         """returns Scene if it fits the criteria for a valid completed scene like min/max length"""
         # todo: implementing video strides / discarding frames here is inefficient as we still pass every frame through YOLO / nsfw frames generator.
@@ -368,7 +396,7 @@ class NsfwDetector:
 
     def _check_file(self, file_index: 0, file_path: str) -> Optional[VideoMetadata]:
         file_name = pathlib.Path(file_path)
-        if file_index < self.file_processing_options.start_index or len(list(self.file_processing_options.output_dir.glob(f"*/{file_path.name}*"))) > 0:
+        if file_index < self.file_processing_options.start_index or self._file_already_processed(file_path):
             print(f"{file_index}, Skipping {file_name}: Already processed")
             return None
         if not video_utils.is_video_file(file_path):
@@ -426,6 +454,8 @@ class NsfwDetector:
 
         scene: Scene | None = None
         nsfw_frame: NsfwFrame
+        previous_file: str = None
+        previous_file_no_completed_scenes = True
 
         while self.scene_detector_thread_should_be_running:
             nsfw_frame: NsfwFrame | None = self.frame_queue.get()
@@ -439,6 +469,15 @@ class NsfwDetector:
                     logger.debug("NsfwDetector: frame detector worker: scene_queue producer unblocked")
                 break
 
+            if not previous_file:
+                previous_file = nsfw_frame.video_metadata.video_file
+            new_file = previous_file != nsfw_frame.video_metadata.video_file
+            if new_file:
+                if previous_file_no_completed_scenes:
+                    self._mark_file_as_no_nsfw_found(previous_file)
+                previous_file = nsfw_frame.video_metadata.video_file
+                previous_file_no_completed_scenes = True
+
             if nsfw_frame.object_detected:
                 if scene is None:
                     scene = Scene(nsfw_frame.video_metadata, nsfw_frame.object_id, self.scene_min_length, self.scene_max_length)
@@ -449,6 +488,7 @@ class NsfwDetector:
                     else:
                         completed_scene = self._process_completed_scene(scene)
                         if completed_scene:
+                            previous_file_no_completed_scenes = False
                             self.scene_queue.put(completed_scene)
                             if self.stop_requested:
                                 logger.debug("NsfwDetector: frame detector worker: scene_queue producer unblocked")
@@ -458,6 +498,7 @@ class NsfwDetector:
             if scene is not None and (nsfw_frame.last_frame or not nsfw_frame.object_detected):
                 completed_scene = self._process_completed_scene(scene)
                 if completed_scene and not self.stop_requested:
+                    previous_file_no_completed_scenes = False
                     self.scene_queue.put(completed_scene)
                     if self.stop_requested:
                         logger.debug("NsfwDetector: frame detector worker: scene_queue producer unblocked")
