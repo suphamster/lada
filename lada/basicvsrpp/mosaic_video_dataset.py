@@ -29,12 +29,22 @@ class MosaicVideoDataset(data.Dataset):
         self.max_frame_count = opt['num_frame']
         self.min_frame_count = opt['min_num_frame'] if 'min_num_frame' in opt else opt['num_frame']
         self.random_mosaic_params = opt.get('random_mosaic_params', True)
+        self.filter_watermark = opt.get('filter_watermark', False)
+        self.filter_nudenet_nsfw = opt.get('filter_nudenet_nsfw', False)
+        self.filter_video_quality = opt.get('filter_video_quality', False)
+        self.filter_watermark_thresh = 0.1
         self.repad = False
 
         self.metadata = []
         for meta_path in glob.glob(os.path.join(opt['metadata_root_dir'], '*')):
             meta = RestorationDatasetMetadataV2.from_json_file(meta_path)
             if meta.frames_count < self.min_frame_count:
+                continue
+            if self.filter_watermark and meta.watermark_detected:
+                continue
+            if self.filter_nudenet_nsfw and not meta.nudenet_nsfw_detected:
+                continue
+            if self.filter_video_quality and meta.video_quality and meta.video_quality.overall < self.filter_video_quality:
                 continue
             self.metadata.append(meta)
 

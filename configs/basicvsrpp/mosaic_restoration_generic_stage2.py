@@ -63,6 +63,9 @@ train_dataloader = dict(
         degrade=True,
         use_hflip=True,
         random_mosaic_params=True,
+        filter_watermark=False,
+        filter_nudenet_nsfw=False,
+        filter_video_quality=False,
         lq_size=256),
     collate_fn=dict(type='default_collate'))
 
@@ -78,6 +81,9 @@ val_dataloader = dict(
         degrade=False,
         use_hflip=False,
         random_mosaic_params=False,
+        filter_watermark=False,
+        filter_nudenet_nsfw=False,
+        filter_video_quality=False,
         lq_size=256),
     collate_fn=dict(type='default_collate'))
 
