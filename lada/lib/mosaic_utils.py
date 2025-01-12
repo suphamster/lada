@@ -4,7 +4,7 @@ import random
 import cv2
 import numpy as np
 
-from lada.lib import image_utils
+from lada.lib import image_utils, random_utils
 from lada.lib import visualization_utils
 
 
@@ -153,18 +153,20 @@ def get_random_parameter(mask, randomize_size=True):
 
     return get_random_parameters_by_block_size(mosaic_size, randomize_size)
 
-def get_random_parameters_by_block_size(mosaic_base_size, randomize_size):
-    mosaic_size = int(mosaic_base_size * random.uniform(0.9, 2.2)) if randomize_size else mosaic_base_size
+def get_random_parameters_by_block_size(mosaic_base_size, randomize_size, repeatable_random=False):
+    rng_random, rng_numpy = random_utils.get_rngs(repeatable_random)
+
+    mosaic_size = int(mosaic_base_size * rng_random.uniform(0.9, 2.2)) if randomize_size else mosaic_base_size
     # mosaic mod
     p = np.array([0.25, 0.3, 0.45])
-    mod = np.random.choice(['squa_mid', 'squa_avg', 'rect_avg'], p=p.ravel())
+    mod = rng_numpy.choice(['squa_mid', 'squa_avg', 'rect_avg'], p=p.ravel())
 
     # rect_rat for rect_avg
-    rect_rat = random.uniform(1.1, 1.6)
+    rect_rat = rng_random.uniform(1.1, 1.6)
 
     # feather size
     feather = -1
-    if random.random() < 0.7:
+    if rng_random.random() < 0.7:
         feather = int(mosaic_size * random.uniform(0, 1.5))
 
     return mosaic_size, mod, rect_rat, feather

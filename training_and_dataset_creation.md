@@ -45,10 +45,15 @@ Additional metadata and filtering can be adjusted as well. Check-out the *filter
 Try it on a small subset of your data first to see how it works.
 Also, check out the code `MosaicVideoDataset` in `mosaic_video_dataset.py` as well as the dataloader/dataset settings in `mosaic_restoration_generic_stage{1,2}.py` in the `config` dir to understand how this generated dataset will be used in training.
 
-For your final training dataset you don't need to save mosaic videos as mosaics are created on-the-fly by `MosaicVideoDataset` (default).
-Create mosaics up-front only for the validation dataset (pass `--save-mosaic` and `--degrade-mosaic`).
+With the default settings only cropped NSFW scenes and their segmentation masks will be generated (two directories). Mosaics will gen generated on-the-fly while training by torch dataset `MosaicVideoDataset`.
+There are options though to generate full-size scenes as well as mosaic scenes. I would not suggest to enable these options on your final large-sized dataset as it will take a lot of time and storage space.
 
-The script uses the NSFW detection model. It's not perfectly accurate, and you'll have to validate and remove false-positive clips manually after it ran.
+The script uses the NSFW detection model. Some filtering options are available in the training config files and in the script for automatic filtering of invalid data.
+Neither of those are perfectly accurate, and you probably want to validate and remove false-positive clips manually.
+
+> [!TIP]
+> I used the following workflow for manual clean-up:
+> (1) open the directory of created NSFW scenes in your file explorer in thumbnail view. (2) Wait until thumbnails have been created. (3) Based on what you can see in the thumbnail delete files if they contain watermarks or don't look like an actual NSFW scene. (4) write a shell script to delete corresponding mask and json metadata files 
 
 Now, with a dataset at hand we're ready to train a model.
 

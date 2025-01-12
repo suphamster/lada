@@ -5,7 +5,7 @@ import av
 import cv2
 import numpy as np
 
-from lada.lib import Image
+from lada.lib import Image, random_utils
 from lada.lib import video_utils
 from lada.lib.degradations import generate_gaussian_noise, add_jpg_compression, random_mixed_kernels
 
@@ -60,19 +60,22 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate):
 
 
 class MosaicRandomDegradationParams:
-    def __init__(self, should_down_sample=True, should_add_noise=True, should_add_image_compression=True, should_add_video_compression=False, should_add_blur=False):
+    def __init__(self, should_down_sample=True, should_add_noise=True, should_add_image_compression=True, should_add_video_compression=False, should_add_blur=False, repeatable_random=False):
+        rng_random, rng_numpy = random_utils.get_rngs(repeatable_random)
+
         # down sample
-        self.should_down_sample = should_down_sample and random.random()<0.5
+        self.should_down_sample = should_down_sample and rng_random.random()<0.5
         down_sample_range = [0.5, 2.0]
-        self.scale = np.random.uniform(down_sample_range[0], down_sample_range[1])
+        self.scale = rng_numpy.uniform(down_sample_range[0], down_sample_range[1])
         # noise
-        self.should_add_noise = should_add_noise and random.random()<0.3
+        self.should_add_noise = should_add_noise and rng_random.random()<0.3
         sigma_range = [0,2]
-        self.sigma = np.random.uniform(sigma_range[0], sigma_range[1])
+        self.sigma = rng_numpy.uniform(sigma_range[0], sigma_range[1])
+        self.repeatable_noise = repeatable_random
         # jpeg compression
-        self.should_add_jpeg_compression = should_add_image_compression and random.random()<0.5
+        self.should_add_jpeg_compression = should_add_image_compression and rng_random.random()<0.5
         jpeg_range = [70, 90]
-        self.jpeg_quality = np.random.uniform(jpeg_range[0], jpeg_range[1])
+        self.jpeg_quality = rng_numpy.uniform(jpeg_range[0], jpeg_range[1])
         # video compression
         codecs = {
             "libx264": (15_000, 100_000),
@@ -80,18 +83,19 @@ class MosaicRandomDegradationParams:
             "libvpx-vp9": (10_000, 60_000),
             "mpeg4": (15_000, 100_000)
         }
-        self.video_codec = random.choice(list(codecs.keys()))
-        self.video_bitrate = np.random.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
-        self.should_add_video_compression = should_add_video_compression and random.random()<0.5
+        self.video_codec = rng_random.choice(list(codecs.keys()))
+        self.video_bitrate = rng_numpy.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
+        self.should_add_video_compression = should_add_video_compression and rng_random.random()<0.5
         # blur
-        self.should_add_blur = should_add_blur and random.random() < 0.5
+        self.should_add_blur = should_add_blur and rng_random.random() < 0.5
         self.blur_kernel = random_mixed_kernels(
             kernel_list = ('iso', 'aniso'),
             kernel_prob = (0.5, 0.5),
             kernel_size = 41,
             sigma_x_range = (0., 2),
             sigma_y_range = (0., 2),
-            noise_range=None)
+            noise_range=None,
+            repeatable_random=repeatable_random)
 
 
 def apply_frame_degradation(img: Image, degradation_params: MosaicRandomDegradationParams) -> Image:
@@ -105,7 +109,7 @@ def apply_frame_degradation(img: Image, degradation_params: MosaicRandomDegradat
         img_lq = cv2.resize(img_lq, (int(w // degradation_params.scale), int(h // degradation_params.scale)), interpolation=cv2.INTER_LINEAR)
     # noise
     if degradation_params.should_add_noise:
-        noise = generate_gaussian_noise(img_lq, degradation_params.sigma, False)
+        noise = generate_gaussian_noise(img_lq, degradation_params.sigma, False, repeatable_random=degradation_params.repeatable_noise)
         img_lq = np.clip(img_lq + noise, 0, 1)
     # jpeg compression
     if degradation_params.should_add_jpeg_compression:

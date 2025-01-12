@@ -1,6 +1,5 @@
 import glob
 import os.path
-import random
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +9,7 @@ from lada.basicvsrpp.mmagic.data_sample import DataSample
 from lada.basicvsrpp.mmagic.registry import DATASETS
 
 import lada.lib.video_utils as video_utils
+from lada.lib import random_utils
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_video_degradation
@@ -29,11 +29,13 @@ class MosaicVideoDataset(data.Dataset):
         self.max_frame_count = opt['num_frame']
         self.min_frame_count = opt['min_num_frame'] if 'min_num_frame' in opt else opt['num_frame']
         self.random_mosaic_params = opt.get('random_mosaic_params', True)
+        self.repeatable_random = opt.get('repeatable_random', False)
         self.filter_watermark = opt.get('filter_watermark', False)
         self.filter_nudenet_nsfw = opt.get('filter_nudenet_nsfw', False)
         self.filter_video_quality = opt.get('filter_video_quality', False)
         self.filter_watermark_thresh = 0.1
         self.repad = False
+        self.rng_random, _ = random_utils.get_rngs(self.repeatable_random)
 
         self.metadata = []
         for meta_path in glob.glob(os.path.join(opt['metadata_root_dir'], '*')):
@@ -50,7 +52,7 @@ class MosaicVideoDataset(data.Dataset):
 
     def get_mosaic_params(self, meta: RestorationDatasetMetadataV2):
         if self.random_mosaic_params:
-            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = get_random_parameters_by_block_size(meta.base_mosaic_block_size.mosaic_size_v1_normal, randomize_size=True)
+            mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = get_random_parameters_by_block_size(meta.base_mosaic_block_size.mosaic_size_v1_normal, randomize_size=True, repeatable_random=self.repeatable_random)
         else:
             mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size = meta.mosaic.mosaic_size, meta.mosaic.mod, meta.mosaic.rect_ratio, meta.mosaic.feather_size
         return mosaic_size, mosaic_mod, mosaic_rectangle_ratio, mosaic_feather_size
@@ -62,7 +64,7 @@ class MosaicVideoDataset(data.Dataset):
             end_frame_idx = meta.frames_count - 1
         else:
             # randomly select shorter clip of length num_frame
-            start_frame_idx = random.randint(0, meta.frames_count - self.max_frame_count)
+            start_frame_idx = self.rng_random.randint(0, meta.frames_count - self.max_frame_count)
             end_frame_idx = start_frame_idx + self.max_frame_count
         return end_frame_idx, start_frame_idx
 
@@ -101,13 +103,14 @@ class MosaicVideoDataset(data.Dataset):
             if self.degrade:
                 degradation_params = MosaicRandomDegradationParams(should_down_sample=True, should_add_noise=True,
                                                                    should_add_image_compression=True,
-                                                                   should_add_video_compression=True)
+                                                                   should_add_video_compression=True,
+                                                                   repeatable_random=self.repeatable_random)
                 img_lqs = apply_video_degradation(img_lqs, degradation_params)
 
         img_gts = video_utils.resize_video_frames(img_gts, self.lq_size)
         img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
 
-        if self.use_hflip and random.random() < 0.5:
+        if self.use_hflip and self.rng_random.random() < 0.5:
             img_gts = [np.fliplr(img) for img in img_gts]
             img_lqs = [np.fliplr(img) for img in img_lqs]
 
