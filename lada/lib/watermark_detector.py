@@ -5,7 +5,6 @@ from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_yo
 from lada.lib.scene_utils import box_overlap
 from lada.lib import Image, Box
 from ultralytics import YOLO
-import random
 
 disable_ultralytics_telemetry()
 
@@ -13,32 +12,33 @@ class WatermarkDetector:
     def __init__(self, model: YOLO, device):
         self.model = model
         self.device = device
+        self.batch_size = 4
+        self.min_confidence = 0.2
+        self.min_positive_detections = 4
+        self.sampling_rate = 0.3
 
-    def detect(self, images:list[Image], boxes:Optional[list[Box]]=None, max_samples=20, min_confidence=0.2, min_positive_detections=4, batch_size=4) -> bool:
-        if boxes:
-            indices = list(range(len(images)))
-            indices = random.sample(indices, min(len(images), max_samples))
-            samples = itemgetter(*indices)(images)
-            samples_boxes = itemgetter(*indices)(boxes)
-        else:
-            samples = random.sample(images, min(len(images), max_samples))
-            samples_boxes = None
+    def detect(self, images:list[Image], boxes:Optional[list[Box]]=None) -> bool:
+        num_samples = min(len(images), int(len(images)*self.sampling_rate))
+        indices_step_size = len(images) // num_samples
+        indices = list(range(0, num_samples*indices_step_size, indices_step_size))
+        samples = itemgetter(*indices)(images)
+        samples_boxes = itemgetter(*indices)(boxes) if boxes else None
 
-        batches = [samples[i:i + batch_size] for i in range(0, len(samples), batch_size)]
+        batches = [samples[i:i + self.batch_size] for i in range(0, len(samples), self.batch_size)]
         positive_detections = 0
         for batch_idx, batch in enumerate(batches):
             # not exactly sure why but prediction accuracy is horrible if not setting imgsz to 640 even though model was trained with 512 in train-yolo-watermark-detector.py.
-            batch_prediction_results = self.model.predict(source=batch, stream=False, verbose=False, device=self.device, conf=min_confidence, imgsz=640)
+            batch_prediction_results = self.model.predict(source=batch, stream=False, verbose=False, device=self.device, conf=self.min_confidence, imgsz=640)
             for result_idx, results in enumerate(batch_prediction_results):
-                sample_idx = batch_idx * batch_size + result_idx
+                sample_idx = batch_idx * self.batch_size + result_idx
                 detections = results.boxes.conf.size(dim=0)
                 if detections == 0:
                     continue
                 detection_confidences = results.boxes.conf.tolist()
                 detection_boxes = convert_yolo_boxes(results.boxes, results.orig_shape)
-                single_image_watermark_detected = any(conf > min_confidence and (not samples_boxes or box_overlap(detection_boxes[i], samples_boxes[sample_idx])) for i, conf in enumerate(detection_confidences))
+                single_image_watermark_detected = any(conf > self.min_confidence and (not samples_boxes or box_overlap(detection_boxes[i], samples_boxes[sample_idx])) for i, conf in enumerate(detection_confidences))
                 if single_image_watermark_detected:
                     positive_detections += 1
-        watermark_detected = positive_detections > min_positive_detections
+        watermark_detected = positive_detections > self.min_positive_detections
         #print(f"watermark detector: watermark {watermark_detected}, detected {positive_detections}/{len(samples)}")
         return watermark_detected
