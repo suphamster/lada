@@ -1,4 +1,3 @@
-from operator import itemgetter
 from typing import Optional
 
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_yolo_boxes
@@ -18,16 +17,16 @@ class NudeNetNsfwDetector:
         self.model = model
         self.device = device
         self.batch_size = 4
-        self.min_confidence = 0.2
-        self.min_positive_detections = 4
+        self.min_confidence = 0.15
+        self.min_positive_detections = 6
         self.sampling_rate = 0.3
 
     def detect(self, images:list[Image], boxes:Optional[list[Box]]=None) -> tuple[bool, bool, bool]:
-        num_samples = min(len(images), int(len(images)*self.sampling_rate))
+        num_samples = min(len(images), max(1, int(len(images)*self.sampling_rate)))
         indices_step_size = len(images) // num_samples
         indices_of_nsfw_elements = list(range(0, num_samples*indices_step_size, indices_step_size))
-        samples = itemgetter(*indices_of_nsfw_elements)(images)
-        samples_boxes = itemgetter(*indices_of_nsfw_elements)(boxes) if boxes else None
+        samples = [images[i] for i in indices_of_nsfw_elements]
+        samples_boxes = [boxes[i] for i in indices_of_nsfw_elements] if boxes else None
 
         batches = [samples[i:i + self.batch_size] for i in range(0, len(samples), self.batch_size)]
         positive_detections = 0
@@ -62,7 +61,7 @@ class NudeNetNsfwDetector:
                     positive_male_detections += 1
                 if single_image_nsfw_female_detected:
                     positive_female_detections += 1
-        nsfw_detected = positive_detections > self.min_positive_detections
+        nsfw_detected = positive_detections >= self.min_positive_detections
         nsfw_male_detected = positive_male_detections > self.min_positive_detections
         nsfw_female_detected = positive_female_detections > self.min_positive_detections
         #print(f"nudenet nsfw detector: nsfw {nsfw_detected}, detected {positive_detections}/{len(samples)}")

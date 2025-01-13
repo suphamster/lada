@@ -1,4 +1,3 @@
-from operator import itemgetter
 from typing import Optional
 
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_yolo_boxes
@@ -18,11 +17,11 @@ class WatermarkDetector:
         self.sampling_rate = 0.3
 
     def detect(self, images:list[Image], boxes:Optional[list[Box]]=None) -> bool:
-        num_samples = min(len(images), int(len(images)*self.sampling_rate))
+        num_samples = min(len(images), max(1, int(len(images) * self.sampling_rate)))
         indices_step_size = len(images) // num_samples
         indices = list(range(0, num_samples*indices_step_size, indices_step_size))
-        samples = itemgetter(*indices)(images)
-        samples_boxes = itemgetter(*indices)(boxes) if boxes else None
+        samples = [images[i] for i in indices]
+        samples_boxes = [boxes[i] for i in indices] if boxes else None
 
         batches = [samples[i:i + self.batch_size] for i in range(0, len(samples), self.batch_size)]
         positive_detections = 0
@@ -39,6 +38,6 @@ class WatermarkDetector:
                 single_image_watermark_detected = any(conf > self.min_confidence and (not samples_boxes or box_overlap(detection_boxes[i], samples_boxes[sample_idx])) for i, conf in enumerate(detection_confidences))
                 if single_image_watermark_detected:
                     positive_detections += 1
-        watermark_detected = positive_detections > self.min_positive_detections
+        watermark_detected = positive_detections >= self.min_positive_detections
         #print(f"watermark detector: watermark {watermark_detected}, detected {positive_detections}/{len(samples)}")
         return watermark_detected
