@@ -179,8 +179,8 @@ To train the models and create your own datasets you'll also need these files
 wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
 wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
 wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta/lada_nsfw_detection_model_v1.1.pt'
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta/lada_watermark_detection_model_v1.1.pt'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta3/lada_nsfw_detection_model_v1.2.pt'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta2/lada_watermark_detection_model_v1.1.pt'
 wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
 ```
 

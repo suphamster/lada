@@ -501,7 +501,7 @@ def parse_args():
                         help="Save as images instead of videos")
 
     nsfw_detection = parser.add_argument_group('NSFW detection')
-    nsfw_detection.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model_v1.1.pt",
+    nsfw_detection.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model_v1.2.pt",
                         help="path to NSFW detection model")
     nsfw_detection.add_argument('--model-device', type=str, default="cuda", help="device to run the YOLO model on. E.g. 'cuda' or 'cuda:0'")
 
