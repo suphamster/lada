@@ -1,0 +1,2 @@
+todo: push to docker hub and add the link here. update readme in root also to add docker as alternative installation method for CLI
+(mention people need to install docker and nvidia container toolkit first; add example docker run command)
