@@ -29,7 +29,8 @@ RUN pip install --no-deps --no-cache-dir --find-links file:///home/lada/mmcv --r
     && rm -r mmcv
 RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@https://github.com/ladaapp/lada/archive/refs/tags/v0.4.2.zip#sha1=38d727ecc55146d6fc82045e484db3cced7d2a06'
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.5.0-beta3/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-suggests --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-01-15-12-55/ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1/bin/ffprobe ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1/bin/ffmpeg && chmod -R 555 ffmpeg
+ENV PATH="/home/lada/ffmpeg:$PATH"
 RUN mkdir -p /home/lada/.config/Ultralytics \
     && echo '{"settings_version":"0.0.6","datasets_dir":"datasets","weights_dir":"weights","runs_dir":"experiments","uuid":"dummy","sync":false,"api_key":"","openai_api_key":"","clearml":false,"comet":false,"dvc":false,"hub":false,"mlflow":false,"neptune":false,"raytune":false,"tensorboard":false,"wandb":false,"vscode_msg":false}' > /home/lada/.config/Ultralytics/settings.json \
     && chown -R lada:lada /home/lada/.config
@@ -45,4 +46,3 @@ USER lada
 
 ENTRYPOINT ["lada-cli"]
 CMD ["--help"]
-~

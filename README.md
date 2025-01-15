@@ -57,7 +57,8 @@ lada-cli --input <input video path> --output <output video path>
 > [!TIP]
 > If you've installed the app via Docker you can pass the parameters via docker run
 >  ```shell
->  docker run --rm --gpus all ladaapp/lada --input <input video path> --output <output video path>
+> docker run --rm --gpus all --mount type=bind,src=<path to input/output video dir>,dst=/mnt ladaapp/lada:latest --input /mnt/<input video file> --output /mnt/<output video file>
+> ```
 
 > [!TIP]
 > Lada will write the restored video first to a temporary file before it is being combined with the audio stream from the original file and written to the selected destination.
