@@ -55,6 +55,11 @@ lada-cli --input <input video path> --output <output video path>
 >  ```
 
 > [!TIP]
+> If you've installed the app via Docker you can pass the parameters via docker run
+>  ```shell
+>  docker run --rm --gpus all ladaapp/lada --input <input video path> --output <output video path>
+
+> [!TIP]
 > Lada will write the restored video first to a temporary file before it is being combined with the audio stream from the original file and written to the selected destination.
 > Default location is `/tmp`. You can overwrite it by setting the `TMPDIR` environment variable.
 > On flatpak you can either pass `--env=TMPDIR=/my/custom/tempdir` to the run command or you can use Flatseal to overwrite this permanently.
@@ -88,7 +93,7 @@ It may or may not work on Windows and Mac and other GPUs. You'll have to try to 
 Patches / reports welcome if you are able to make it run on other systems.
 
 ## Installation
-On Linux the easiest way to install the app is to get it from Flathub.
+On Linux the easiest way to install the app (CLI and GUI) is to get it from Flathub.
 
 <a href='https://flathub.org/apps/details/io.github.ladaapp.lada'><img width='200' alt='Download from Flathub' src='https://flathub.org/api/badge?svg&locale=en'/></a>
 
@@ -96,7 +101,14 @@ On Linux the easiest way to install the app is to get it from Flathub.
 > The flatpak works only with x86_64 CPUs with Nvidia/CUDA GPUs. Make sure your system is using NVIDIAs official driver not `nouveau`.
 > (CPU-only inference technically works also, but read the notes in [Status](#Status) first).
 
-If you don't want to use flatpak, have other hardware specs than what the flatpak is built for or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
+The app is also available via docker (CLI only!), you can pull it from dockerhub:
+```shell
+docker pull ladaapp/lada:latest
+````
+The image has the same limitations as the flatpak: x86_64 CPU + Nvidia/CUDA GPU only. In order to use your GPU make sure to install
+[Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) first.
+
+If you don't want to use flatpak/docker, have other hardware specs than what the flatpak is built for or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
 Contributions welcome if someone is able to package the app for other systems.
 
 ## Models
