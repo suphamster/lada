@@ -7,6 +7,8 @@ RUN mkdir mmcv \
     && rm -r mmcv
 RUN pip install --root-user-action=ignore --no-deps 'lada[basicvsrpp]@https://github.com/ladaapp/lada/archive/refs/tags/v0.4.2.zip#sha1=38d727ecc55146d6fc82045e484db3cced7d2a06'
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.5.0-beta3/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
+RUN mkdir -p /home/lada/.config/Ultralytics \
+    && echo '{"settings_version":"0.0.6","datasets_dir":"datasets","weights_dir":"weights","runs_dir":"experiments","uuid":"dummy","sync":false,"api_key":"","openai_api_key":"","clearml":false,"comet":false,"dvc":false,"hub":false,"mlflow":false,"neptune":false,"raytune":false,"tensorboard":false,"wandb":false,"vscode_msg":false}' > /home/lada/.config/Ultralytics/settings.json
 RUN mkdir model_weights
 ADD --checksum=sha256:056756fcab250bcdf0833e75aac33e2197b8809b0ab8c16e14722dcec94269b5 \
     https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt model_weights/lada_mosaic_detection_model_v2.pt
