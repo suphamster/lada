@@ -26,7 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'lada = lada.gui.main:main',
-            'lada-cli = lada.cli.remove_mosaic:cli'
+            'lada-cli = lada.cli.main:main'
         ],
     }
 )

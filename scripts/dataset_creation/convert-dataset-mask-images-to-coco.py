@@ -174,5 +174,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python yolo/convert-mask-images-to-coco.py --images-dir datasets/nsfw_detection/train/img --masks-dir  datasets/nsfw_detection/train/img_mask --output-file datasets/nsfw_detection/train/coco.json
-# python yolo/convert-mask-images-to-coco.py --images-dir datasets/nsfw_detection/val/img --masks-dir  datasets/nsfw_detection/val/img_mask --output-file datasets/nsfw_detection/val/coco.json
+# python yolo/convert-dataset-mask-images-to-coco.py --images-dir datasets/nsfw_detection/train/img --masks-dir  datasets/nsfw_detection/train/img_mask --output-file datasets/nsfw_detection/train/coco.json
+# python yolo/convert-dataset-mask-images-to-coco.py --images-dir datasets/nsfw_detection/val/img --masks-dir  datasets/nsfw_detection/val/img_mask --output-file datasets/nsfw_detection/val/coco.json

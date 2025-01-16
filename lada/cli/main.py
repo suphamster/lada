@@ -38,7 +38,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def cli():
+def main():
     args = parse_args()
     if args.version:
         print("Lada: ", VERSION)
@@ -92,4 +92,4 @@ def cli():
 
 
 if __name__ == '__main__':
-    cli()
+    main()

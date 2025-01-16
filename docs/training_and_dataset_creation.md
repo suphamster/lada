@@ -27,7 +27,7 @@ Before we can train the model we'll need to create a dataset.
 AFAIK, there are no publicly available datasets for such purpose and I'll not provide one either. But you can create your own dataset for training mosaic removal models with the following procedure:
 
 ```shell
-python create_mosaic_removal_video_dataset.py --input <input dir> --output-root <output dir>
+python scripts/dataset_creation/create-mosaic-restoration-dataset.py --input <input dir> --output-root <output dir>
 ```
 Here `<input dir>` should be a directory containing your source material (adult video files without mosaics).
 
@@ -60,22 +60,22 @@ Now, with a dataset at hand we're ready to train a model.
 Training the mosaic restoration model is done in two steps. You can find training scripts in the project root directory and related configuration files in the `config` directory.
 The first stage consists of training a BasicVSR++ model only with pixel loss (you'll need to create a dataset first)
 ```shell
-python train_basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_stage1.py
+python scripts/training/train-mosaic-restoration-basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_stage1.py
 ```
 > You can continue an interrupted run by adding `--resume` to the command line.
 
 Before we can continue training stage2 you'll have to convert the trained weights into the GAN-compatible model with the following script
 ```shell
-python lada/basicvsrpp/convert_weights_to_basicvsrpp_gan.py
+python scripts/training/convert-weights-basicvsrpp-stage1-to-stage2.py
 ```
 Now we can continue training with additional GAN and perceptual losses.
 ```shell
-python train_basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_stage2.py --load-from experiments/basicvsrpp/mosaic_restoration_generic_stage1/iter_10000_converted.pth
+python scripts/training/train-mosaic-restoration-basicvsrpp.py configs/basicvsrpp/mosaic_restoration_generic_stage2.py --load-from experiments/basicvsrpp/mosaic_restoration_generic_stage1/iter_10000_converted.pth
 ```
 
 If you're happy with the model you can export it for inference and remove the discriminator model via:
 ```shell
-python lada/basicvsrpp/export_gan_inference_model_weights.py
+python scripts/training/export-weights-basicvsrpp-stage2-for-inference.py
 ```
 
 Note that the model is implemented in the MMagic / MMEngine framework. If you need to adjust model or training parameters you can do that by adjusting
@@ -134,13 +134,13 @@ We're training a YOLO v11 segmentation model (`yolo11m-seg`).
 YOLO or rather the library we're using to train it (*ultralytics*) does not support labelme format so we'll have to convert into the format they can understand:
 ```shell
 mkdir -p datasets/nsfw_detection/{train,val}/{images,labels}
-python lada/yolo/convert-labelme-to-yolo.py --dir-in datasets/nsfw_detection_labelme/train --dir-out-images datasets/nsfw_detection/train/images --dir-out-labels datasets/nsfw_detection/train/labels
-python lada/yolo/convert-labelme-to-yolo.py --dir-in datasets/nsfw_detection_labelme/val --dir-out-images datasets/nsfw_detection/val/images --dir-out-labels datasets/nsfw_detection/val/labels
+python scripts/dataset_creation/convert-dataset-labelme-to-yolo.py --dir-in datasets/nsfw_detection_labelme/train --dir-out-images datasets/nsfw_detection/train/images --dir-out-labels datasets/nsfw_detection/train/labels
+python scripts/dataset_creation/convert-dataset-labelme-to-yolo.py --dir-in datasets/nsfw_detection_labelme/val --dir-out-images datasets/nsfw_detection/val/images --dir-out-labels datasets/nsfw_detection/val/labels
 ```
 
 With that step out of the way we're now ready to start the training process. Simply run
 ```shell
-python lada/yolo/train-yolo-nsfw-detection.py
+python scripts/training/train-nsfw-detection-yolo.py
 ```
 
 > [!TIP]
@@ -149,7 +149,7 @@ python lada/yolo/train-yolo-nsfw-detection.py
 
 Once that is done test it on some real-world NSFW videos (not from the source material you've been training with) using the following script:
 ```shell
-python lada/yolo/view-yolo.py --input <path to your nsfw file> --model-path experiments/yolo/segment/train_nsfw_detection_yolo11m/weights/best.pt --screenshot-dir datasets/nsfw_detection_labelme/train
+python scripts/evaluation/view-yolo.py --input <path to your nsfw file> --model-path experiments/yolo/segment/train_nsfw_detection_yolo11m/weights/best.pt --screenshot-dir datasets/nsfw_detection_labelme/train
 ```
 
 This will open a very simple GUI where you can seek through the video frame-by-frame to check the detection result (masks and prediction confidence levels).
@@ -175,7 +175,7 @@ You can create a dataset for mosaic detection using the following command:
 mosaic_detection_dataset_source_material="datasets/mosaic_detection_raw"
 mosaic_detection_dataset_tmp_dir="datasets/mosaic_detection_tmp"
 
-python create_mosaic_detection_image_dataset.py --input-root "$mosaic_detection_dataset_source_material"  --output-root "$mosaic_detection_dataset_tmp_dir"
+python create-mosaic-detection-dataset.py --input-root "$mosaic_detection_dataset_source_material"  --output-root "$mosaic_detection_dataset_tmp_dir"
 ```
 
 The script will run the NSFW detection model on the source material. For frames with NSFW content it will use the segmentation mask and the original video frame
@@ -191,8 +191,8 @@ The mosaic detection model uses the same architecture as the NSFW detection mode
 to a format that the training library of YOLO *ultralytics* understands. For this we'll convert the binary mask images (PNG files) first to COCO format and then to YOLO format.
 
 ```shell
-python lada/yolo/convert-mask-images-to-coco.py --images-dir "$mosaic_detection_dataset_tmp_dir/img" --masks-dir "$mosaic_detection_dataset_tmp_dir/mask" --output-file "$mosaic_detection_dataset_tmp_dir/coco.json"
-python lada/yolo/convert-coco-to-yolo.py --coco-file "$mosaic_detection_dataset_tmp_dir/coco.json" --yolo-labels-dir "$mosaic_detection_dataset_tmp_dir/labels"
+python scripts/dataset_creation/convert-dataset-mask-images-to-coco.py --images-dir "$mosaic_detection_dataset_tmp_dir/img" --masks-dir "$mosaic_detection_dataset_tmp_dir/mask" --output-file "$mosaic_detection_dataset_tmp_dir/coco.json"
+python scripts/dataset_creation/convert-dataset-coco-to-yolo.py --coco-file "$mosaic_detection_dataset_tmp_dir/coco.json" --yolo-labels-dir "$mosaic_detection_dataset_tmp_dir/labels"
 ```
 
 Now we just need to split it into a training and test set.
@@ -223,7 +223,7 @@ mv "$mosaic_detection_dataset_tmp_dir/labels" "$mosaic_detection_dataset_dir/tra
 
 Now we can train the model via
 ```shell
-python lada/yolo/train-yolo-mosaic-detection.py
+python scripts/training/train-mosaic-detection-yolo.py
 ```
 
 > [!TIP]
@@ -245,5 +245,5 @@ Download the val and train YOLO zip files and extract them to `datasets/watermar
 
 In order to train the model run
 ```shell
-python lada/yolo/train-yolo-watermark-detection.py
+python scripts/training/train-watermark-detection-yolo.py
 ```

@@ -73,7 +73,7 @@ opt["T"] = 2*opt["N"]+1
 if opt["showresult_num"] >opt["batchsize"]:
     opt["showresult_num"] = opt["batchsize"]
 
-experiment_root_dir = os.path.join('experiments',opt["savename"])
+experiment_root_dir = os.path.join('../../experiments', opt["savename"])
 dir_checkpoint = os.path.join(experiment_root_dir, 'checkpoints')
 os.makedirs(dir_checkpoint, exist_ok=True)
 tensorboard_savedir = os.path.join(experiment_root_dir, 'tensorboard')

@@ -205,7 +205,7 @@ Now you should be able to run the GUI via `lada` or the CLI via `lada-cli`.
 
 
 ## Training and dataset creation
-If you're interested in training your own model(s) or create custom dataset(s) you can find out more in [Training and dataset creation](training_and_dataset_creation.md).
+If you're interested in training your own model(s) or create custom dataset(s) you can find out more in [Training and dataset creation](docs/training_and_dataset_creation.md).
 
 ## Credits
 This project builds on work done by these fantastic people

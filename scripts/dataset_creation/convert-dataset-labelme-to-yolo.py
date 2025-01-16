@@ -61,5 +61,5 @@ if __name__ == '__main__':
     main(args.dir_in, args.dir_out_labels, args.dir_out_images)
 
 # mkdir -p yolo/datasets/nsfw_detection/{train,val}/{images,labels}
-# python yolo/convert-labelme-to-yolo.py --dir-in datasets/nsfw_detection/val --dir-out-images yolo/datasets/nsfw_detection/val/images --dir-out-labels yolo/datasets/nsfw_detection/val/labels
-# python yolo/convert-labelme-to-yolo.py --dir-in datasets/nsfw_detection/train --dir-out-images yolo/datasets/nsfw_detection/train/images --dir-out-labels yolo/datasets/nsfw_detection/train/labels
+# python yolo/convert-dataset-labelme-to-yolo.py --dir-in datasets/nsfw_detection/val --dir-out-images yolo/datasets/nsfw_detection/val/images --dir-out-labels yolo/datasets/nsfw_detection/val/labels
+# python yolo/convert-dataset-labelme-to-yolo.py --dir-in datasets/nsfw_detection/train --dir-out-images yolo/datasets/nsfw_detection/train/images --dir-out-labels yolo/datasets/nsfw_detection/train/labels

@@ -35,7 +35,7 @@ model = model.to(device)
 num_epochs = 15
 
 experiment_name = "run1"
-experiment_root_dir = "experiments/bj_classifier"
+experiment_root_dir = "../../experiments/bj_classifier"
 experiment_dir = f"{experiment_root_dir}/{experiment_name}"
 os.makedirs(experiment_dir)
 

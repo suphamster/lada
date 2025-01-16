@@ -152,5 +152,5 @@ if __name__ == '__main__':
                           use_segments=True,
                           cls91to80=True)
 
-# python yolo/convert-coco-to-yolo.py --coco-file datasets/nsfw_detection/train/coco.json --yolo-labels-dir datasets/nsfw_detection/train/img_mask_yolo
-# python yolo/convert-coco-to-yolo.py --coco-file datasets/nsfw_detection/val/coco.json --yolo-labels-dir datasets/nsfw_detection/val/img_mask_yolo
+# python yolo/convert-dataset-coco-to-yolo.py --coco-file datasets/nsfw_detection/train/coco.json --yolo-labels-dir datasets/nsfw_detection/train/img_mask_yolo
+# python yolo/convert-dataset-coco-to-yolo.py --coco-file datasets/nsfw_detection/val/coco.json --yolo-labels-dir datasets/nsfw_detection/val/img_mask_yolo
