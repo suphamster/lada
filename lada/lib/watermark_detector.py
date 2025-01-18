@@ -12,7 +12,7 @@ class WatermarkDetector:
         self.model = model
         self.device = device
         self.batch_size = 4
-        self.min_confidence = 0.2
+        self.min_confidence = 0.4
         self.min_positive_detections = 4
         self.sampling_rate = 0.3
 

@@ -69,7 +69,7 @@ def parse_args():
     watermark_detection = parser.add_argument_group('Watermark detection')
     watermark_detection.add_argument('--add-watermark-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will run watermark detection and add its results to metadata")
     watermark_detection.add_argument('--enable-watermark-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes obstructed by watermarks (arbitrary text or logos) will be skipped")
-    watermark_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model_v1.1.pt",
+    watermark_detection.add_argument('--watermark-model-path', type=str, default="model_weights/lada_watermark_detection_model_v1.2.pt",
                         help="path to watermark detection model")
 
     nsfw_detection = parser.add_argument_group('NudeNet NSFW detection')
