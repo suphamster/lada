@@ -35,6 +35,7 @@ def create_dataset(
             if idx % 2 == 0:
                 image_pil: Image = Image.open(image_path)
                 logo_pil: Image = Image.open(logo_path)
+                assert logo_pil.mode == "RGBA"
                 watermarked_image, bbox, category = add_logo_watermark(image_pil, logo_pil)
             else:
                 image_pil: Image = Image.open(image_path)

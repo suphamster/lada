@@ -307,7 +307,7 @@ def add_logo_watermark(img: Image.Image, logo: Image.Image, size=512) -> tuple:
     img = resize_image(img, size, size)
     w, h = img.size
 
-    logo = remove_background(logo)
+    # logo = remove_background(logo)
     max_logo_size = np.random.uniform(0.3, 0.6)
 
     scale_factor: int = (
@@ -329,7 +329,9 @@ def add_logo_watermark(img: Image.Image, logo: Image.Image, size=512) -> tuple:
 
     logo_resized = logo_resized.rotate(rotation)
     logo_resized = np.array(logo_resized)
-    logo_resized[:, :, 3] *= alpha
+    alpha_channel = logo_resized[:, :, 3]
+    alpha_channel[alpha_channel > 0] = alpha
+    logo_resized[:, :, 3] = alpha_channel
     logo_resized = Image.fromarray(logo_resized, "RGBA")
 
     logo_transformed = Image.new("RGBA", img.size, (0, 0, 0, 0))

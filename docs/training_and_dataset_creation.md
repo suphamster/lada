@@ -51,6 +51,8 @@ There are options though to generate full-size scenes as well as mosaic scenes. 
 The script uses the NSFW detection model. Some filtering options are available in the training config files and in the script for automatic filtering of invalid data.
 Neither of those are perfectly accurate, and you probably want to validate and remove false-positive clips manually.
 
+Have a look at the created metadata JSON files: You can find watermark (text,logos) detection and video quality information which may come in handy for filtering depending on your data sources.
+
 > [!TIP]
 > I used the following workflow for manual clean-up:
 > (1) open the directory of created NSFW scenes in your file explorer in thumbnail view. (2) Wait until thumbnails have been created. (3) Based on what you can see in the thumbnail delete files if they contain watermarks or don't look like an actual NSFW scene. (4) write a shell script to delete corresponding mask and json metadata files 
@@ -236,6 +238,11 @@ This model is used to filter out scenes detected by the NSFW model obstructed by
 applying mosaics on them when added to the mosaic restoration dataset.
 
 After you collected NSFW images (and cleaned them so they do *not* contain any watermarks/logos/text) as well as some logos you can create - you guessed it - another YOLO dataset.
+
+SFW images also do the trick but would suggest to keep the majority of files NSFW, e.g. you could throw in a few thousand COCO images which shouldn't contain any watermarks as far as I could see.
+
+For the logos I'd suggest to get .png files with proper alpha channels for background separation. This way you can easily crop them to bounding rectangle to create more accurate box labels.
+
 The following script automatically creates a dataset by applying the given logos on-top of the given images as well as pasting some random text over it.
 
 The script will randomly choose from all available truetype fonts on your system. So I would suggest you install a few more and also include some "creative fonts" which may appear in real-world text/watermarks.
