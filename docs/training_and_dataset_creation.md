@@ -235,15 +235,16 @@ To check its performance you can use the `view-yolo.py` script as described in t
 This model is used to filter out scenes detected by the NSFW model obstructed by watermarks, text or logos. Otherwise, we could introduce unwanted artifacts when
 applying mosaics on them when added to the mosaic restoration dataset.
 
-Luckily for us there exists a public dataset for this! [PITA Dataset](https://huggingface.co/datasets/bastienp/visible-watermark-pita)
-They also provide it in YOLO format so you guessed it, we're training another YOLOv11 model. This time the detection not segmentation variant but it's the same process.
+After you collected NSFW images (and cleaned them so they do *not* contain any watermarks/logos/text) as well as some logos you can create - you guessed it - another YOLO dataset.
+The following script automatically creates a dataset by applying the given logos on-top of the given images as well as pasting some random text over it.
 
-Download the val and train YOLO zip files and extract them to `datasets/watermark_detection/{train,val}`
+The script will randomly choose from all available truetype fonts on your system. So I would suggest you install a few more and also include some "creative fonts" which may appear in real-world text/watermarks.
 
-> [!NOTE]
-> The dataset differentiates two classes 'text' and 'logo'. For our purpose we don't need to know what kind of watermark we're dealing with
+```shell
+python scripts/dataset_creation/create-watermark-detection-dataset.py --train-images-dir <train images input dir> --val-images-dir <val images input dir> --logos-dir <logos input dir> --yolo-dir datasets/watermark_detection
+```
 
-In order to train the model run
+After creating the dataset you can train it via
 ```shell
 python scripts/training/train-watermark-detection-yolo.py
 ```
