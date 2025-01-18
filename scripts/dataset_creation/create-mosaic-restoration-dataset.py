@@ -149,7 +149,7 @@ def main():
         nsfw_detector.add_files(video_files)
         scene_futures = []
         for scene in nsfw_detector():
-            print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}), queuing up for processing")
+            print(f"Found scene {scene.id} (frames {scene.frame_start:06d}-{scene.frame_end:06d}, lengths {scene.frame_end-scene.frame_start+1}/{len(scene)}), queuing up for processing")
             scene_futures.append(scenes_executor.submit(scene_processor.process_scene, scene, output_dir, scene_processing_options))
             while len([future for future in scene_futures if not future.done()]) >= args.workers + 1:
                 # print(f"workers busy, block until they are available: running {len([future for future in scene_futures if future.running()])}, lets get to work: {len([future for future in scene_futures if not future.done()])}")

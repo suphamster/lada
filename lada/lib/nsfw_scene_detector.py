@@ -83,10 +83,11 @@ class Scene:
             self.frame_start = nsfw_frame.frame_number
             self.frame_end = nsfw_frame.frame_number
             self._tmp_data.append(nsfw_frame)
-        elif not self.max_length_reached():
+        else:
             assert nsfw_frame.frame_number == self.frame_end + 1
             self.frame_end = nsfw_frame.frame_number
-            self._tmp_data.append(nsfw_frame)
+            if not self.max_length_reached():
+                self._tmp_data.append(nsfw_frame)
 
     def complete(self):
         worker_count = 6
