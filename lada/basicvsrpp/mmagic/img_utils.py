@@ -1,10 +1,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from typing import List, Tuple
+from typing import List, Tuple, Union, Sequence
 
+import mmengine
 import numpy as np
 import torch
-from mmcv.transforms import to_tensor
-
 
 def can_convert_to_image(value):
     """Judge whether the input value can be converted to image tensor via
@@ -126,3 +125,32 @@ def to_numpy(img, dtype=np.float64):
     img = img.astype(dtype)
 
     return img
+
+def to_tensor(
+    data: Union[torch.Tensor, np.ndarray, Sequence, int,
+                float]) -> torch.Tensor:
+    """Convert objects of various python types to :obj:`torch.Tensor`.
+
+    Supported types are: :class:`numpy.ndarray`, :class:`torch.Tensor`,
+    :class:`Sequence`, :class:`int` and :class:`float`.
+
+    Args:
+        data (torch.Tensor | numpy.ndarray | Sequence | int | float): Data to
+            be converted.
+
+    Returns:
+        torch.Tensor: the converted data.
+    """
+
+    if isinstance(data, torch.Tensor):
+        return data
+    elif isinstance(data, np.ndarray):
+        return torch.from_numpy(data)
+    elif isinstance(data, Sequence) and not mmengine.is_str(data):
+        return torch.tensor(data)
+    elif isinstance(data, int):
+        return torch.LongTensor([data])
+    elif isinstance(data, float):
+        return torch.FloatTensor([data])
+    else:
+        raise TypeError(f'type {type(data)} cannot be converted to tensor.')

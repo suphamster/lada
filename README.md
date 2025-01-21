@@ -148,15 +148,7 @@ This is a Python project so let's install our dependencies from PyPi:
 
 2) [Install PyTorch](https://pytorch.org/get-started/locally)
 
-3) [Install MMCV](https://mmcv.readthedocs.io/en/latest/get_started/installation.html)
-   > [!TIP]
-   > You can install it either with their own installer `mim` or via `pip`.
-   > I've had issues installing via `mim` but `pip` worked. Just make sure to select the correct command depending on your system and PyTorch installation 
-
-   > At the time of writing MMCV does only ship binary wheels for Torch up to 2.4.x. 
-   > You'll have to compile MMCV yourself following their documentation (not a big deal) or downgrade `torch`/`torchvision` to 2.4.x.
-
-4) Install this project together with the remaining dependencies
+3) Install this project together with the remaining dependencies
     ```bash
     python -m pip install -e '.[basicvsrpp,gui]'
     ````
@@ -167,7 +159,7 @@ This is a Python project so let's install our dependencies from PyPi:
    > 
    > If you run into conflicts related to OpenCV then uninstall both `opencv-python-headless` and `opencv-python` and install only `opencv-python`. (Noticed on version `albumentations==1.4.24`).
 
-5) Apply patches
+4) Apply patches
 
     In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.5`):
     ```bash

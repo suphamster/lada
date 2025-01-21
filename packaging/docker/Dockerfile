@@ -1,32 +1,8 @@
-FROM python:3.12.8-bookworm as build_mmcv
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PIP_ROOT_USER_ACTION=ignore
-RUN apt update \
-    && apt install -y build-essential gcc software-properties-common \
-    && wget https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb \
-    && dpkg -i cuda-keyring_1.1-1_all.deb \
-    && add-apt-repository -y contrib \
-    && apt-get update \
-    && apt-get -y install cuda-toolkit-12-4 \
-    && rm -rf /var/lib/apt/lists/*
-RUN curl https://github.com/open-mmlab/mmcv/archive/refs/tags/v2.2.0.tar.gz -L -o mmcv.tar.gz \
-    && mkdir /mmcv \
-    && tar xf mmcv.tar.gz -C /mmcv --strip-components 1
-RUN pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124 \
-    && pip install setuptools wheel \
-    && pip install --requirement /mmcv/requirements/optional.txt
-ENV CUDA_HOME=/usr/local/cuda-12.4
-RUN cd /mmcv \
-    && python setup.py bdist_wheel
-
 FROM python:3.12.8-bookworm
 RUN useradd --create-home lada
 WORKDIR /home/lada
 ENV PIP_ROOT_USER_ACTION=ignore
-RUN mkdir mmcv
-COPY --from=build_mmcv /mmcv/dist/mmcv-2.2.0-cp312-cp312-linux_x86_64.whl  /home/lada/mmcv/mmcv-2.2.0-cp312-cp312-linux_x86_64.whl
-RUN pip install --no-deps --no-cache-dir --find-links file:///home/lada/mmcv --requirement https://raw.githubusercontent.com/ladaapp/lada/23e0fbd1714d733ffffcd23cc04cca0d111b8925/packaging/requirements-cli.txt \
-    && rm -r mmcv
+RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/23e0fbd1714d733ffffcd23cc04cca0d111b8925/packaging/requirements-cli.txt
 RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@https://github.com/ladaapp/lada/archive/refs/tags/v0.4.2.zip#sha1=38d727ecc55146d6fc82045e484db3cced7d2a06'
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.5.0-beta3/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
 RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-01-15-12-55/ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1/bin/ffprobe ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1/bin/ffmpeg && chmod -R 555 ffmpeg

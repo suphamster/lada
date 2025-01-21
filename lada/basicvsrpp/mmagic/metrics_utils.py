@@ -1,9 +1,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import mmcv
 import numpy as np
 import torch
 
 from .img_utils import reorder_image
+from lada.basicvsrpp.mmcv.image.colorspace import rgb2ycbcr, bgr2ycbcr
 
 
 def _assert_ndim(input, name, ndim, shape_hint):
@@ -108,9 +108,9 @@ def img_transform(img,
 
     if isinstance(convert_to, str) and convert_to.lower() == 'y':
         if channel_order.upper() == 'RGB':
-            img = mmcv.rgb2ycbcr(img / 255., y_only=True) * 255.
+            img = rgb2ycbcr(img / 255., y_only=True) * 255.
         elif channel_order.upper() == 'BGR':
-            img = mmcv.bgr2ycbcr(img / 255., y_only=True) * 255.
+            img = bgr2ycbcr(img / 255., y_only=True) * 255.
         else:
             raise ValueError(
                 'Only support `rgb2y` and `bgr2`, but the channel_order '

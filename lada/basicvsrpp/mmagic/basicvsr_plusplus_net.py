@@ -2,18 +2,19 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
-from mmcv.cnn import ConvModule
-from mmcv.ops import ModulatedDeformConv2d, modulated_deform_conv2d
+import torchvision
+from mmengine import MMLogger
 from mmengine.model import BaseModule
 from mmengine.model.weight_init import constant_init
-from mmengine import MMLogger
 from mmengine.runner import load_checkpoint
+from torch import Tensor
 
+from lada.basicvsrpp.deformconv import ModulatedDeformConv2d
+from lada.basicvsrpp.mmcv.cnn import ConvModule
 from .flow_warp import flow_warp
-from .registry import MODELS
-from .model_utils import make_layer
 from .model_utils import default_init_weights
+from .model_utils import make_layer
+from .registry import MODELS
 
 
 @MODELS.register_module()
@@ -417,10 +418,9 @@ class SecondOrderDeformableAlignment(ModulatedDeformConv2d):
         # mask
         mask = torch.sigmoid(mask)
 
-        return modulated_deform_conv2d(x, offset, mask, self.weight, self.bias,
-                                       self.stride, self.padding,
-                                       self.dilation, self.groups,
-                                       self.deform_groups)
+        return torchvision.ops.deform_conv2d(x, offset, self.weight, self.bias,
+                                             self.stride, self.padding,
+                                             self.dilation, mask)
 
 class ResidualBlocksWithInputConv(BaseModule):
     """Residual blocks with a convolution in front.
