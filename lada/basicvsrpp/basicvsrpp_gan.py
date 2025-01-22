@@ -77,7 +77,6 @@ class BasicVSRPlusPlusGan(RealBasicVSR):
             gan_loss=gan_loss,
             pixel_loss=pixel_loss,
             perceptual_loss=perceptual_loss,
-            cleaning_loss=None,
             is_use_sharpened_gt_in_pixel=False,
             is_use_sharpened_gt_in_percep=False,
             is_use_sharpened_gt_in_gan=False,
@@ -95,6 +94,5 @@ class BasicVSRPlusPlusGan(RealBasicVSR):
         gt_pixel = gt_pixel.view(-1, c, h, w)
         gt_percep = gt_percep.view(-1, c, h, w)
         gt_gan = gt_gan.view(-1, c, h, w)
-        gt_clean = None
 
-        return gt_pixel, gt_percep, gt_gan, gt_clean
+        return gt_pixel, gt_percep, gt_gan

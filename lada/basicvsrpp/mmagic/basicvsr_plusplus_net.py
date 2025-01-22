@@ -34,44 +34,29 @@ class BasicVSRPlusPlusNet(BaseModule):
             propagation branch. Default: 7.
         max_residue_magnitude (int): The maximum magnitude of the offset
             residue (Eq. 6 in paper). Default: 10.
-        is_low_res_input (bool, optional): Whether the input is low-resolution
-            or not. If False, the output resolution is equal to the input
-            resolution. Default: True.
         spynet_pretrained (str, optional): Pre-trained model path of SPyNet.
             Default: None.
-        cpu_cache_length (int, optional): When the length of sequence is larger
-            than this value, the intermediate features are sent to CPU. This
-            saves GPU memory, but slows down the inference speed. You can
-            increase this number if you have a GPU with large memory.
-            Default: 100.
     """
 
     def __init__(self,
                  mid_channels=64,
                  num_blocks=7,
                  max_residue_magnitude=10,
-                 is_low_res_input=True,
-                 spynet_pretrained=None,
-                 cpu_cache_length=100):
+                 spynet_pretrained=None):
 
         super().__init__()
         self.mid_channels = mid_channels
-        self.is_low_res_input = is_low_res_input
-        self.cpu_cache_length = cpu_cache_length
 
         # optical flow
         self.spynet = SPyNet(pretrained=spynet_pretrained)
 
-        # feature extraction module
-        if is_low_res_input:
-            self.feat_extract = ResidualBlocksWithInputConv(3, mid_channels, 5)
-        else:
-            self.feat_extract = nn.Sequential(
-                nn.Conv2d(3, mid_channels, 3, 2, 1),
-                nn.LeakyReLU(negative_slope=0.1, inplace=True),
-                nn.Conv2d(mid_channels, mid_channels, 3, 2, 1),
-                nn.LeakyReLU(negative_slope=0.1, inplace=True),
-                ResidualBlocksWithInputConv(mid_channels, mid_channels, 5))
+
+        self.feat_extract = nn.Sequential(
+            nn.Conv2d(3, mid_channels, 3, 2, 1),
+            nn.LeakyReLU(negative_slope=0.1, inplace=True),
+            nn.Conv2d(mid_channels, mid_channels, 3, 2, 1),
+            nn.LeakyReLU(negative_slope=0.1, inplace=True),
+            ResidualBlocksWithInputConv(mid_channels, mid_channels, 5))
 
         # propagation branches
         self.deform_align = nn.ModuleDict()
@@ -103,29 +88,8 @@ class BasicVSRPlusPlusNet(BaseModule):
         # activation function
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
-    def check_if_mirror_extended(self, lqs):
-        """Check whether the input is a mirror-extended sequence.
-
-        If mirror-extended, the i-th (i=0, ..., t-1) frame is equal to the
-        (t-1-i)-th frame.
-
-        Args:
-            lqs (tensor): Input low quality (LQ) sequence with
-                shape (n, t, c, h, w).
-        """
-
-        # check if the sequence is augmented by flipping
-        self.is_mirror_extended = False
-        if lqs.size(1) % 2 == 0:
-            lqs_1, lqs_2 = torch.chunk(lqs, 2, dim=1)
-            if torch.norm(lqs_1 - lqs_2.flip(1)) == 0:
-                self.is_mirror_extended = True
-
     def compute_flow(self, lqs):
         """Compute optical flow using SPyNet for feature alignment.
-
-        Note that if the input is an mirror-extended sequence, 'flows_forward'
-        is not needed, since it is equal to 'flows_backward.flip(1)'.
 
         Args:
             lqs (tensor): Input low quality (LQ) sequence with
@@ -144,14 +108,7 @@ class BasicVSRPlusPlusNet(BaseModule):
 
         flows_backward = self.spynet(lqs_1, lqs_2).view(n, t - 1, 2, h, w)
 
-        if self.is_mirror_extended:  # flows_forward = flows_backward.flip(1)
-            flows_forward = None
-        else:
-            flows_forward = self.spynet(lqs_2, lqs_1).view(n, t - 1, 2, h, w)
-
-        if self.cpu_cache:
-            flows_backward = flows_backward.cpu()
-            flows_forward = flows_forward.cpu()
+        flows_forward = self.spynet(lqs_2, lqs_1).view(n, t - 1, 2, h, w)
 
         return flows_forward, flows_backward
 
@@ -188,14 +145,9 @@ class BasicVSRPlusPlusNet(BaseModule):
         feat_prop = flows.new_zeros(n, self.mid_channels, h, w)
         for i, idx in enumerate(frame_idx):
             feat_current = feats['spatial'][mapping_idx[idx]]
-            if self.cpu_cache:
-                feat_current = feat_current.cuda()
-                feat_prop = feat_prop.cuda()
             # second-order deformable alignment
             if i > 0:
                 flow_n1 = flows[:, flow_idx[i], :, :, :]
-                if self.cpu_cache:
-                    flow_n1 = flow_n1.cuda()
 
                 cond_n1 = flow_warp(feat_prop, flow_n1.permute(0, 2, 3, 1))
 
@@ -206,12 +158,8 @@ class BasicVSRPlusPlusNet(BaseModule):
 
                 if i > 1:  # second-order features
                     feat_n2 = feats[module_name][-2]
-                    if self.cpu_cache:
-                        feat_n2 = feat_n2.cuda()
 
                     flow_n2 = flows[:, flow_idx[i - 1], :, :, :]
-                    if self.cpu_cache:
-                        flow_n2 = flow_n2.cuda()
 
                     flow_n2 = flow_n1 + flow_warp(flow_n2,
                                                   flow_n1.permute(0, 2, 3, 1))
@@ -228,16 +176,10 @@ class BasicVSRPlusPlusNet(BaseModule):
                 feats[k][idx]
                 for k in feats if k not in ['spatial', module_name]
             ] + [feat_prop]
-            if self.cpu_cache:
-                feat = [f.cuda() for f in feat]
 
             feat = torch.cat(feat, dim=1)
             feat_prop = feat_prop + self.backbone[module_name](feat)
             feats[module_name].append(feat_prop)
-
-            if self.cpu_cache:
-                feats[module_name][-1] = feats[module_name][-1].cpu()
-                torch.cuda.empty_cache()
 
         if 'backward' in module_name:
             feats[module_name] = feats[module_name][::-1]
@@ -266,22 +208,14 @@ class BasicVSRPlusPlusNet(BaseModule):
             hr = [feats[k].pop(0) for k in feats if k != 'spatial']
             hr.insert(0, feats['spatial'][mapping_idx[i]])
             hr = torch.cat(hr, dim=1)
-            if self.cpu_cache:
-                hr = hr.cuda()
 
             hr = self.reconstruction(hr)
             hr = self.lrelu(self.upsample1(hr))
             hr = self.lrelu(self.upsample2(hr))
             hr = self.lrelu(self.conv_hr(hr))
             hr = self.conv_last(hr)
-            if self.is_low_res_input:
-                hr += self.img_upsample(lqs[:, i, :, :, :])
-            else:
-                hr += lqs[:, i, :, :, :]
 
-            if self.cpu_cache:
-                hr = hr.cpu()
-                torch.cuda.empty_cache()
+            hr += lqs[:, i, :, :, :]
 
             outputs.append(hr)
 
@@ -300,35 +234,16 @@ class BasicVSRPlusPlusNet(BaseModule):
 
         n, t, c, h, w = lqs.size()
 
-        # whether to cache the features in CPU (no effect if using CPU)
-        if t > self.cpu_cache_length and lqs.is_cuda:
-            self.cpu_cache = True
-        else:
-            self.cpu_cache = False
-
-        if self.is_low_res_input:
-            lqs_downsample = lqs.clone()
-        else:
-            lqs_downsample = F.interpolate(
-                lqs.view(-1, c, h, w), scale_factor=0.25,
-                mode='bicubic').view(n, t, c, h // 4, w // 4)
-
-        # check whether the input is an extended sequence
-        self.check_if_mirror_extended(lqs)
+        lqs_downsample = F.interpolate(
+            lqs.view(-1, c, h, w), scale_factor=0.25,
+            mode='bicubic').view(n, t, c, h // 4, w // 4)
 
         feats = {}
         # compute spatial features
-        if self.cpu_cache:
-            feats['spatial'] = []
-            for i in range(0, t):
-                feat = self.feat_extract(lqs[:, i, :, :, :]).cpu()
-                feats['spatial'].append(feat)
-                torch.cuda.empty_cache()
-        else:
-            feats_ = self.feat_extract(lqs.view(-1, c, h, w))
-            h, w = feats_.shape[2:]
-            feats_ = feats_.view(n, t, -1, h, w)
-            feats['spatial'] = [feats_[:, i, :, :, :] for i in range(0, t)]
+        feats_ = self.feat_extract(lqs.view(-1, c, h, w))
+        h, w = feats_.shape[2:]
+        feats_ = feats_.view(n, t, -1, h, w)
+        feats['spatial'] = [feats_[:, i, :, :, :] for i in range(0, t)]
 
         # compute optical flow using the low-res inputs
         assert lqs_downsample.size(3) >= 64 and lqs_downsample.size(4) >= 64, (
@@ -351,9 +266,6 @@ class BasicVSRPlusPlusNet(BaseModule):
                     flows = flows_backward.flip(1)
 
                 feats = self.propagate(feats, flows, module)
-                if self.cpu_cache:
-                    del flows
-                    torch.cuda.empty_cache()
 
         return self.upsample(lqs, feats)
 

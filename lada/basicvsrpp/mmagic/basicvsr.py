@@ -19,7 +19,6 @@ class BasicVSR(BaseEditModel):
     Args:
         generator (dict): Config for the generator structure.
         pixel_loss (dict): Config for pixel-wise loss.
-        ensemble (dict): Config for ensemble. Default: None.
         train_cfg (dict): Config for training. Default: None.
         test_cfg (dict): Config for testing. Default: None.
         init_cfg (dict, optional): The weight initialized config for
@@ -31,7 +30,6 @@ class BasicVSR(BaseEditModel):
     def __init__(self,
                  generator,
                  pixel_loss,
-                 ensemble=None,
                  train_cfg=None,
                  test_cfg=None,
                  init_cfg=None,
@@ -50,37 +48,6 @@ class BasicVSR(BaseEditModel):
 
         # count training steps
         self.register_buffer('step_counter', torch.zeros(1))
-
-        # ensemble
-        self.forward_ensemble = None
-        if ensemble is not None:
-            if ensemble['type'] == 'SpatialTemporalEnsemble':
-                from mmagic.models.archs import SpatialTemporalEnsemble
-                is_temporal = ensemble.get('is_temporal_ensemble', False)
-                self.forward_ensemble = SpatialTemporalEnsemble(is_temporal)
-            else:
-                raise NotImplementedError(
-                    'Currently support only '
-                    '"SpatialTemporalEnsemble", but got type '
-                    f'[{ensemble["type"]}]')
-
-    def check_if_mirror_extended(self, lrs):
-        """Check whether the input is a mirror-extended sequence.
-
-        If mirror-extended, the i-th (i=0, ..., t-1) frame is equal to the
-        (t-1-i)-th frame.
-
-        Args:
-            lrs (tensor): Input LR images with shape (n, t, c, h, w)
-        """
-
-        is_mirror_extended = False
-        if lrs.size(1) % 2 == 0:
-            lrs_1, lrs_2 = torch.chunk(lrs, 2, dim=1)
-            if torch.norm(lrs_1 - lrs_2.flip(1)) == 0:
-                is_mirror_extended = True
-
-        return is_mirror_extended
 
     def forward_train(self, inputs, data_samples=None, **kwargs):
         """Forward training. Returns dict of losses of training.
@@ -136,12 +103,7 @@ class BasicVSR(BaseEditModel):
         gt = data_samples.gt_img[0]
         if gt is not None and gt.data.ndim == 3:
             t = feats.size(1)
-            if self.check_if_mirror_extended(inputs):
-                # with mirror extension
-                feats = 0.5 * (feats[:, t // 4] + feats[:, -1 - t // 4])
-            else:
-                # without mirror extension
-                feats = feats[:, t // 2]
+            feats = feats[:, t // 2]
 
         # create a stacked data sample
         predictions = DataSample(

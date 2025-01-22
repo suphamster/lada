@@ -13,8 +13,6 @@ model = dict(
         type='BasicVSRPlusPlusNet',
         mid_channels=64,
         num_blocks=15,
-        is_low_res_input=False,
-        cpu_cache_length=1000, # otherwise for videos with more frames they will land on cpu which will crash datapreprocessor step as std/mean tensors are on gpu
         spynet_pretrained='model_weights/3rd_party/spynet_20210409-c6c1bd09.pth'),
     pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'),
     train_cfg=dict(fix_iter=5000),

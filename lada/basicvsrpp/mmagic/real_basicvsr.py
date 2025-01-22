@@ -25,8 +25,6 @@ class RealBasicVSR(BaseEditModel):
         gan_loss (dict, optional): Config for the gan loss.
             Note that the loss weight in gan loss is only for the generator.
         pixel_loss (dict, optional): Config for the pixel loss. Default: None.
-        cleaning_loss (dict, optional): Config for the image cleaning loss.
-            Default: None.
         perceptual_loss (dict, optional): Config for the perceptual loss.
             Default: None.
         is_use_sharpened_gt_in_pixel (bool, optional): Whether to use the image
@@ -57,7 +55,6 @@ class RealBasicVSR(BaseEditModel):
                  discriminator=None,
                  gan_loss=None,
                  pixel_loss=None,
-                 cleaning_loss=None,
                  perceptual_loss=None,
                  is_use_sharpened_gt_in_pixel=False,
                  is_use_sharpened_gt_in_percep=False,
@@ -113,9 +110,6 @@ class RealBasicVSR(BaseEditModel):
         else:
             self.start_iter = -1
 
-        self.cleaning_loss = MODELS.build(
-            cleaning_loss) if cleaning_loss else None
-
     def extract_gt_data(self, data_samples):
         """extract gt data from data samples.
 
@@ -132,18 +126,7 @@ class RealBasicVSR(BaseEditModel):
         gt_percep = gt_percep.view(-1, c, h, w)
         gt_gan = gt_gan.view(-1, c, h, w)
 
-        if self.cleaning_loss:
-            gt_clean = gt_pixel.view(-1, c, h, w)
-            gt_clean = F.interpolate(
-                gt_clean,
-                scale_factor=0.25,
-                mode='area',
-                recompute_scale_factor=False)
-            gt_clean = gt_clean.view(n, t, c, h // 4, w // 4)
-        else:
-            gt_clean = None
-
-        return gt_pixel, gt_percep, gt_gan, gt_clean
+        return gt_pixel, gt_percep, gt_gan
 
     def g_step(self, batch_outputs, batch_gt_data):
         """G step of GAN: Calculate losses of generator.
@@ -156,16 +139,13 @@ class RealBasicVSR(BaseEditModel):
             dict: Dict of losses.
         """
 
-        gt_pixel, gt_percep, gt_gan, gt_clean = batch_gt_data
+        gt_pixel, gt_percep, gt_gan = batch_gt_data
         fake_g_output, fake_g_lq = batch_outputs
         fake_g_output = fake_g_output.view(gt_pixel.shape)
 
         losses = self.g_step_super(
             batch_outputs=fake_g_output,
             batch_gt_data=(gt_pixel, gt_percep, gt_gan))
-
-        if self.cleaning_loss:
-            losses['loss_clean'] = self.cleaning_loss(fake_g_lq, gt_clean)
 
         return losses
 
@@ -207,7 +187,7 @@ class RealBasicVSR(BaseEditModel):
         if self.if_run_d():
             set_requires_grad(self.discriminator, True)
 
-            gt_pixel, gt_percep, gt_gan, gt_clean = batch_gt_data
+            gt_pixel, gt_percep, gt_gan = batch_gt_data
             fake_g_output, fake_g_lq = batch_outputs
             fake_g_output = fake_g_output.view(gt_pixel.shape)
 
