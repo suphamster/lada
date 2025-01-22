@@ -3,7 +3,7 @@ import random
 import numpy as np
 
 repeatable_rng_random = random.Random(42)
-repeatable_rng_numpy = np.random.default_rng(42)
+repeatable_rng_numpy = np.random.RandomState(42)
 
 def get_rngs(repeatable) -> tuple[random, np.random]:
     if repeatable:
