@@ -10,7 +10,7 @@ ENV PATH="/home/lada/ffmpeg:$PATH"
 RUN mkdir -p /home/lada/.config/Ultralytics \
     && echo '{"settings_version":"0.0.6","datasets_dir":"datasets","weights_dir":"weights","runs_dir":"experiments","uuid":"dummy","sync":false,"api_key":"","openai_api_key":"","clearml":false,"comet":false,"dvc":false,"hub":false,"mlflow":false,"neptune":false,"raytune":false,"tensorboard":false,"wandb":false,"vscode_msg":false}' > /home/lada/.config/Ultralytics/settings.json \
     && chown -R lada:lada /home/lada/.config
-RUN mkdir model_weights mnt && chmod 555 model_weights && chmod 777 mnt
+RUN mkdir -p model_weights/3rd_party mnt && chmod -R 555 model_weights && chmod 777 mnt
 ADD --checksum=sha256:056756fcab250bcdf0833e75aac33e2197b8809b0ab8c16e14722dcec94269b5 \
     https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt model_weights/lada_mosaic_detection_model_v2.pt
 ADD --checksum=sha256:6ec6542dde73fbc2086d252a041b41881e3194eaa0bac964348e6f7e8aad007c \
@@ -19,7 +19,7 @@ ADD --checksum=sha256:b79de6fcb1fcafd3ce7c954f4ac788be448ec2d82c6e688aaf18b8ba48
     https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth model_weights/lada_mosaic_restoration_model_bj_pov.pth
 ADD --checksum=sha256:5643ca297c13920b8ffd39a0d85296e494683a69e5e8204d662653d24c582766 \
     https://drive.usercontent.google.com/download?id=1ulct4RhRxQp1v5xwEmUH7xz7AK42Oqlw&export=download&confirm=t model_weights/3rd_party/clean_youknow_video.pth
-RUN chmod 444 model_weights/*
+RUN chmod 444 model_weights/*\.pt* model_weights/3rd_party/*\.pt*
 USER lada
 
 ENTRYPOINT ["lada-cli"]
