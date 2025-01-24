@@ -161,7 +161,7 @@ This is a Python project so let's install our dependencies from PyPi:
 
 4) Apply patches
 
-    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.5`):
+    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.6`):
     ```bash
     patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
     ```

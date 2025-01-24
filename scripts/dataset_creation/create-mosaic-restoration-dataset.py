@@ -112,6 +112,7 @@ def main():
         output_dir.mkdir()
     input_path = args.input
     video_files = input_path.glob("*") if input_path.is_dir() else [input_path]
+    video_files = [file for file in video_files if file.exists()]
 
     file_queue = queue.Queue()
     file_processing_options = FileProcessingOptions(input_dir=input_path,
