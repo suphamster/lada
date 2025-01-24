@@ -21,9 +21,10 @@ rm -r .venv_requirements_cli
 3. Assuming all looks good and nothing is broken: Push a commit in Ladaapp/lada with these changes:
     1. Bump version in `lada/__init__.py`
     2. Write short release notes in `packaging/flatpak/share/metainfo/io.github.ladaapp.lada.metainfo.xml`
-3. Create a Release on Ladaapp/Lada for this commit. Release notes should be mostly copy-paste from what was written in the xml file but can be more verbose if necessary.
-4. Update the PR in Flathub/lada repo with this newest tag/commit id
-5. Once pipeline went through merge the PR on Flathub/lada. After a few hours it should be available on flathub
-6. Update `packaging/docker/Dockerfile` pointing to the same commit we packaged in the flatpak step
-7. Build and test this docker image locally, then test the CLI once
+    3. update used git tags in `packaging/docker/Dockerfile.Release ` to this new version
+4. Create a Release on Ladaapp/Lada for this commit. Release notes should be mostly copy-paste from what was written in the xml file but can be more verbose if necessary.
+5. Update the PR in Flathub/lada repo with the release git tag and commit id
+6. Once pipeline went through merge the PR on Flathub/lada. After a few hours it should be available on flathub
+7. Build and test this docker image locally
 8. Push the new image to Dockerhub (make sure to use the same tag as was used on git, as well as 'latest')
+9. Add `-dev` suffix to version in `lada/__init__.py`

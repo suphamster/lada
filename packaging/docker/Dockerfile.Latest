@@ -5,7 +5,7 @@ ENV PIP_ROOT_USER_ACTION=ignore
 RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/heads/main/packaging/requirements-cli.txt
 RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git'
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/heads/main/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
-RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1/bin/ffprobe ffmpeg-n7.1-152-gd72536008a-linux64-gpl-7.1/bin/ffmpeg && chmod -R 555 ffmpeg
+RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-master-latest-linux64-gpl/bin/ffprobe ffmpeg-master-latest-linux64-gpl/bin/ffmpeg && chmod -R 555 ffmpeg
 ENV PATH="/home/lada/ffmpeg:$PATH"
 RUN mkdir -p /home/lada/.config/Ultralytics \
     && echo '{"settings_version":"0.0.6","datasets_dir":"datasets","weights_dir":"weights","runs_dir":"experiments","uuid":"dummy","sync":false,"api_key":"","openai_api_key":"","clearml":false,"comet":false,"dvc":false,"hub":false,"mlflow":false,"neptune":false,"raytune":false,"tensorboard":false,"wandb":false,"vscode_msg":false}' > /home/lada/.config/Ultralytics/settings.json \

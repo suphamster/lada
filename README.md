@@ -117,8 +117,8 @@ The project comes with a `generic` mosaic removal / video restoration model that
 There is also a `bj_pov` model which was trained only on such specific clips and may show better results than the generic model but therefore is not as versatile (Didn't notice much of a difference but YMMV).
 
 > [!TIP]
-> For folks currently using [DeepMosaics](https://github.com/HypoX64/DeepMosaics): You can use their `clean_youknow_video.pth` model in Lada if you prefer.
-> Download it from their page, move it in `model_weights/3rd_party` directory and select in CLI/GUI. (you can't do this on the flatpak version currently)
+> For folks currently using or interested in the mosaic restoration model of [DeepMosaics](https://github.com/HypoX64/DeepMosaics):
+> It is integrated in Lada and you can use it via CLI or GUI if you prefer. As DeepMosaics is not maintained anymore it is also included in the Flatpak and Docker image of Lada so it's easier to use.
 
 You can select the model to use in the sidepanel or if using the CLI by passing the arguments for path and type of model.
 
@@ -179,6 +179,11 @@ wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.1
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth'
 ```
 
+If you're interested in running DeepMosaics' restoration model you can also download their pretrained model `clean_youknow_video.pth`
+```shell
+wget -O model_weights/3rd_party/clean_youknow_video.pth 'https://drive.usercontent.google.com/download?id=1ulct4RhRxQp1v5xwEmUH7xz7AK42Oqlw&export=download&confirm=t'
+```
+
 To train the models and create your own datasets you'll also need these files
 ```shell
 wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
@@ -192,6 +197,7 @@ wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases
 > [!CAUTION]
 > The last download command currently doesn't work as the NudeNet project is set to age-restricted.
 > You'll have to be logged into GitHub, then you can download the file manually on their [release page]('https://github.com/notAI-tech/NudeNet/releases/): release `v3.4` / file `640m.pt`
+> The model is optional though and only used in `create-mosaic-restoration-dataset.py`.
 
 Now you should be able to run the GUI via `lada` or the CLI via `lada-cli`.
 

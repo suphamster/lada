@@ -50,6 +50,13 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2025-01-24" version="0.5.0">
+            <description>
+                <p>The only user-visible change this time is the inclusion of DeepMosaics pretrained restoration model.</p>
+                <p>Otherwise, focused on improvements of dataset creation and reducing dependencies to make it easier to build and train new or enhance the existing mosaic restoration model.</p>
+                <p>Lada is now also available as a docker image on DockerHub (CLI only)</p>
+            </description>
+        </release>
         <release date="2024-12-20" version="0.4.2">
             <description>
                 <ul>
