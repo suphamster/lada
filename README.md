@@ -137,6 +137,9 @@ You can select the model to use in the sidepanel or if using the CLI by passing 
 
 4) [Install GTK](https://www.gtk.org/docs/installations/)
 
+> [!TIP]
+> 3/4 are only needed when running the GUI and can be skipped for CLI-only use
+
 ### Python dependencies
 This is a Python project so let's install our dependencies from PyPi:
 
@@ -152,7 +155,7 @@ This is a Python project so let's install our dependencies from PyPi:
     ```bash
     python -m pip install -e '.[basicvsrpp,gui]'
     ````
-    These extras are enough to run the model, GUI and CLI. If you want to train the model(s) or work on the dataset(s) install additional extras `training,dataset-creation`.
+    These extras are enough to run the model, GUI and CLI. If you want to train the model(s) or work on the dataset(s) install additional extras `training,dataset-creation`. `gui` is optional and can be skipped if only working with the CLI.
 
    > [!CAUTION]
    > When installing the dataset-creating extra dependencies `albuminations` will be installed. There seems to be an issue with its dependency management as albumentations will install opencv headless even though opencv is already available and you'll end up with both (you can check via `pip freeze | grep opencv`). 
