@@ -5,12 +5,11 @@ import torch.nn.functional as F
 import torchvision
 from mmengine import MMLogger
 from mmengine.model import BaseModule
-from mmengine.model.weight_init import constant_init
+from mmengine.model.weight_init import constant_init, kaiming_init
 from mmengine.runner import load_checkpoint
 from torch import Tensor
 
 from lada.basicvsrpp.deformconv import ModulatedDeformConv2d
-from lada.basicvsrpp.mmcv.cnn import ConvModule
 from .flow_warp import flow_warp
 from .model_utils import default_init_weights
 from .model_utils import make_layer
@@ -505,6 +504,21 @@ class SPyNet(BaseModule):
         return flow
 
 
+class SPyNetConvModule(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, activation):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
+        kaiming_init(self.conv, a=0, nonlinearity='relu')
+        self.activate = nn.ReLU(inplace=True) if activation else None
+
+    def forward(self,
+                x: torch.Tensor,
+                activate: bool = True) -> torch.Tensor:
+        x = self.conv(x)
+        if activate and self.activate:
+            x = self.activate(x)
+        return x
+
 class SPyNetBasicModule(BaseModule):
     """Basic Module for SPyNet.
 
@@ -516,46 +530,41 @@ class SPyNetBasicModule(BaseModule):
         super().__init__()
 
         self.basic_module = nn.Sequential(
-            ConvModule(
+            SPyNetConvModule(
                 in_channels=8,
                 out_channels=32,
                 kernel_size=7,
                 stride=1,
                 padding=3,
-                norm_cfg=None,
-                act_cfg=dict(type='ReLU')),
-            ConvModule(
+                activation=True),
+            SPyNetConvModule(
                 in_channels=32,
                 out_channels=64,
                 kernel_size=7,
                 stride=1,
                 padding=3,
-                norm_cfg=None,
-                act_cfg=dict(type='ReLU')),
-            ConvModule(
+                activation=True),
+            SPyNetConvModule(
                 in_channels=64,
                 out_channels=32,
                 kernel_size=7,
                 stride=1,
                 padding=3,
-                norm_cfg=None,
-                act_cfg=dict(type='ReLU')),
-            ConvModule(
+                activation=True),
+            SPyNetConvModule(
                 in_channels=32,
                 out_channels=16,
                 kernel_size=7,
                 stride=1,
                 padding=3,
-                norm_cfg=None,
-                act_cfg=dict(type='ReLU')),
-            ConvModule(
+                activation=True),
+            SPyNetConvModule(
                 in_channels=16,
                 out_channels=2,
                 kernel_size=7,
                 stride=1,
                 padding=3,
-                norm_cfg=None,
-                act_cfg=None))
+                activation=False))
 
     def forward(self, tensor_input):
         """
