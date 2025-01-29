@@ -1,4 +1,6 @@
 import argparse
+import pathlib
+
 from tqdm import tqdm
 import os
 import tempfile
@@ -60,6 +62,7 @@ def main():
                  mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode, mosaic_cleaning=args.mosaic_cleaning)
     success = True
     video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
+    pathlib.Path(args.output).parent.mkdir(exist_ok=True, parents=True)
     try:
         frame_restorer.start()
 
