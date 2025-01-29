@@ -1,11 +1,11 @@
 <h1 align="center">
-  <img src="flatpak/share/icons/hicolor/128x128/apps/io.github.ladaapp.lada.png" alt="Lada Icon" style="display: block; width: 64px; height: 64px;">
+  <img src="packaging/flatpak/share/icons/hicolor/128x128/apps/io.github.ladaapp.lada.png" alt="Lada Icon" style="display: block; width: 64px; height: 64px;">
   <br>
   Lada
 </h1>
 
 ## Features
-* Remove and recover pixelated content in adult videos
+* Recover pixelated adult videos (JAV)
 * Watch or export your videos via CLI or GUI
 
 ## Usage
