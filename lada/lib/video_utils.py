@@ -513,4 +513,4 @@ def is_video_file(file_path):
                                        ".webm"}
 
     file_ext = os.path.splitext(file_path)[1]
-    return file_ext in SUPPORTED_VIDEO_FILE_EXTENSIONS
+    return file_ext.lower() in SUPPORTED_VIDEO_FILE_EXTENSIONS
