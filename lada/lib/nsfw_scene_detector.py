@@ -32,6 +32,7 @@ class FileProcessingOptions:
     scene_max_length: int
     scene_max_memory: int
     random_extend_masks: bool
+    skip4k: bool
 
 @dataclass
 class NsfwFrame:
@@ -404,6 +405,9 @@ class NsfwDetector:
             print(f"{file_index}, Skipping {file_name}: Unsupported file format")
             return None
         video_metadata = video_utils.get_video_meta_data(file_path)
+        if max(video_metadata.video_width, video_metadata.video_height) > 2_000:
+            print(f"{file_index}, Skipping {file_name}: 4K")
+            return None
         scene_max_length = determine_max_scene_length (video_metadata, self.file_processing_options.scene_max_length, self.file_processing_options.scene_max_memory)
         if scene_max_length < self.file_processing_options.scene_min_length:
             print(f"{file_index}, Skipping {file_name}: Scene maximum length is less than minimum length")

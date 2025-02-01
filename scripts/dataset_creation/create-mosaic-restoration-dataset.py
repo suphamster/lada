@@ -24,6 +24,8 @@ def parse_args():
     input.add_argument('--input', type=Path, help="path to a video file or a directory containing NSFW videos")
     input.add_argument('--start-index', type=int, default=0, help="Can be used to continue a previous run. Note the index number next to last processed file name")
     input.add_argument('--stride-length', default=0, type=int, help="skip frames in between long videos to prevent sampling too many scenes from a single file. value is in seconds")
+    input.add_argument('--skip-4k', default=True, action=argparse.BooleanOptionalAction, help="skip videos of 4K resolution or higher. Processing those will use a lot of RAM")
+
 
     output = parser.add_argument_group('Output')
     output.add_argument('--output-root', type=Path, default='video_dataset', help="path to directory where dataset should be stored")
@@ -122,7 +124,8 @@ def main():
                                                     scene_max_length=args.scene_max_length,
                                                     scene_max_memory=args.scene_max_memory,
                                                     scene_min_length=args.scene_min_length,
-                                                    random_extend_masks=True)
+                                                    random_extend_masks=True,
+                                                    skip4k=args.skip_4k)
 
     scene_processing_options = SceneProcessingOptions(output_dir=output_dir,
                                                   save_flat=args.flat,
