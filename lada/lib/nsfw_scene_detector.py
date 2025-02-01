@@ -344,31 +344,32 @@ class NsfwDetector:
         self.scene_detector_thread_should_be_running = False
 
         self.no_nsfw_scenes_found_file: pathlib.Path = file_processing_options.output_dir.joinpath("no_nsfw_scenes.txt")
-        self.files_with_no_nsfw_scenes_found: list[str] = []
-        if self.no_nsfw_scenes_found_file.exists():
-            with open(self.no_nsfw_scenes_found_file, 'r', encoding='utf-8') as f:
-                for file_path in f:
-                    self.files_with_no_nsfw_scenes_found.append(file_path)
+        self.done_processing_file: pathlib.Path = file_processing_options.output_dir.joinpath("done_processing.txt")
+        self.files_already_processed: list[str] = []
+        for file in (self.no_nsfw_scenes_found_file, self.done_processing_file):
+            if file.exists():
+                with open(file, 'r', encoding='utf-8') as f:
+                    for file_path in f:
+                        if file_path not in self.files_already_processed:
+                            self.files_already_processed.append(file_path)
 
-    def _file_marked_as_no_nsfw_found(self, path_to_check: str):
-        for file_path in self.files_with_no_nsfw_scenes_found:
+    def _file_marked_as_already_processed(self, path_to_check: str):
+        for file_path in self.files_already_processed:
             file_path = file_path.strip()
             if os.path.exists(file_path) and os.path.samefile(file_path, path_to_check):
                 return True
         return False
 
-    def _mark_file_as_no_nsfw_found(self, path_to_save: str):
-        if not os.path.exists(self.no_nsfw_scenes_found_file):
-            self.file_processing_options.output_dir.mkdir(parents=True, exist_ok=True)
-            p = pathlib.Path(self.no_nsfw_scenes_found_file)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.touch()
-        with open(self.no_nsfw_scenes_found_file, 'a', encoding='utf-8') as f:
+    def _mark_file_as_processed(self, text_file: pathlib.Path, path_to_save: str):
+        if not text_file.exists():
+            text_file.parent.mkdir(parents=True, exist_ok=True)
+            text_file.touch()
+        with open(text_file, 'a', encoding='utf-8') as f:
             f.write(f"{path_to_save}\n")
 
     def _file_already_processed(self, path_to_check: str):
         file_name = pathlib.Path(path_to_check).name
-        return len(list(self.file_processing_options.output_dir.glob(f"*/{file_name}*"))) > 0 or self._file_marked_as_no_nsfw_found(path_to_check)
+        return len(list(self.file_processing_options.output_dir.glob(f"*/{file_name}*"))) > 0 or self._file_marked_as_already_processed(path_to_check)
 
     def _process_completed_scene(self, completed_scene: Scene) -> Optional[Scene]:
         """returns Scene if it fits the criteria for a valid completed scene like min/max length"""
@@ -479,7 +480,7 @@ class NsfwDetector:
             new_file = previous_file != nsfw_frame.video_metadata.video_file
             if new_file:
                 if previous_file_no_completed_scenes:
-                    self._mark_file_as_no_nsfw_found(previous_file)
+                    self._mark_file_as_processed(self.no_nsfw_scenes_found_file, previous_file)
                 previous_file = nsfw_frame.video_metadata.video_file
                 previous_file_no_completed_scenes = True
 
@@ -508,6 +509,9 @@ class NsfwDetector:
                     if self.stop_requested:
                         logger.debug("NsfwDetector: frame detector worker: scene_queue producer unblocked")
                 scene = None
+
+            if nsfw_frame.last_frame:
+                self._mark_file_as_processed(self.done_processing_file, nsfw_frame.video_metadata.video_file)
 
     def __call__(self) -> Generator[Scene, None, None]:
         while not self.stop_requested:

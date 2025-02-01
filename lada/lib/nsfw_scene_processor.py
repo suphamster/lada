@@ -466,21 +466,17 @@ class SceneProcessor:
             _filtering_dataset_item = dataset_item_uncropped
         else:
             _filtering_dataset_item = None
-        scene_quality = _filtering_dataset_item.quality_score.overall if _filtering_dataset_item else 1.0
-        watermark_detected = _filtering_dataset_item.watermark_detected if _filtering_dataset_item else None
-        nudenet_nsfw_detected = _filtering_dataset_item.nudenet_nsfw_detected if _filtering_dataset_item else None
-        censoring_detected = _filtering_dataset_item.censoring_detected if _filtering_dataset_item else None
 
-        if scene_processing_options.quality_evaluation.filter and scene_quality < scene_processing_options.quality_evaluation.min_quality:
-            print(f"Skipped scene {scene.id} because of low visual video quality ({scene_quality:.4f} < {scene_processing_options.quality_evaluation.min_quality})")
+        if scene_processing_options.quality_evaluation.filter and _filtering_dataset_item and _filtering_dataset_item.quality_score.overall < scene_processing_options.quality_evaluation.min_quality:
+            print(f"Skipped scene {scene.id} because of low visual video quality ({_filtering_dataset_item.quality_score.overall:.4f} < {scene_processing_options.quality_evaluation.min_quality})")
             return
-        elif scene_processing_options.watermark_detection.filter and watermark_detected:
+        elif scene_processing_options.watermark_detection.filter and _filtering_dataset_item and _filtering_dataset_item.watermark_detected:
             print(f"Skipped scene {scene.id} because watermark(s) have been detected")
             return
-        elif scene_processing_options.nudenet_nsfw_detection.filter and not nudenet_nsfw_detected:
+        elif scene_processing_options.nudenet_nsfw_detection.filter and _filtering_dataset_item and not _filtering_dataset_item.nudenet_nsfw_detected:
             print(f"Skipped scene {scene.id} because not NSFW according to NudeNetNsfwDetector")
             return
-        elif scene_processing_options.censor_detection.filter and censoring_detected:
+        elif scene_processing_options.censor_detection.filter and _filtering_dataset_item and _filtering_dataset_item.censoring_detected:
             print(f"Skipped scene {scene.id} because censoring has been detected")
             return
 
