@@ -12,6 +12,7 @@ from lada.lib import video_utils, image_utils
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
+from lada.lib.mosaic_classifier import MosaicClassifier
 from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosaic_block_size_v1, \
     get_mosaic_block_size_v2, get_mosaic_block_size_v3
 from lada.lib.nsfw_scene_detector import Scene, CroppedScene
@@ -40,6 +41,11 @@ class SceneProcessingOptions:
         filter: bool
         add_metadata: bool
 
+    @dataclass
+    class CensorDetectionProcessingOptions:
+        filter: bool
+        add_metadata: bool
+
     output_dir: Path
     save_flat: bool
     out_size: int
@@ -53,6 +59,7 @@ class SceneProcessingOptions:
     quality_evaluation: VideoQualityProcessingOptions
     watermark_detection: WatermarkDetectionProcessingOptions
     nudenet_nsfw_detection: NudeNetNsfwDetectionProcessingOptions
+    censor_detection: CensorDetectionProcessingOptions
 
 @dataclass
 class SceneCreationOptions:
@@ -85,6 +92,7 @@ class DatasetItem:
         self._watermark_detected: Optional[bool] = None
         self._nudenet_nsfw_detected: Optional[bool] = None
         self._nudenet_nsfw_detected_classes: Optional[restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1] = None
+        self._censoring_detected: Optional[bool] = None
         self._scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped'] = scene_type
 
         self._init_images_masks_and_pad(cropped_scene, scene, mosaic, crop, resize_crops, resize_crop_size, mosaic_params, mosaic_degradation_params)
@@ -132,6 +140,14 @@ class DatasetItem:
     @nudenet_nsfw_detected_classes.setter
     def nudenet_nsfw_detected_classes(self, value):
         self._nudenet_nsfw_detected_classes = value
+
+    @property
+    def censoring_detected(self):
+        return self._censoring_detected
+
+    @censoring_detected.setter
+    def censoring_detected(self, value):
+        self._censoring_detected = value
 
     def _init_images_masks_and_pad(self, cropped_scene: CroppedScene, scene: Optional[Scene], mosaic: bool, crop: bool, resize_crops: bool, resize_crop_size: Optional[int], mosaic_params: Optional[MosaicRandomParams], mosaic_degradation_params: Optional[MosaicRandomDegradationParams]):
 
@@ -297,6 +313,7 @@ class DatasetItem:
             watermark_detected=self._watermark_detected,
             nudenet_nsfw_detected=self._nudenet_nsfw_detected,
             nudenet_nsfw_detected_classes=self._nudenet_nsfw_detected_classes,
+            censoring_detected=self._censoring_detected,
         )
 
     def save(self, output_dir, scene, mosaic, save_as_images, save_flat, target_fps, io_executor) -> list[concurrent_futures.Future]:
@@ -319,10 +336,11 @@ class DatasetItem:
         return io_futures
 
 class SceneProcessor:
-    def __init__(self,  video_quality_evaluator: VideoQualityEvaluator, watermark_detector: WatermarkDetector, nudenet_nsfw_detector: NudeNetNsfwDetector):
+    def __init__(self,  video_quality_evaluator: VideoQualityEvaluator, watermark_detector: WatermarkDetector, nudenet_nsfw_detector: NudeNetNsfwDetector, censoring_detector: MosaicClassifier):
         self.video_quality_evaluator = video_quality_evaluator
         self.watermark_detector = watermark_detector
         self.nudenet_nsfw_detector = nudenet_nsfw_detector
+        self.censor_detector = censoring_detector
 
     def process_scene(self, scene: Scene, output_dir: Path, scene_processing_options: SceneProcessingOptions):
         print("Started processing scene", scene.id)
@@ -409,6 +427,21 @@ class SceneProcessor:
                         dataset_item_uncropped.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
             scene_analyzers_futures.append(scene_analyzers_executor.submit(_run_nudenet_nsfw_detection))
 
+            #########
+            ## Censor detection
+            #########
+            def _run_censor_detection():
+                if scene_processing_options.censor_detection.filter or scene_processing_options.censor_detection.add_metadata:
+                    if scene_processing_options.save_cropped:
+                        _censoring_detected = self.censor_detector.detect(scene.get_images(), cropped_scene.get_boxes())
+                        if scene_processing_options.resize_crops:
+                            dataset_item_crop_scaled.censoring_detected = _censoring_detected
+                        if scene_processing_options.preserve_crops:
+                            dataset_item_crop_unscaled.censoring_detected = _censoring_detected
+                    if scene_processing_options.save_uncropped:
+                        dataset_item_uncropped.censoring_detected = self.censor_detector.detect(scene.get_images())
+            scene_analyzers_futures.append(scene_analyzers_executor.submit(_run_censor_detection))
+
         wait_until_completed(scene_analyzers_futures)
 
         #########
@@ -426,21 +459,17 @@ class SceneProcessor:
         ## Filtering
         #########
         if scene_processing_options.save_cropped and scene_processing_options.preserve_crops:
-            scene_quality = dataset_item_crop_unscaled.quality_score.overall
-            watermark_detected = dataset_item_crop_unscaled.watermark_detected
-            nudenet_nsfw_detected = dataset_item_crop_unscaled.nudenet_nsfw_detected
+            _filtering_dataset_item = dataset_item_crop_unscaled
         elif scene_processing_options.save_cropped and scene_processing_options.resize_crops:
-            scene_quality = dataset_item_crop_scaled.quality_score.overall
-            watermark_detected = dataset_item_crop_scaled.watermark_detected
-            nudenet_nsfw_detected = dataset_item_crop_scaled.nudenet_nsfw_detected
+            _filtering_dataset_item = dataset_item_crop_scaled
         elif scene_processing_options.save_uncropped:
-            scene_quality = dataset_item_uncropped.quality_score.overall
-            watermark_detected = dataset_item_uncropped.watermark_detected
-            nudenet_nsfw_detected = dataset_item_uncropped.nudenet_nsfw_detected
+            _filtering_dataset_item = dataset_item_uncropped
         else:
-            scene_quality = 1.0
-            watermark_detected = None
-            nudenet_nsfw_detected = None
+            _filtering_dataset_item = None
+        scene_quality = _filtering_dataset_item.quality_score.overall if _filtering_dataset_item else 1.0
+        watermark_detected = _filtering_dataset_item.watermark_detected if _filtering_dataset_item else None
+        nudenet_nsfw_detected = _filtering_dataset_item.nudenet_nsfw_detected if _filtering_dataset_item else None
+        censoring_detected = _filtering_dataset_item.censoring_detected if _filtering_dataset_item else None
 
         if scene_processing_options.quality_evaluation.filter and scene_quality < scene_processing_options.quality_evaluation.min_quality:
             print(f"Skipped scene {scene.id} because of low visual video quality ({scene_quality:.4f} < {scene_processing_options.quality_evaluation.min_quality})")
@@ -450,6 +479,9 @@ class SceneProcessor:
             return
         elif scene_processing_options.nudenet_nsfw_detection.filter and not nudenet_nsfw_detected:
             print(f"Skipped scene {scene.id} because not NSFW according to NudeNetNsfwDetector")
+            return
+        elif scene_processing_options.censor_detection.filter and censoring_detected:
+            print(f"Skipped scene {scene.id} because censoring has been detected")
             return
 
         #########

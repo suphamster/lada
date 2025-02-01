@@ -124,6 +124,7 @@ class RestorationDatasetMetadataV2(AbstractRestorationDatasetMetadata):
     watermark_detected: Optional[bool]
     nudenet_nsfw_detected: Optional[bool]
     nudenet_nsfw_detected_classes: Optional[NudeNetNsfwClassDetectionsV1]
+    censoring_detected: Optional[bool]
 
     def _determine_relative_file_paths_by_v1_metadata(path: str, v1_metadata: RestorationDatasetMetadataV1) -> tuple[str, str, Optional[str], Optional[str]]:
         metadata_pathlib_path = Path(path)
@@ -194,6 +195,7 @@ class RestorationDatasetMetadataV2(AbstractRestorationDatasetMetadata):
                 None,
                 None,
                 None,
+                None,
             )
         elif version == 2:
             return RestorationDatasetMetadataV2(
@@ -227,4 +229,5 @@ class RestorationDatasetMetadataV2(AbstractRestorationDatasetMetadata):
                 json_dict.get("watermark_detected"),
                 json_dict.get("nudenet_nsfw_detected"),
                 json_dict.get("nudenet_nsfw_detected_classes"),
+                json_dict.get("censoring_detected"),
             )

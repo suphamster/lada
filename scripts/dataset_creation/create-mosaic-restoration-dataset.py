@@ -7,6 +7,7 @@ from time import sleep
 from ultralytics import YOLO
 
 from lada.dover.evaluate import VideoQualityEvaluator
+from lada.lib.mosaic_classifier import MosaicClassifier
 from lada.lib.nsfw_scene_detector import NsfwDetector, FileProcessingOptions
 from lada.lib.nsfw_scene_processor import SceneProcessingOptions, SceneProcessor
 from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
@@ -80,6 +81,12 @@ def parse_args():
     nsfw_detection.add_argument('--nudenet-nsfw-model-path', type=str, default="model_weights/3rd_party/640m.pt",
                         help="path to NudeNet NSFW detection model")
 
+    censor_detection = parser.add_argument_group('Censor detection (Currently, we just reuse the mosaic detection model so no other censoring methods like blur or black bars will be detected)')
+    censor_detection.add_argument('--add-censor-metadata', default=True, action=argparse.BooleanOptionalAction, help="If enabled will run Censor detection and add its results to metadata")
+    censor_detection.add_argument('--enable-censor-filter', default=False, action=argparse.BooleanOptionalAction, help="If enabled, scenes which are classified as censored will be skipped")
+    censor_detection.add_argument('--censor-model-path', type=str, default="model_weights/lada_mosaic_detection_model_v2.pt",
+                        help="path to censor detection model")
+
     args = parser.parse_args()
     return args
 
@@ -94,20 +101,10 @@ def main():
 
     nsfw_detection_model = YOLO(args.model)
 
-    if args.add_video_quality_metadata or args.enable_video_quality_filter:
-        video_quality_evaluator = VideoQualityEvaluator(device=args.video_quality_model_device)
-    else:
-        video_quality_evaluator = None
-
-    if args.add_watermark_metadata or args.enable_watermark_filter:
-        watermark_detector = WatermarkDetector(YOLO(args.watermark_model_path), device=args.model_device)
-    else:
-        watermark_detector = None
-
-    if args.add_nudenet_nsfw_metadata or args.enable_nudenet_nsfw_filter:
-        nudenet_nsfw_detector = NudeNetNsfwDetector(YOLO(args.nudenet_nsfw_model_path), device=args.model_device)
-    else:
-        nudenet_nsfw_detector = None
+    video_quality_evaluator = VideoQualityEvaluator(device=args.video_quality_model_device) if args.add_video_quality_metadata or args.enable_video_quality_filter else None
+    watermark_detector = WatermarkDetector(YOLO(args.watermark_model_path), device=args.model_device) if args.add_watermark_metadata or args.enable_watermark_filter else None
+    nudenet_nsfw_detector = NudeNetNsfwDetector(YOLO(args.nudenet_nsfw_model_path), device=args.model_device) if args.add_nudenet_nsfw_metadata or args.enable_nudenet_nsfw_filter else None
+    censor_detector = MosaicClassifier(YOLO(args.censor_model_path), device=args.model_device) if args.add_censor_metadata or args.enable_censor_filter else None
 
     output_dir = args.output_root
     if not output_dir.exists():
@@ -139,14 +136,15 @@ def main():
                                                   save_as_images=args.save_as_images,
                                                   quality_evaluation=SceneProcessingOptions.VideoQualityProcessingOptions(args.enable_video_quality_filter, args.add_video_quality_metadata, args.min_video_quality),
                                                   watermark_detection=SceneProcessingOptions.WatermarkDetectionProcessingOptions(args.enable_watermark_filter, args.add_watermark_metadata),
-                                                  nudenet_nsfw_detection=SceneProcessingOptions.NudeNetNsfwDetectionProcessingOptions(args.enable_nudenet_nsfw_filter, args.add_nudenet_nsfw_metadata))
+                                                  nudenet_nsfw_detection=SceneProcessingOptions.NudeNetNsfwDetectionProcessingOptions(args.enable_nudenet_nsfw_filter, args.add_nudenet_nsfw_metadata),
+                                                  censor_detection = SceneProcessingOptions.CensorDetectionProcessingOptions(args.enable_censor_filter, args.add_censor_metadata))
 
     nsfw_detector = NsfwDetector(nsfw_detection_model=nsfw_detection_model, device=args.model_device,
                                  file_queue=file_queue,
                                  frame_queue=queue.Queue(50),
                                  scene_queue=queue.Queue(2),
                                  file_processing_options=file_processing_options)
-    scene_processor = SceneProcessor(video_quality_evaluator, watermark_detector, nudenet_nsfw_detector)
+    scene_processor = SceneProcessor(video_quality_evaluator, watermark_detector, nudenet_nsfw_detector, censor_detector)
 
     try:
         nsfw_detector.start()
