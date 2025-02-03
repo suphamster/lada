@@ -129,7 +129,8 @@ You can select the model to use in the sidepanel or if using the CLI by passing 
 
 ### System dependencies
 
-1) Install Python <= 3.12
+1) Install Python 3.12
+   > If your OS doesn't provide this version you could use `conda` or some of its clones like `micromamba` to install python
 
 2) [Install FFmpeg](https://ffmpeg.org/download.html)
 
