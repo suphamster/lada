@@ -40,7 +40,7 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
         else:
             config = get_default_gan_inference_config()
         mosaic_restoration_model = load_model(config, mosaic_restoration_model_path, device)
-        pad_mode = 'reflect'
+        pad_mode = 'zero'
     elif mosaic_restoration_model_name.startswith("tecogan"):
         from lada.tecogan.tecogan_inferencer import load_model
         mosaic_restoration_model = load_model(mosaic_restoration_config_path)
@@ -183,10 +183,9 @@ class FrameRestorer:
         Pops starting frame from each restored clip in the process if they actually start at the same frame number as frame.
         """
         for buffered_clip in [c for c in restored_clips if c.frame_start == frame_num]:
-            clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize, pad_before_resize = buffered_clip.pop()
+            clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize = buffered_clip.pop()
             clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
             clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
-            clip_img = image_utils.unpad_image(clip_img, pad_before_resize)
             t, l, b, r = orig_clip_box
             frame[t:b + 1, l:r + 1, :] = clip_img
 
@@ -200,8 +199,7 @@ class FrameRestorer:
         else:
             if self.mosaic_cleaning:
                 images = []
-                for (
-                cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad_after_resize, pad_before_resize) in clip:
+                for (cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad_after_resize) in clip:
                     images.append(self.mosaic_cleaner.clean_cropped_mosaic(cropped_img, cropped_mask, pad_after_resize))
             else:
                 images = clip.get_clip_images()
@@ -211,8 +209,7 @@ class FrameRestorer:
 
         for i in range(len(restored_clip_images)):
             assert clip.data[i][0].shape == restored_clip_images[i].shape
-            clip.data[i] = restored_clip_images[i], clip.data[i][1], clip.data[i][2], clip.data[i][3], clip.data[i][4], \
-            clip.data[i][5]
+            clip.data[i] = restored_clip_images[i], clip.data[i][1], clip.data[i][2], clip.data[i][3], clip.data[i][4]
 
     def _collect_garbage(self, clip_buffer):
         processed_clips = list(filter(lambda _clip: len(_clip) == 0, clip_buffer))
@@ -226,11 +223,9 @@ class FrameRestorer:
         logger.debug("clip restoration worker: started")
         eof = False
         while self.clip_restoration_thread_should_be_running:
-            start = time.time()
             clip = self.mosaic_clip_queue.get()
             if self.stop_requested:
                 logger.debug("clip restoration worker: mosaic_clip_queue consumer unblocked")
-            waited_for_mosaic_clip = time.time() - start
             if clip is None:
                 if not self.stop_requested:
                     eof = True
@@ -264,11 +259,9 @@ class FrameRestorer:
         return mosaic_detected, frame, frame_pts
 
     def _read_next_clip(self, current_frame_num, clip_buffer) -> bool:
-        start = time.time()
         clip = self.restored_clip_queue.get()
         if self.stop_requested:
             logger.debug("frame restoration worker: restored_clip_queue consumer unblocked")
-        waited_for_restored_clip = time.time() - start
         if clip is None:
             return False
         assert self.stop_requested or clip.frame_start >= current_frame_num, "clip queue out of sync!"

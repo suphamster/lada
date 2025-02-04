@@ -44,7 +44,7 @@ def draw_mosaic_detections(clip: Clip, border_color = (255, 0, 255)) -> list[Ima
     mosaic_detection_images = []
     box_border_thickness = 2
     border_thickness_half = box_border_thickness // 2
-    for (cropped_img, cropped_mask, _, orig_crop_shape, pad_after_resize, pad_before_resize) in clip:
+    for (cropped_img, cropped_mask, _, orig_crop_shape, pad_after_resize) in clip:
         mosaic_detection_img = cropped_img.copy()
 
         draw_text(f"c:{clip.id},f_start:{clip.frame_start}",(25, cropped_img.shape[1] // 2), mosaic_detection_img)
@@ -52,14 +52,12 @@ def draw_mosaic_detections(clip: Clip, border_color = (255, 0, 255)) -> list[Ima
         mosaic_detection_img = image_utils.unpad_image(mosaic_detection_img, pad_after_resize)
         shape_before_resize = mosaic_detection_img.shape
         mosaic_detection_img = image_utils.resize(mosaic_detection_img, orig_crop_shape[:2])
-        mosaic_detection_img = image_utils.unpad_image(mosaic_detection_img, pad_before_resize)
 
         t, l, b, r = 0, 0, mosaic_detection_img.shape[0] - 1, mosaic_detection_img.shape[1] - 1
         border_box = t + border_thickness_half, l + border_thickness_half, b - border_thickness_half, r - border_thickness_half
 
         draw_box(mosaic_detection_img, border_box, color=border_color, thickness=box_border_thickness)
 
-        mosaic_detection_img = image_utils.pad_image_by_pad(mosaic_detection_img, pad_before_resize)
         mosaic_detection_img = image_utils.resize(mosaic_detection_img, shape_before_resize[:2])
         mosaic_detection_img = image_utils.pad_image_by_pad(mosaic_detection_img, pad_after_resize)
 

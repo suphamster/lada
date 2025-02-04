@@ -104,33 +104,34 @@ class Clip:
         scene_masks = scene.get_masks()
         scene_images = scene.get_images()
         scene_boxes = scene.get_boxes()
-        pad_before_resize = (0,0,0,0)
         pad_after_resize = (0, 0, 0, 0)
 
         # crop scene
         for i in range(len(scene)):
             img, mask, box = scene_images[i], scene_masks[i], scene_boxes[i]
             cropped_img, cropped_mask, cropped_box, _ = crop_to_box_v3(box, img, mask, (size, size), max_box_expansion_factor=1., border_size=0.06)
-            self.data.append((cropped_img, cropped_mask, cropped_box, cropped_img.shape, pad_after_resize, pad_before_resize))
+            self.data.append((cropped_img, cropped_mask, cropped_box, cropped_img.shape, pad_after_resize))
 
         # resize crops to out_size
         if preserve_relative_scale:
             max_width, max_height = self.get_max_width_height()
+            scale_width, scale_height = size/max_width, size/max_height
+        else:
+            scale_width, scale_height = 1, 1
 
-        for i, (cropped_img, cropped_mask, cropped_box, _, _, _) in enumerate(self.data):
-            if preserve_relative_scale:
-                cropped_img, pad_before_resize = image_utils.pad_image(cropped_img, max_height, max_width, mode=self.pad_mode)
-                cropped_mask, _ = image_utils.pad_image(cropped_mask, max_height, max_width, mode='zero')
-
+        for i, (cropped_img, cropped_mask, cropped_box, _, _) in enumerate(self.data):
             crop_shape = cropped_img.shape
 
-            cropped_img = image_utils.resize(cropped_img, size, interpolation=cv2.INTER_LINEAR)
-            cropped_mask = image_utils.resize(cropped_mask, size, interpolation=cv2.INTER_NEAREST)
+            resize_shape = (int(crop_shape[0] * scale_height), int(crop_shape[1] * scale_width))
+            cropped_img = image_utils.resize(cropped_img, resize_shape, interpolation=cv2.INTER_LINEAR)
+            cropped_mask = image_utils.resize(cropped_mask, resize_shape, interpolation=cv2.INTER_NEAREST)
+            assert cropped_mask.shape[:2] == cropped_img.shape[:2], f"{cropped_mask.shape[:2]}, {cropped_img.shape[:2]}"
+            assert cropped_img.shape[0] <= size or cropped_img.shape[1] <= size
 
             cropped_img, pad_after_resize = image_utils.pad_image(cropped_img, size, size, mode=self.pad_mode)
             cropped_mask, _ = image_utils.pad_image(cropped_mask, size, size, mode='zero')
 
-            self.data[i] = (cropped_img, cropped_mask, cropped_box, crop_shape, pad_after_resize, pad_before_resize)
+            self.data[i] = (cropped_img, cropped_mask, cropped_box, crop_shape, pad_after_resize)
 
     def get_max_width_height(self):
         max_width = 0
@@ -145,10 +146,10 @@ class Clip:
         return max_width, max_height
 
     def get_clip_images(self):
-        return [clip_img for clip_img, _, _, _, _, _ in self.data]
+        return [clip_img for clip_img, _, _, _, _ in self.data]
 
     def get_clip_boxes(self):
-        return [clip_box for _, _, clip_box, _, _, _ in self.data]
+        return [clip_box for _, _, clip_box, _, _ in self.data]
 
     def pop(self):
         self.frame_start += 1
