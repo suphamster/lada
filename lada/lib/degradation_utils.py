@@ -59,19 +59,19 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate, crf=None):
     return outputs
 
 class MosaicRandomDegradationParamsV2:
-    def __init__(self, repeatable_random=False, use_vp9=True):
+    def __init__(self, repeatable_random=False):
         rng_random, rng_numpy = random_utils.get_rngs(repeatable_random)
-        # for some reason crf doesn't work with VP1 and pyav=v13, it doesn't have any effect. Only using bitrate does.
         codecs = {
             'libx264': (16, 28),
             'libx265': (20, 36),
-            'libvpx-vp9': (8_000, 16_000)
+            'libvpx-vp9': (6_000, 16_000),
+            'mpeg2video': (18_000, 40_000),
         }
-        available_codecs = list(codecs.keys())
-        if not use_vp9: available_codecs.remove('libvpx-vp9')
-        self.video_codec = rng_random.choice(available_codecs)
+        available_codecs = ['libx264', 'libx265', 'libvpx-vp9', 'mpeg2video']
+        codec_probabilities = [0.3, 0.3, 0.3, 0.1]
+        self.video_codec = str(rng_numpy.choice(available_codecs, p=codec_probabilities))
         value = rng_numpy.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
-        if self.video_codec == 'libvpx-vp9':
+        if self.video_codec in ('libvpx-vp9', 'mpeg2video'):
             self.video_crf = None
             self.video_bitrate = value
         else:
