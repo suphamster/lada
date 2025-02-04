@@ -11,7 +11,7 @@ from lada.basicvsrpp.mmagic.registry import DATASETS
 import lada.lib.video_utils as video_utils
 from lada.lib import random_utils
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
-from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
+from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image, scale_pad
 from lada.lib.degradation_utils import apply_video_degradation_v2, MosaicRandomDegradationParamsV2
 from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV2
 
@@ -34,7 +34,7 @@ class MosaicVideoDataset(data.Dataset):
         self.filter_nudenet_nsfw = opt.get('filter_nudenet_nsfw', False)
         self.filter_video_quality = opt.get('filter_video_quality', False)
         self.filter_watermark_thresh = 0.1
-        self.repad = False
+        self.repad = True
         self.rng_random, _ = random_utils.get_rngs(self.repeatable_random)
 
         self.metadata = []
@@ -77,15 +77,15 @@ class MosaicVideoDataset(data.Dataset):
 
         vid_gt_path = str(Path(self.meta_root).joinpath(meta.relative_nsfw_video_path))
         img_gts = video_utils.read_video_frames(vid_gt_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx)
-        if self.repad:
-            img_gts = repad_image(img_gts, pads)
+
+        h, w = img_gts[0].shape[:2]
+        scale_h = h / self.lq_size
+        scale_w = w / self.lq_size
+        scaled_pads = [scale_pad(pad, scale_h, scale_w) for pad in pads]
 
         if not self.random_mosaic_params:
             vid_lq_path = str(Path(self.meta_root).joinpath(meta.relative_mosaic_nsfw_video_path))
             img_lqs = video_utils.read_video_frames(vid_lq_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx)
-            
-            if self.repad:
-                img_lqs = repad_image(img_lqs, pads)
         else:
             vid_mask_gt_path = str(Path(self.meta_root).joinpath(meta.relative_mask_video_path))
             mask_gts = video_utils.read_video_frames(vid_mask_gt_path, float32=False, start_idx=start_frame_idx, end_idx=end_frame_idx, binary_frames=True)
@@ -107,6 +107,10 @@ class MosaicVideoDataset(data.Dataset):
 
         img_gts = video_utils.resize_video_frames(img_gts, self.lq_size)
         img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
+
+        if self.repad:
+            img_lqs = repad_image(img_lqs, scaled_pads, mode='zero')
+            img_gts = repad_image(img_gts, scaled_pads, mode='zero')
 
         if self.use_hflip and self.rng_random.random() < 0.5:
             img_gts = [np.fliplr(img) for img in img_gts]

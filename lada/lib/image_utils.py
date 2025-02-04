@@ -31,6 +31,7 @@ def pad_image_by_pad(img, pad, mode='zero'):
         else:
             raise NotImplementedError()
     else:
+        assert mode == 'zero'
         padded_img = np.pad(img, ((pad_h_t, pad_h_b),(pad_w_l, pad_w_r)), mode='constant', constant_values=0)
     return padded_img
 
@@ -49,8 +50,16 @@ def repad_image(imgs, pads, mode='reflect'):
                 raise NotImplementedError()
         else:
             padded_img = np.pad(img[pad_h_t:h-pad_h_b, pad_w_l:w-pad_w_r], ((pad_h_t, pad_h_b),(pad_w_l, pad_w_r)), mode='constant', constant_values=0)
+        assert padded_img.shape[0] == h and padded_img.shape[1] == w
         padded_imgs.append(padded_img)
     return padded_imgs
+
+def scale_pad(pad, scale_h, scale_w):
+    if scale_h == 1 and scale_w == 1:
+        return pad
+    (pad_h_t, pad_h_b, pad_w_l, pad_w_r) = pad
+    scaled_pad = (math.ceil(pad_h_t/scale_h), math.ceil(pad_h_b/scale_h), math.ceil(pad_w_l/scale_w), math.ceil(pad_w_r/scale_w))
+    return scaled_pad
 
 def unpad_image(img, pad):
     (pad_h_t, pad_h_b, pad_w_l, pad_w_r) = pad
