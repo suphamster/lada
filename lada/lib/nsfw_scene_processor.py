@@ -9,6 +9,7 @@ import numpy as np
 
 from lada.lib import mask_utils, restoration_dataset_metadata, Pad, Mask, Image
 from lada.lib import video_utils, image_utils
+# todo: switch to MosaicRandomDegradationParamsV2
 from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
@@ -424,7 +425,7 @@ class SceneProcessor:
                             dataset_item_crop_unscaled.nudenet_nsfw_detected, dataset_item_crop_unscaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
                     if scene_processing_options.save_uncropped:
                         _nudenet_nsfw_detected, _nsfw_male_detected, _nsfw_female_detected = self.nudenet_nsfw_detector.detect(scene.get_images())
-                        dataset_item_uncropped.nudenet_nsfw_detected, dataset_item_crop_scaled.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
+                        dataset_item_uncropped.nudenet_nsfw_detected, dataset_item_uncropped.nudenet_nsfw_detected_classes = _nudenet_nsfw_detected, restoration_dataset_metadata.NudeNetNsfwClassDetectionsV1(_nsfw_male_detected, _nsfw_female_detected)
             scene_analyzers_futures.append(scene_analyzers_executor.submit(_run_nudenet_nsfw_detection))
 
             #########

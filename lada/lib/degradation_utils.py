@@ -10,13 +10,13 @@ from lada.lib import video_utils
 from lada.lib.degradations import generate_gaussian_noise, add_jpg_compression, random_mixed_kernels
 
 
-def apply_video_compression(imgs: list[Image], codec, bitrate):
+def apply_video_compression(imgs: list[Image], codec, bitrate, crf=None):
     imgs = video_utils.pad_to_compatible_size_for_video_codecs(imgs)
     h, w = imgs[0].shape[:2]
-    degraded_imgs = _apply_video_compression(imgs, codec, bitrate)
+    degraded_imgs = _apply_video_compression(imgs, codec, bitrate, crf)
     return [img[0:h, 0:w, :] for img in degraded_imgs]
 
-def _apply_video_compression(imgs: list[Image], codec, bitrate):
+def _apply_video_compression(imgs: list[Image], codec, bitrate, crf=None):
     # source: https://mmagic.readthedocs.io/en/latest/_modules/mmagic/datasets/transforms/random_degradations.html#RandomVideoCompression.__call__
     """This is the function to apply random compression on images.
 
@@ -29,15 +29,15 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate):
 
     buf = io.BytesIO()
     with av.open(buf, 'w', 'mp4') as container:
-        if codec == 'libx265':
-            options = {'x265-params': 'log_level=error'}
-        else:
-            options = None
+        options = {}
+        if crf: options["crf"] = str(crf)
+        if codec == 'libx265': options['x265-params'] = 'log_level=error'
+        if codec == 'libx264' or codec == 'libx265': options['preset'] = 'veryfast'
         stream = container.add_stream(codec, rate=1, options=options)
         stream.height = imgs[0].shape[0]
         stream.width = imgs[0].shape[1]
         stream.pix_fmt = 'yuv420p'
-        stream.bit_rate = bitrate
+        if bitrate: stream.bit_rate = bitrate
 
         for img in imgs:
             frame = av.VideoFrame.from_ndarray(img, format='rgb24')
@@ -58,6 +58,26 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate):
 
     return outputs
 
+class MosaicRandomDegradationParamsV2:
+    def __init__(self, repeatable_random=False, use_vp9=True):
+        rng_random, rng_numpy = random_utils.get_rngs(repeatable_random)
+        # for some reason crf doesn't work with VP1 and pyav=v13, it doesn't have any effect. Only using bitrate does.
+        codecs = {
+            'libx264': (16, 28),
+            'libx265': (20, 36),
+            'libvpx-vp9': (8_000, 16_000)
+        }
+        available_codecs = list(codecs.keys())
+        if not use_vp9: available_codecs.remove('libvpx-vp9')
+        self.video_codec = rng_random.choice(available_codecs)
+        value = rng_numpy.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
+        if self.video_codec == 'libvpx-vp9':
+            self.video_crf = None
+            self.video_bitrate = value
+        else:
+            self.video_crf = value
+            self.video_bitrate = None
+        self.should_add_video_compression = rng_random.random()<0.8
 
 class MosaicRandomDegradationParams:
     def __init__(self, should_down_sample=True, should_add_noise=True, should_add_image_compression=True, should_add_video_compression=False, should_add_blur=False, repeatable_random=False):
@@ -129,3 +149,7 @@ def apply_video_degradation(imgs: list[Image], degradation_params: MosaicRandomD
     if degradation_params.should_add_video_compression:
         imgs_lq = apply_video_compression(imgs_lq, degradation_params.video_codec, degradation_params.video_bitrate)
     return imgs_lq
+
+def apply_video_degradation_v2(imgs: list[Image], degradation_params: MosaicRandomDegradationParamsV2) -> list[Image]:
+    assert max(imgs[0].shape[:2]) == 256, "video compression degradation expects width/height of 256px"
+    return apply_video_compression(imgs, degradation_params.video_codec, degradation_params.video_bitrate)

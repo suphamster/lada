@@ -12,7 +12,7 @@ import lada.lib.video_utils as video_utils
 from lada.lib import random_utils
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image
-from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_video_degradation
+from lada.lib.degradation_utils import apply_video_degradation_v2, MosaicRandomDegradationParamsV2
 from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV2
 
 
@@ -101,11 +101,9 @@ class MosaicVideoDataset(data.Dataset):
                                                  feather=mosaic_feather_size)
                 img_lqs.append(pad_image_by_pad(img_lq, pad))
             if self.degrade:
-                degradation_params = MosaicRandomDegradationParams(should_down_sample=True, should_add_noise=True,
-                                                                   should_add_image_compression=True,
-                                                                   should_add_video_compression=True,
-                                                                   repeatable_random=self.repeatable_random)
-                img_lqs = apply_video_degradation(img_lqs, degradation_params)
+                degradation_params = MosaicRandomDegradationParamsV2(repeatable_random=self.repeatable_random)
+                img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
+                img_lqs = apply_video_degradation_v2(img_lqs, degradation_params)
 
         img_gts = video_utils.resize_video_frames(img_gts, self.lq_size)
         img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
