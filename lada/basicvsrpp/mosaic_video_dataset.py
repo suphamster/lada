@@ -9,7 +9,7 @@ from lada.basicvsrpp.mmagic.data_sample import DataSample
 from lada.basicvsrpp.mmagic.registry import DATASETS
 
 import lada.lib.video_utils as video_utils
-from lada.lib import random_utils
+from lada.lib import random_utils, degradation_utils
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image, scale_pad
 from lada.lib.degradation_utils import apply_video_degradation_v2, MosaicRandomDegradationParamsV2
@@ -35,7 +35,7 @@ class MosaicVideoDataset(data.Dataset):
         self.filter_video_quality = opt.get('filter_video_quality', False)
         self.filter_watermark_thresh = 0.1
         self.repad = True
-        self.rng_random, _ = random_utils.get_rngs(self.repeatable_random)
+        self.rng_random, self.rng_numpy = random_utils.get_rngs(self.repeatable_random)
 
         self.metadata = []
         for meta_path in glob.glob(os.path.join(opt['metadata_root_dir'], '*')):
@@ -104,6 +104,9 @@ class MosaicVideoDataset(data.Dataset):
                 degradation_params = MosaicRandomDegradationParamsV2(repeatable_random=self.repeatable_random)
                 img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
                 img_lqs = apply_video_degradation_v2(img_lqs, degradation_params)
+                if degradation_params.should_run_video_compression_second_pass:
+                    degradation_params.reinit_second_pass()
+                    img_lqs = apply_video_degradation_v2(img_lqs, degradation_params)
 
         img_gts = video_utils.resize_video_frames(img_gts, self.lq_size)
         img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
@@ -115,6 +118,11 @@ class MosaicVideoDataset(data.Dataset):
         if self.use_hflip and self.rng_random.random() < 0.5:
             img_gts = [np.fliplr(img) for img in img_gts]
             img_lqs = [np.fliplr(img) for img in img_lqs]
+
+        if self.rng_random.random()<0.3:
+            rotation_deg = self.rng_random.choice([-2, -1, 1, 2])
+            img_lqs = [degradation_utils.rotate(img, rotation_deg) for img in img_lqs]
+            img_gts = [degradation_utils.rotate(img, rotation_deg) for img in img_gts]
 
         img_gts = video_utils.img2tensor(img_gts, float32=False, bgr2rgb=True)
         img_lqs = video_utils.img2tensor(img_lqs, float32=False, bgr2rgb=True)

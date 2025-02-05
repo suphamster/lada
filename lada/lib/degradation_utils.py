@@ -58,7 +58,7 @@ def _apply_video_compression(imgs: list[Image], codec, bitrate, crf=None):
 
 class MosaicRandomDegradationParamsV2:
     def __init__(self, repeatable_random=False):
-        rng_random, rng_numpy = random_utils.get_rngs(repeatable_random)
+        rng_random, self._rng_numpy = random_utils.get_rngs(repeatable_random)
         codecs = {
             'libx264': (16, 28),
             'libx265': (20, 36),
@@ -67,17 +67,27 @@ class MosaicRandomDegradationParamsV2:
         }
         available_codecs = ['libx264', 'libx265', 'libvpx-vp9', 'mpeg2video']
         codec_probabilities = [0.3, 0.3, 0.3, 0.1]
-        self.video_codec = str(rng_numpy.choice(available_codecs, p=codec_probabilities))
-        value = rng_numpy.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
+        self.video_codec = str(self._rng_numpy.choice(available_codecs, p=codec_probabilities))
+        value = self._rng_numpy.randint(codecs[self.video_codec][0], codecs[self.video_codec][1] + 1)
         if self.video_codec in ('libvpx-vp9', 'mpeg2video'):
             self.video_crf = None
             self.video_bitrate = value
         else:
             self.video_crf = value
             self.video_bitrate = None
-        self.should_add_video_compression = rng_random.random()<0.8
-        self.blur_sigma = rng_numpy.randint(1, 4)
+        self.should_add_video_compression = rng_random.random()<0.9
+        self.blur_sigma = self._rng_numpy.randint(1, 4)
         self.should_add_blur = rng_random.random()<0.3
+        self.should_add_noise = rng_random.random()<0.2
+        self.should_run_video_compression_second_pass = rng_random.random()<0.15
+
+    def reinit_second_pass(self):
+        self.video_codec = 'libx264'
+        self.video_crf = self._rng_numpy.randint(24, 28)
+        self.video_bitrate = None
+        self.should_add_blur = False
+        self.should_add_noise = False
+        self.should_run_video_compression_second_pass = False
 
 class MosaicRandomDegradationParams:
     def __init__(self, should_down_sample=True, should_add_noise=True, should_add_image_compression=True, should_add_video_compression=False, should_add_blur=False, repeatable_random=False):
@@ -118,6 +128,14 @@ class MosaicRandomDegradationParams:
             repeatable_random=repeatable_random)
 
 
+def noise(img, snr=50):
+    mean = 0
+    img = img / 255.0
+    noise = np.random.normal(mean, 10 ** (-snr / 20), img.shape)
+    img = np.clip(img + noise, 0, 1)
+    img = (img * 255).astype(np.uint8)
+    return img
+
 def apply_frame_degradation(img: Image, degradation_params: MosaicRandomDegradationParams) -> Image:
     h, w = img.shape[:2]
     img_lq = img.astype(np.float32) / 255.
@@ -140,10 +158,18 @@ def apply_frame_degradation(img: Image, degradation_params: MosaicRandomDegradat
     img_lq = (img_lq * 255.).astype(np.uint8)
     return img_lq
 
+def rotate(img: Image, deg):
+    h,w = img.shape[:2]
+    M = cv2.getRotationMatrix2D((w/2,h/2),deg,1)
+    img = cv2.warpAffine(img,M,(w,h))
+    return img
+
 def apply_frame_degradation_v2(img: Image, degradation_params: MosaicRandomDegradationParamsV2) -> Image:
     img_lq = img
     if degradation_params.should_add_blur:
         img_lq = cv2.GaussianBlur(img, (13,13), degradation_params.blur_sigma)
+    if degradation_params.should_add_noise:
+        img_lq = noise(img_lq, 50)
     return img_lq
 
 def apply_video_degradation(imgs: list[Image], degradation_params: MosaicRandomDegradationParams) -> list[Image]:
