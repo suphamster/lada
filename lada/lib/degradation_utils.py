@@ -1,6 +1,4 @@
 import io
-import random
-
 import av
 import cv2
 import numpy as np
@@ -78,6 +76,8 @@ class MosaicRandomDegradationParamsV2:
             self.video_crf = value
             self.video_bitrate = None
         self.should_add_video_compression = rng_random.random()<0.8
+        self.blur_sigma = rng_numpy.randint(1, 4)
+        self.should_add_blur = rng_random.random()<0.3
 
 class MosaicRandomDegradationParams:
     def __init__(self, should_down_sample=True, should_add_noise=True, should_add_image_compression=True, should_add_video_compression=False, should_add_blur=False, repeatable_random=False):
@@ -140,6 +140,11 @@ def apply_frame_degradation(img: Image, degradation_params: MosaicRandomDegradat
     img_lq = (img_lq * 255.).astype(np.uint8)
     return img_lq
 
+def apply_frame_degradation_v2(img: Image, degradation_params: MosaicRandomDegradationParamsV2) -> Image:
+    img_lq = img
+    if degradation_params.should_add_blur:
+        img_lq = cv2.GaussianBlur(img, (13,13), degradation_params.blur_sigma)
+    return img_lq
 
 def apply_video_degradation(imgs: list[Image], degradation_params: MosaicRandomDegradationParams) -> list[Image]:
     imgs_lq = []
@@ -152,4 +157,7 @@ def apply_video_degradation(imgs: list[Image], degradation_params: MosaicRandomD
 
 def apply_video_degradation_v2(imgs: list[Image], degradation_params: MosaicRandomDegradationParamsV2) -> list[Image]:
     assert max(imgs[0].shape[:2]) == 256, "video compression degradation expects width/height of 256px"
-    return apply_video_compression(imgs, degradation_params.video_codec, degradation_params.video_bitrate)
+    imgs_lq = apply_video_compression(imgs, degradation_params.video_codec, degradation_params.video_bitrate)
+    for i, img in enumerate(imgs_lq):
+        imgs_lq[i] = apply_frame_degradation_v2(img, degradation_params)
+    return imgs_lq
