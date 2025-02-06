@@ -4,11 +4,12 @@ import threading
 import time
 from typing import Optional
 
+import cv2
 import numpy as np
 from ultralytics import YOLO
 
 from lada import LOG_LEVEL
-from lada.lib import image_utils, video_utils, threading_utils
+from lada.lib import image_utils, video_utils, threading_utils, mask_utils
 from lada.lib import visualization_utils
 from lada.lib.mosaic_detector import MosaicDetector
 from lada.mosaic_cleaning.clean_mosaic_utils import MosaicCleaner
@@ -185,9 +186,13 @@ class FrameRestorer:
         for buffered_clip in [c for c in restored_clips if c.frame_start == frame_num]:
             clip_img, clip_mask, orig_clip_box, orig_crop_shape, pad_after_resize = buffered_clip.pop()
             clip_img = image_utils.unpad_image(clip_img, pad_after_resize)
+            clip_mask = image_utils.unpad_image(clip_mask, pad_after_resize)
             clip_img = image_utils.resize(clip_img, orig_crop_shape[:2])
+            clip_mask = image_utils.resize(clip_mask, orig_crop_shape[:2],interpolation=cv2.INTER_NEAREST)
             t, l, b, r = orig_clip_box
-            frame[t:b + 1, l:r + 1, :] = clip_img
+            blend_mask = mask_utils.create_blend_mask(clip_mask)
+            blended_img = (frame[t:b + 1, l:r + 1, :] * (1 - blend_mask[..., None]) + clip_img * (blend_mask[..., None])).clip(0, 255).astype(np.uint8)
+            frame[t:b + 1, l:r + 1, :] = blended_img
 
     def _restore_clip(self, clip):
         """

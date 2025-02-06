@@ -1,6 +1,7 @@
 import time
 
 import cv2
+import math
 import numpy as np
 
 from lada.lib import Box, Mask
@@ -55,6 +56,23 @@ def get_mask_area(mask: Mask) -> float:
     pixels = cv2.countNonZero(mask)
     return pixels / (mask.shape[0] * mask.shape[1])
 
+
+def create_blend_mask(crop_mask):
+    crop_mask = np.squeeze(crop_mask)>0
+    h, w = crop_mask.shape
+    border_ratio = 0.05
+    h_inner, w_inner = int(h * (1.0-border_ratio)), int(w * (1.-border_ratio))
+    h_outer, w_outer = h - h_inner, w - w_inner
+    border_size = min(h_outer, w_outer)
+    if border_size < 5:
+        return np.ones(crop_mask.shape)
+    blur_size = border_size
+    blend_mask = np.ones((h_inner, w_inner))
+    blend_mask = np.pad(blend_mask, ((math.floor(h_outer / 2), math.ceil(h_outer / 2)), (math.floor(w_outer / 2), math.ceil(w_outer / 2))), mode='constant', constant_values=0)
+    blend_mask = np.maximum(crop_mask, blend_mask)
+    blend_mask = cv2.blur(blend_mask, (blur_size, blur_size))
+    assert blend_mask.shape == crop_mask.shape
+    return blend_mask
 
 if __name__ == "__main__":
     mask = cv2.imread("mask3.png")
