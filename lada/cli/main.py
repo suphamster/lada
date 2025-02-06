@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 
+import torch
 from tqdm import tqdm
 import os
 import tempfile
@@ -14,7 +15,7 @@ def parse_args():
 
     parser.add_argument('--input', type=str, help='path to pixelated video file')
     parser.add_argument('--output', type=str, help='path to store restored video')
-    parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on (default: %(default)s)')
+    parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on. Use "cpu" or "cuda". If you have multiple GPUs you can select a specific one via index e.g. "cuda:0" (default: %(default)s)')
     parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering (default: %(default)s)')
     parser.add_argument('--preserve-relative-scale',  default=True, action=argparse.BooleanOptionalAction, help="(default: %(default)s)")
     parser.add_argument('--version',  action='store_true', help="shows version and exit")
@@ -47,6 +48,9 @@ def main():
         exit(0)
     if not (args.input and args.output):
         print("Arguments --input and --output are required. Use --help to find out more.")
+        exit(1)
+    if args.device.startswith("cuda") and not torch.cuda.is_available():
+        print(f"GPU {args.device} selected but CUDA is not available")
         exit(1)
 
     mosaic_cleaning_edge_detection_model_path = args.mosaic_cleaning_edge_detection_model_path if args.mosaic_cleaning and args.mosaic_cleaning_edge_detection_method == 'pidinet' else None
