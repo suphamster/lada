@@ -13,7 +13,6 @@ logging.basicConfig(level=LOG_LEVEL)
 MODEL_FILES_TO_NAMES = {
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'): 'basicvsrpp-generic-1.0',
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'): 'basicvsrpp-generic-1.1',
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_bj_pov.pth'): 'basicvsrpp-bj-pov-1.0',
     os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth'): 'deepmosaics-clean-youknow',
 }
 

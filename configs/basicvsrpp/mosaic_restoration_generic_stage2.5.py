@@ -19,7 +19,7 @@ model = dict(
         in_channels=3,
         mid_channels=64,
         skip_connection=True),
-    pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'), # was dict(type='L1Loss', loss_weight=1.0, reduction='mean'),
+    pixel_loss=dict(type='CharbonnierLoss', loss_weight=1.0, reduction='mean'),
     perceptual_loss=dict(
         type='PerceptualLoss',
         layer_weights={
@@ -76,7 +76,7 @@ val_dataloader = dict(
     dataset=dict(
         type='MosaicVideoDataset',
         metadata_root_dir=data_root + "/val/crop_unscaled_meta",
-        num_frame=-1,
+        num_frame=30,
         degrade=True,
         use_hflip=False,
         repeatable_random=True,
@@ -94,7 +94,7 @@ val_evaluator = dict(
     ])
 
 train_cfg = dict(
-    type='IterBasedTrainLoop', max_iters=100_000, val_interval=2000)
+    type='IterBasedTrainLoop', max_iters=100_000, val_interval=4000)
 val_cfg = dict(type='MultiValLoop')
 
 # optimizer
