@@ -2,9 +2,9 @@ FROM python:3.12.8-bookworm
 RUN useradd --create-home lada
 WORKDIR /home/lada
 ENV PIP_ROOT_USER_ACTION=ignore
-RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.5.0/packaging/requirements-cli.txt
-RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git@v0.5.0'
-RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.5.0/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
+RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.6.0/packaging/requirements-cli.txt
+RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git@v0.6.0'
+RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.6.0/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
 RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-master-latest-linux64-gpl/bin/ffprobe ffmpeg-master-latest-linux64-gpl/bin/ffmpeg && chmod -R 555 ffmpeg
 ENV PATH="/home/lada/ffmpeg:$PATH"
 RUN mkdir -p /home/lada/.config/Ultralytics \
@@ -14,9 +14,7 @@ RUN mkdir -p model_weights/3rd_party mnt && chmod -R 555 model_weights && chmod 
 ADD --checksum=sha256:056756fcab250bcdf0833e75aac33e2197b8809b0ab8c16e14722dcec94269b5 \
     https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt model_weights/lada_mosaic_detection_model_v2.pt
 ADD --checksum=sha256:6ec6542dde73fbc2086d252a041b41881e3194eaa0bac964348e6f7e8aad007c \
-    https://github.com/ladaapp/lada/releases/download/v0.2.1/lada_mosaic_restoration_model_generic_v1.1.pth model_weights/lada_mosaic_restoration_model_generic_v1.1.pth
-ADD --checksum=sha256:b79de6fcb1fcafd3ce7c954f4ac788be448ec2d82c6e688aaf18b8ba48fb5b47 \
-    https://github.com/ladaapp/lada/releases/download/v0.1.0/lada_mosaic_restoration_model_bj_pov.pth model_weights/lada_mosaic_restoration_model_bj_pov.pth
+    https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth model_weights/lada_mosaic_restoration_model_generic_v1.2.pth
 ADD --checksum=sha256:5643ca297c13920b8ffd39a0d85296e494683a69e5e8204d662653d24c582766 \
     https://drive.usercontent.google.com/download?id=1ulct4RhRxQp1v5xwEmUH7xz7AK42Oqlw&export=download&confirm=t model_weights/3rd_party/clean_youknow_video.pth
 RUN chmod 444 model_weights/*\.pt* model_weights/3rd_party/*\.pt*

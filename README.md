@@ -178,7 +178,7 @@ This is a Python project so let's install our dependencies from PyPi:
 Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
 ```shell
 wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt'
-wget -P model_weights/ -O 'lada_mosaic_restoration_model_generic_v1.2.pth' 'https://github.com/ladaapp/lada/releases/download/v0.5.1-beta3/lada_mosaic_restoration_model_generic_v1.2beta2.pth'
+wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth'
 ```
 
 If you're interested in running DeepMosaics' restoration model you can also download their pretrained model `clean_youknow_video.pth`

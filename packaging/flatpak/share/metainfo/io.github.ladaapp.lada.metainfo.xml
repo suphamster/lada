@@ -50,6 +50,17 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2025-02-07" version="0.6.0">
+            <description>
+                <ul>
+                    <li>Mosaic restoration: Removes mosaics more consistently, especially on lower-quality videos</li>
+                    <li>Mosaic restoration: Slightly fewer artifacts on certain scenes due to training on a bigger dataset</li>
+                    <li>CLI: create output directory if it doesn't exist instead of crashing</li>
+                    <li>Removed bj-pov finetuned restoration model, no improvement compared to new generic model</li>
+                    <li>Mosaic restoration dataset creation script: more accuracy for the NSFW detection model</li>
+                </ul>
+            </description>
+        </release>
         <release date="2025-01-24" version="0.5.0">
             <description>
                 <p>The only user-visible change this time is the inclusion of DeepMosaics pretrained restoration model.</p>
