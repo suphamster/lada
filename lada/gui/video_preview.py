@@ -41,7 +41,7 @@ class VideoPreview(Gtk.Widget):
         self._passthrough = False
         self._mosaic_cleaning = False
         self._mosaic_detection = False
-        self._mosaic_restoration_model_name = 'basicvsrpp-generic-1.1'
+        self._mosaic_restoration_model_name = 'basicvsrpp-generic-1.2'
         self._device = "cpu"
         self._video_preview_init_done = False
         self._max_clip_length = 180

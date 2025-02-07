@@ -8,8 +8,8 @@ from lada.basicvsrpp import register_all_modules
 
 register_all_modules()
 
-MODEL_WEIGHTS_IN_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage2.5/iter_100000.pth'
-MODEL_WEIGHTS_OUT_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage2.5/lada_mosaic_restoration_model_generic_v1.1.pth'
+MODEL_WEIGHTS_IN_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage2.6/iter_100000.pth'
+MODEL_WEIGHTS_OUT_PATH = 'experiments/basicvsrpp/mosaic_restoration_generic_stage2.6/lada_mosaic_restoration_model_generic_v1.2.pth'
 pretrained_models_dir = 'model_weights'
 
 model = BasicVSRPlusPlusGan(

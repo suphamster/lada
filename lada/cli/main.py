@@ -27,7 +27,7 @@ def parse_args():
 
     group_restoration = parser.add_argument_group('Mosaic restoration')
     group_restoration.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic", help="Model used to restore mosaic clips (default: %(default)s)")
-    group_restoration.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'), help="(default: %(default)s)")
+    group_restoration.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'), help="(default: %(default)s)")
     group_restoration.add_argument('--mosaic-restoration-config-path', type=str)
 
     group_detection = parser.add_argument_group('Mosaic detection')
