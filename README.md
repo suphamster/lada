@@ -220,8 +220,3 @@ This project builds on work done by these fantastic people
 * [NudeNet](https://github.com/notAI-tech/NudeNet/): Used as an additional NSFW classifier to filter out false positives by our own NSFW segmentation model
 * [Twitter Emoji](https://github.com/twitter/twemoji): Used eggplant emoji as base for the app icon (feel free to contribute a better logo)
 * PyTorch, FFmpeg, GStreamer, GTK and [all other folks building our ecosystem](https://xkcd.com/2347/)
-
-
-Previous iterations of the mosaic removal model used the following projects as a base
-
-* [KAIR / rvrt](https://github.com/cszn/KAIR)

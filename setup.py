@@ -10,7 +10,6 @@ setup(
     # todo: pin av down to 13.1.0. With av >=14.0.0 lada gets stuck on export for some reason. needs to be investigated
     install_requires=['torch', 'ultralytics==8.3.58', 'numpy', 'opencv-python', 'tqdm', 'av==13.1.0'], 
     extras_require={
-        'rvrt': [],
         'deepmosaics': ['scikit-image'],
         'basicvsrpp': ['mmengine==0.10.6', 'torchvision'], # mmengine pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
         'gui': ['pycairo', 'PyGObject'],

@@ -26,11 +26,7 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
         from lada.mosaic_cleaning.pidinet.inference import load_model as load_edge_detection_model
         mosaic_edge_detection_model = load_edge_detection_model(mosaic_cleaning_edge_detection_model_path, model_type="tiny")
 
-    if mosaic_restoration_model_name.startswith("rvrt"):
-        from lada.rvrt import rvrt_inferencer
-        mosaic_restoration_model = rvrt_inferencer.get_model(model_path=mosaic_restoration_model_path, device=device)
-        pad_mode = 'zero'
-    elif mosaic_restoration_model_name.startswith("deepmosaics"):
+    if mosaic_restoration_model_name.startswith("deepmosaics"):
         from lada.deepmosaics.models import loadmodel, model_util
         mosaic_restoration_model = loadmodel.video(model_util.device_to_gpu_id(device), mosaic_restoration_model_path)
         pad_mode = 'reflect'
@@ -157,10 +153,7 @@ class FrameRestorer:
         logger.debug(f"FrameRestorer: stopped, took {time.time() - start}")
 
     def _restore_clip_frames(self, images):
-        if self.mosaic_restoration_model_name.startswith("rvrt"):
-            from lada.rvrt import rvrt_inferencer
-            restored_clip_images = rvrt_inferencer.inference(images, self.mosaic_restoration_model)
-        elif self.mosaic_restoration_model_name.startswith("deepmosaics"):
+        if self.mosaic_restoration_model_name.startswith("deepmosaics"):
             from lada.deepmosaics.inference import restore_video_frames
             from lada.deepmosaics.models import model_util
             restored_clip_images = restore_video_frames(model_util.device_to_gpu_id(self.device), self.mosaic_restoration_model, images)
