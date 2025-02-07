@@ -225,4 +225,3 @@ This project builds on work done by these fantastic people
 Previous iterations of the mosaic removal model used the following projects as a base
 
 * [KAIR / rvrt](https://github.com/cszn/KAIR)
-* [TecoGAN-PyTorch](https://github.com/skycrapers/TecoGAN-PyTorch)

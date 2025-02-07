@@ -42,10 +42,6 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
             config = get_default_gan_inference_config()
         mosaic_restoration_model = load_model(config, mosaic_restoration_model_path, device)
         pad_mode = 'zero'
-    elif mosaic_restoration_model_name.startswith("tecogan"):
-        from lada.tecogan.tecogan_inferencer import load_model
-        mosaic_restoration_model = load_model(mosaic_restoration_config_path)
-        pad_mode = 'reflect'
     else:
         raise NotImplementedError()
 
@@ -171,9 +167,6 @@ class FrameRestorer:
         elif self.mosaic_restoration_model_name.startswith("basicvsrpp"):
             from lada.basicvsrpp.inference import inference
             restored_clip_images = inference(self.mosaic_restoration_model, images, self.device)
-        elif self.mosaic_restoration_model_name.startswith("tecogan"):
-            from lada.tecogan.tecogan_inferencer import inference
-            restored_clip_images = inference(images, self.mosaic_restoration_model)
         else:
             raise NotImplementedError()
         return restored_clip_images

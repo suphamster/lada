@@ -11,7 +11,6 @@ setup(
     install_requires=['torch', 'ultralytics==8.3.58', 'numpy', 'opencv-python', 'tqdm', 'av==13.1.0'], 
     extras_require={
         'rvrt': [],
-        'tecogan': ['scikit-image'],
         'deepmosaics': ['scikit-image'],
         'basicvsrpp': ['mmengine==0.10.6', 'torchvision'], # mmengine pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
         'gui': ['pycairo', 'PyGObject'],

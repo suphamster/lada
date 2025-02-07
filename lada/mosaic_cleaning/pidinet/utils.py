@@ -15,10 +15,7 @@ import shutil
 import math
 import time
 import random
-import skimage
 import numpy as np
-from skimage import io
-from skimage.transform import resize
 
 import torch
 import torch.nn as nn
