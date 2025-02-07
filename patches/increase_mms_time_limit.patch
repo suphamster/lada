@@ -1,10 +1,11 @@
---- ./.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2025-01-05 17:33:19.194644332 +0100
-+++ new/.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py	2025-01-05 17:37:32.288827204 +0100
-@@ -35,6 +35,7 @@
-             max_det=self.args.max_det,
-             nc=len(self.model.names),
-             classes=self.args.classes,
-+            max_time_img=0.3
-         )
- 
-         if not isinstance(orig_imgs, list):  # input images are a torch.Tensor, not a list
+--- ./.venv/lib/python3.12/site-packages/ultralytics/utils/ops.py	2025-02-07 07:45:03.459649537 +0100
++++ new/.venv/lib/python3.12/site-packages/ultralytics/utils/ops.py	2025-02-07 07:49:35.822037066 +0100
+@@ -188,7 +188,7 @@
+     labels=(),
+     max_det=300,
+     nc=0,  # number of classes (optional)
+-    max_time_img=0.05,
++    max_time_img=0.3,
+     max_nms=30000,
+     max_wh=7680,
+     in_place=True,

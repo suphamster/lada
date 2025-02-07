@@ -171,7 +171,7 @@ This is a Python project so let's install our dependencies from PyPi:
 
     On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit (tested with `ultralytics==8.3.58`):
     ```bash
-    patch -u ./.venv/lib/python3.12/site-packages/ultralytics/models/yolo/segment/predict.py patches/increase_mms_time_limit.patch
+    patch -u ./.venv/lib/python3.12/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
     ```
 
 ### Install models
