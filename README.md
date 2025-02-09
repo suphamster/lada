@@ -91,7 +91,8 @@ Here are some speed performance numbers using Lada v0.4.0 on my available hardwa
 As you can see, Realtime playback for Nvidia RTX 3050 (Laptop GPU) is currently out-of-reach but Preview functionality can still be used to skip through a video (with some loading/buffering) to see what quality to expect from an export.
 
 It may or may not work on Windows and Mac and other GPUs. You'll have to try to follow Developer Installation below and see how far you get.
-Patches / reports welcome if you are able to make it run on other systems.
+
+Patches / reports welcome if you are able to make it run on other systems or have a suggestion how to improve the documentation.
 
 ## Installation
 On Linux the easiest way to install the app (CLI and GUI) is to get it from Flathub.
@@ -111,6 +112,9 @@ The image has the same limitations as the flatpak: x86_64 CPU + Nvidia/CUDA GPU 
 
 If you don't want to use flatpak/docker, have other hardware specs than what the flatpak is built for or if you're not using Linux you'd need to follow the [Developer installation](#Developer-Installation) steps for now.
 Contributions welcome if someone is able to package the app for other systems.
+
+> [!NOTE]
+> There have been reports that CLI installation works on both Windows and Windows WSL. Making the GUI work doesn't seem to be that easy though.
 
 ## Models
 The project comes with a `generic` mosaic removal / video restoration model that was trained on a diverse set of scenes and is used by default.
