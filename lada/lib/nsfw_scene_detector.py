@@ -345,20 +345,12 @@ class NsfwDetector:
 
         self.no_nsfw_scenes_found_file: pathlib.Path = file_processing_options.output_dir.joinpath("no_nsfw_scenes.txt")
         self.done_processing_file: pathlib.Path = file_processing_options.output_dir.joinpath("done_processing.txt")
-        self.files_already_processed: list[str] = []
+        self.files_already_processed: set[str] = set([])
         for file in (self.no_nsfw_scenes_found_file, self.done_processing_file):
             if file.exists():
                 with open(file, 'r', encoding='utf-8') as f:
                     for file_path in f:
-                        if file_path not in self.files_already_processed:
-                            self.files_already_processed.append(file_path)
-
-    def _file_marked_as_already_processed(self, path_to_check: str):
-        for file_path in self.files_already_processed:
-            file_path = file_path.strip()
-            if os.path.exists(file_path) and os.path.samefile(file_path, path_to_check):
-                return True
-        return False
+                        self.files_already_processed.add(file_path.strip())
 
     def _mark_file_as_processed(self, text_file: pathlib.Path, path_to_save: str):
         if not text_file.exists():
@@ -368,8 +360,7 @@ class NsfwDetector:
             f.write(f"{path_to_save}\n")
 
     def _file_already_processed(self, path_to_check: str):
-        file_name = pathlib.Path(path_to_check).name
-        return len(list(self.file_processing_options.output_dir.glob(f"*/{file_name}*"))) > 0 or self._file_marked_as_already_processed(path_to_check)
+        return str(path_to_check) in self.files_already_processed and os.path.exists(path_to_check)
 
     def _process_completed_scene(self, completed_scene: Scene) -> Optional[Scene]:
         """returns Scene if it fits the criteria for a valid completed scene like min/max length"""
