@@ -6,7 +6,7 @@
 #
 addict==2.4.0
     # via mmengine
-av==14.1.0
+av==13.1.0
     # via lada (setup.py)
 certifi==2025.1.31
     # via requests

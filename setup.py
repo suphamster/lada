@@ -7,7 +7,8 @@ setup(
     description="Remove and recover pixelated areas in adult videos",
     packages=find_packages(where='.',include=['lada','lada.*']),
     # ultralytics pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
-    install_requires=['torch', 'ultralytics==8.3.72', 'numpy', 'opencv-python', 'tqdm', 'av'],
+    # av > 13.1.0 shipping ffmpeg 7.1.0 has issues with decoding HEVC decoding videos: https://github.com/PyAV-Org/PyAV/discussions/1704
+    install_requires=['torch', 'ultralytics==8.3.72', 'numpy', 'opencv-python', 'tqdm', 'av==13.1.0'],
     extras_require={
         'deepmosaics': ['scikit-image'],
         'basicvsrpp': ['mmengine==0.10.6', 'torchvision'], # mmengine pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch

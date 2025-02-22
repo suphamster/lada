@@ -4,6 +4,7 @@ WORKDIR /home/lada
 ENV PIP_ROOT_USER_ACTION=ignore
 RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.6.0/packaging/requirements-cli.txt
 RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git@v0.6.0'
+RUN pip install --no-deps --no-cache-dir av==13.1.0
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.6.0/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
 RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-master-latest-linux64-gpl/bin/ffprobe ffmpeg-master-latest-linux64-gpl/bin/ffmpeg && chmod -R 555 ffmpeg
 ENV PATH="/home/lada/ffmpeg:$PATH"
