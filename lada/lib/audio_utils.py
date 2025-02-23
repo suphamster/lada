@@ -30,9 +30,9 @@ def combine_audio_video_files(av_video_metadata: video_utils.VideoMetadata, tmp_
         cmd += ["-map", "0:a:0"]
         cmd += [av_video_output_path]
         subprocess.run(cmd, stdout=subprocess.PIPE)
-        os.remove(tmp_v_video_input_path)
     else:
-        shutil.move(tmp_v_video_input_path, av_video_output_path)
+        shutil.copy(tmp_v_video_input_path, av_video_output_path)
+    os.remove(tmp_v_video_input_path)
 
 def get_audio_codec(file_path: str) -> Optional[str]:
     cmd = f"ffprobe -loglevel error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1"
