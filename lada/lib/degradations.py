@@ -1,7 +1,6 @@
-# source; https://github.com/TencentARC/VQFR/blob/main/vqfr/data/degradations.py
+# source; https://github.com/XPixelGroup/BasicSR/blob/master/basicsr/data/degradations.py
 
 import math
-import random
 
 import cv2
 import numpy as np
@@ -727,59 +726,3 @@ def random_add_jpg_compression(img, quality_range=(90, 100)):
     """
     quality = np.random.uniform(quality_range[0], quality_range[1])
     return add_jpg_compression(img, quality)
-
-
-def random_degrade_img(img):
-    # degrade mosaic img
-    h, w = img.shape[:2]
-    img_lq = img.astype(np.float32) / 255.
-    blur_kernel_size = 41
-    kernel_list = ['iso', 'aniso']
-    kernel_prob = [0.5, 0.5]
-    blur_sigma = [0., 2]
-    downsample_range = [0.5, 2]
-    noise_range = [0, 5]
-    jpeg_range = [70, 90]
-    # blur
-    if random.random()<0.7:
-        kernel = random_mixed_kernels(
-            kernel_list,
-            kernel_prob,
-            blur_kernel_size,
-            blur_sigma,
-            blur_sigma,
-            noise_range=None)
-        img_lq = cv2.filter2D(img_lq, -1, kernel)
-    # downsample
-    should_scale = random.random()<0.7
-    if should_scale:
-        scale = np.random.uniform(downsample_range[0], downsample_range[1])
-        img_lq = cv2.resize(img_lq, (int(w // scale), int(h // scale)), interpolation=cv2.INTER_LINEAR)
-    # noise
-    if noise_range is not None and random.random()<0.7:
-        img_lq = random_add_gaussian_noise(img_lq, noise_range)
-    # jpeg compression
-    if jpeg_range is not None and random.random()<0.7:
-        img_lq = random_add_jpg_compression(img_lq, jpeg_range)
-    # resize to original size
-    if should_scale:
-        img_lq = cv2.resize(img_lq, (w, h), interpolation=cv2.INTER_LINEAR)
-    return (img_lq * 255.).astype(np.uint8)
-
-
-if __name__ == "__main__":
-    img = cv2.imread("mpv-shot0001.jpg")
-    img_degraded = random_degrade_img(img)
-    window_name = "degradations"
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.imshow(window_name, img_degraded)
-    while True:
-        key_pressed = cv2.waitKey(1)
-        if key_pressed & 0xFF == ord("q"):
-            print("q")
-            break
-        elif key_pressed & 0xFF == ord("r"):
-            img_degraded = random_degrade_img(img)
-            cv2.imshow(window_name, img_degraded)
-            print("r")
-    cv2.destroyAllWindows()

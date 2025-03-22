@@ -6,66 +6,78 @@ from os import path as osp
 from pathlib import Path
 
 import cv2
-import numpy as np
 from ultralytics import YOLO
 
-from lada.lib import visualization_utils, mask_utils, degradation_utils, image_utils
-from lada.lib.mosaic_utils import addmosaic_base, get_random_parameter
-from lada.lib.nsfw_frame_detector import NsfwImageDetector
+from lada.lib import visualization_utils, image_utils, transforms as lada_transforms
+from lada.lib.nsfw_frame_detector import NsfwImageDetector, NsfwFrame
 from lada.lib.threading_utils import clean_up_completed_futures
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 disable_ultralytics_telemetry()
 
-def crop_to_box(img, box):
-    t, l, b, r = box
-    cropped_img = img[t:b + 1, l:r + 1]
-    return cropped_img
+from torchvision.transforms import transforms as torchvision_transforms
 
-def process_image_file(file_path, nsfw_frame_generator, output_root, show=False, window_name="mosaic"):
-    nsfw_frame = nsfw_frame_generator()
+from lada.lib.image_utils import UnsharpMaskingSharpener
+from lada.lib.jpeg_utils import DiffJPEG
+
+def _create_realesrgan_degradation_pipeline(img, scale, device):
+    h, w = img.shape[:2]
+    sharpener = UnsharpMaskingSharpener().to(device)
+    jpeger = DiffJPEG(differentiable=False).to(device)
+    kernel_range = [2 * v + 1 for v in range(3, 11)]
+    return torchvision_transforms.Compose([
+        lada_transforms.Sharpen(sharpener),
+        lada_transforms.Blur(kernel_range=kernel_range, kernel_list=['iso', 'aniso', 'generalized_iso', 'generalized_aniso', 'plateau_iso', 'plateau_aniso'], kernel_prob=[0.45, 0.25, 0.12, 0.03, 0.12, 0.03],
+                             sinc_prob=0.1, blur_sigma=[0.2, 2], betag_range=[0.5, 4], betap_range=[1, 2], device=device),
+        lada_transforms.Resize(resize_range=[0.75, 1.25], resize_prob=[0.2, 0.7, 0.1], target_base_h=h, target_base_w=w),
+        lada_transforms.GaussianPoissonNoise(sigma_range=[1, 5], poisson_scale_range=[0.05, 1.4], gaussian_noise_prob=0.5, gray_noise_prob= 0.4),
+        lada_transforms.JPEGCompression(jpeger, jpeg_range=[60, 95]),
+        lada_transforms.Blur(kernel_range=kernel_range, kernel_list=['iso', 'aniso', 'generalized_iso', 'generalized_aniso', 'plateau_iso', 'plateau_aniso'], kernel_prob=[0.45, 0.25, 0.12, 0.03, 0.12, 0.03],
+                             sinc_prob=0.1, blur_sigma=[0.2, 1.], betag_range=[0.5, 4], betap_range=[1, 2], device=device),
+        lada_transforms.Resize(resize_range=[0.85, 1.1], resize_prob= [0.3, 0.4, 0.3], target_base_h=h / scale, target_base_w=w / scale),
+        lada_transforms.GaussianPoissonNoise(sigma_range=[1, 5], poisson_scale_range=[0.05, 1.], gaussian_noise_prob=0.5, gray_noise_prob=0.3),
+        torchvision_transforms.RandomChoice(transforms=[
+            torchvision_transforms.Compose([
+                lada_transforms.Resize(resize_range=[1., 1.], resize_prob=[0, 0, 1], target_base_h=h / scale, target_base_w=w / scale),
+                lada_transforms.SincFilter(kernel_range=kernel_range, sinc_prob=0.8, device=device),
+                lada_transforms.JPEGCompression(jpeger, jpeg_range=[60, 95]),
+            ]),
+            torchvision_transforms.Compose([
+                lada_transforms.JPEGCompression(jpeger, jpeg_range=[60, 95]),
+                lada_transforms.Resize(resize_range=[1., 1.], resize_prob=[0, 0, 1], target_base_h=h / scale, target_base_w=w / scale),
+                lada_transforms.SincFilter(kernel_range=kernel_range, sinc_prob=0.8, device=device),
+            ])
+        ], p=[0.5, 0.5]),
+    ])
+
+def create_degradation_pipeline(hq_img, scale=2, device='cuda'):
+    return torchvision_transforms.Compose([
+        lada_transforms.Image2Tensor(bgr2rgb=False, unsqueeze=True, device=device),
+        _create_realesrgan_degradation_pipeline(hq_img, scale=scale, device=device),
+        lada_transforms.Tensor2Image(rgb2bgr=False, squeeze=True),
+        lada_transforms.VideoCompression(p=0.3, codecs=['libx264', 'libx265'], codec_probs=[0.5, 0.5],
+                                         crf_ranges={'libx264': (16, 28), 'libx265': (20, 36)},
+                                         bitrate_ranges={}),
+    ])
+
+def process_image_file(file_path, output_root, nsfw_frame_generator: NsfwImageDetector, device='cpu', show=False, window_name="mosaic"):
+    nsfw_frame: NsfwFrame = nsfw_frame_generator.detect(file_path)
     if not nsfw_frame:
         return
 
     img = nsfw_frame.frame
     mask = nsfw_frame.mask
-    box = nsfw_frame.box
 
-    t, l, b, r = box
-    width, height = r - l + 1, b - t + 1
-    if min(width, height) < 40:
-        # skip tiny detections
-        return
+    scale = 2
+    degrade = create_degradation_pipeline(img, scale=scale, device=device)
 
-    cropped_img = crop_to_box(img, box)
-    cropped_mask = crop_to_box(mask, box)
-
-    mosaic_size, mod, rect_ratio, feather_size = get_random_parameter(mask)
-    mask_dilation_iterations = np.random.choice(range(2))
-    cropped_mask_mosaic = mask_utils.dilate_mask(cropped_mask, iterations=mask_dilation_iterations)
-
-    cropped_img_mosaic, cropped_mask_mosaic = addmosaic_base(cropped_img,
-                                                             cropped_mask_mosaic,
-                                                             mosaic_size,
-                                                             model=mod, rect_ratio=rect_ratio,
-                                                             feather=feather_size)
-
-    img_mosaic = img.copy()
-    t, l, b, r = box
-    img_mosaic[t:b + 1, l:r + 1, :] = cropped_img_mosaic
-    mask_mosaic = np.zeros_like(mask, dtype=mask.dtype)
-    mask_mosaic[t:b + 1, l:r + 1] = cropped_mask_mosaic
-
-    degradation_params = degradation_utils.MosaicRandomDegradationParams(should_down_sample=True,
-                                                                         should_add_noise=True,
-                                                                         should_add_image_compression=True,
-                                                                         should_add_video_compression=True,
-                                                                         should_add_blur=False)
-
-    img_mosaic = degradation_utils.apply_video_degradation([img_mosaic], degradation_params)[0]
+    img_mosaic, mask_mosaic = lada_transforms.Mosaic()(img, mask)
+    img_mosaic = degrade(img_mosaic)
+    mask_mosaic = image_utils.resize(mask_mosaic, img_mosaic.shape[:2], interpolation=cv2.INTER_NEAREST)
 
     if show:
         show_img = visualization_utils.overlay_mask_boundary(img_mosaic, mask_mosaic, color=(0, 255, 0))
+        mask = image_utils.resize(mask, img_mosaic.shape[:2], interpolation=cv2.INTER_NEAREST)
         show_img = visualization_utils.overlay_mask_boundary(show_img, mask, color=(255, 0, 0))
 
         cv2.imshow(window_name, show_img)
@@ -76,9 +88,9 @@ def process_image_file(file_path, nsfw_frame_generator, output_root, show=False,
                 break
     else:
         name = osp.splitext(os.path.basename(file_path))[0]
-        cv2.imwrite(f"{output_root}/img/{name}-{nsfw_frame.frame_number:06d}.jpg", img_mosaic,
+        cv2.imwrite(f"{output_root}/img/{name}.jpg", img_mosaic,
                     [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        cv2.imwrite(f"{output_root}/mask/{name}-{nsfw_frame.frame_number:06d}.png", mask_mosaic)
+        cv2.imwrite(f"{output_root}/mask/{name}.png", mask_mosaic)
 
 def get_files(dir, filter_func):
     file_list = []
@@ -92,7 +104,7 @@ def get_files(dir, filter_func):
 def parse_args():
     parser = argparse.ArgumentParser("Create mosaic detection dataset")
     parser.add_argument('--output-root', type=Path, help="directory where resulting images/masks are saved")
-    parser.add_argument('--input-root', type=Path, help="directory containing video files")
+    parser.add_argument('--input-root', type=Path, help="directory containing image files")
     parser.add_argument('--device', type=str, default="cuda:0")
     parser.add_argument('--model', type=str, default="model_weights/lada_nsfw_detection_model_v1.3.pt", help="path to YOLO model")
     parser.add_argument('--workers', type=int, default=4, help="number of worker threads")
@@ -107,7 +119,7 @@ def main():
     args = parse_args()
 
     model = YOLO(args.model)
-    nsfw_frame_generator = NsfwImageDetector(model, args.device, random_extend_masks=True, conf=0.75)
+    nsfw_image_detector = NsfwImageDetector(model, args.device, random_extend_masks=True, conf=0.75)
 
     if not args.show:
         os.makedirs(f"{args.output_root}/mask", exist_ok=True)
@@ -125,9 +137,9 @@ def main():
                 continue
             print(f"{file_idx}, Processing {file_path.name}")
             if args.show:
-                process_image_file(file_path, args.output_root, nsfw_frame_generator, args.show)
+                process_image_file(file_path, args.output_root, nsfw_image_detector, device=args.device, show=True)
             else:
-                jobs.append(executor.submit(process_image_file, file_path, args.output_root, nsfw_frame_generator))
+                jobs.append(executor.submit(process_image_file, file_path, args.output_root, nsfw_image_detector, args.device))
                 clean_up_completed_futures(jobs)
     wait(jobs, return_when=ALL_COMPLETED)
     clean_up_completed_futures(jobs)

@@ -172,14 +172,6 @@ def apply_frame_degradation_v2(img: Image, degradation_params: MosaicRandomDegra
         img_lq = noise(img_lq, 50)
     return img_lq
 
-def apply_video_degradation(imgs: list[Image], degradation_params: MosaicRandomDegradationParams) -> list[Image]:
-    imgs_lq = []
-    for img in imgs:
-        imgs_lq.append(apply_frame_degradation(img, degradation_params))
-    # video_compression
-    if degradation_params.should_add_video_compression:
-        imgs_lq = apply_video_compression(imgs_lq, degradation_params.video_codec, degradation_params.video_bitrate)
-    return imgs_lq
 
 def apply_video_degradation_v2(imgs: list[Image], degradation_params: MosaicRandomDegradationParamsV2) -> list[Image]:
     assert max(imgs[0].shape[:2]) == 256, "video compression degradation expects width/height of 256px"

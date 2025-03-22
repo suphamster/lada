@@ -207,7 +207,7 @@ def pad_to_compatible_size_for_video_codecs(imgs):
     h, w = imgs[0].shape[:2]
     pad_h = 0 if h % 4 == 0 else 4 - (h % 4)
     pad_w = 0 if w % 4 == 0 else 4 - (w % 4)
-    if pad_h > 0 or pad_w > 0:
+    if pad_h == 0 and pad_w == 0:
         return imgs
     else:
         return [np.pad(img, ((0, pad_h), (0, pad_w), (0,0))).astype(np.uint8) for img in imgs]
