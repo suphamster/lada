@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import shutil
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 from os import path as osp
 from pathlib import Path
@@ -11,7 +12,7 @@ from ultralytics import YOLO
 from lada.lib import visualization_utils, image_utils, transforms as lada_transforms
 from lada.lib.nsfw_frame_detector import NsfwImageDetector, NsfwFrame
 from lada.lib.threading_utils import clean_up_completed_futures
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
+from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_binary_mask_to_yolo_detection_labels, convert_segment_masks_to_yolo_segmentation_labels
 
 disable_ultralytics_telemetry()
 
@@ -88,9 +89,9 @@ def process_image_file(file_path, output_root, nsfw_frame_generator: NsfwImageDe
                 break
     else:
         name = osp.splitext(os.path.basename(file_path))[0]
-        cv2.imwrite(f"{output_root}/img/{name}.jpg", img_mosaic,
+        cv2.imwrite(f"{output_root}/images/{name}.jpg", img_mosaic,
                     [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        cv2.imwrite(f"{output_root}/mask/{name}.png", mask_mosaic)
+        cv2.imwrite(f"{output_root}/masks/{name}.png", mask_mosaic)
 
 def get_files(dir, filter_func):
     file_list = []
@@ -122,8 +123,10 @@ def main():
     nsfw_image_detector = NsfwImageDetector(model, args.device, random_extend_masks=True, conf=0.75)
 
     if not args.show:
-        os.makedirs(f"{args.output_root}/mask", exist_ok=True)
-        os.makedirs(f"{args.output_root}/img", exist_ok=True)
+        os.makedirs(f"{args.output_root}/masks", exist_ok=True)
+        os.makedirs(f"{args.output_root}/images", exist_ok=True)
+        os.makedirs(f"{args.output_root}/detection_labels", exist_ok=True)
+        os.makedirs(f"{args.output_root}/segmentation_labels", exist_ok=True)
         jobs = []
 
     selected_files = get_files(args.input_root, image_utils.is_image_file)
@@ -143,6 +146,13 @@ def main():
                 clean_up_completed_futures(jobs)
     wait(jobs, return_when=ALL_COMPLETED)
     clean_up_completed_futures(jobs)
+
+    print("Finished processing images. Now converting dataset to YOLO format...")
+
+    if not args.show:
+        pixel_to_class_mapping = {255: 0}
+        convert_segment_masks_to_yolo_segmentation_labels(f"{args.output_root}/masks", f"{args.output_root}/segmentation_labels", pixel_to_class_mapping)
+        convert_binary_mask_to_yolo_detection_labels(f"{args.output_root}/masks", f"{args.output_root}/detection_labels", pixel_to_class_mapping)
 
     if args.show:
         cv2.destroyAllWindows()

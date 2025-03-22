@@ -167,54 +167,22 @@ the creation of this dataset will be an automatic process.
 You can create a dataset for mosaic detection using the following command:
 
 ```shell
-mosaic_detection_dataset_source_material="datasets/mosaic_detection_raw"
-mosaic_detection_dataset_tmp_dir="datasets/mosaic_detection_tmp"
-
-python create-mosaic-detection-dataset.py --input-root "$mosaic_detection_dataset_source_material"  --output-root "$mosaic_detection_dataset_tmp_dir"
+python create-mosaic-detection-dataset.py --input-root <path to source material / nsfw images>  --output-root <path to dataset dir>
 ```
 
 The script will run the NSFW detection model on the source material. For frames with NSFW content it will use the segmentation mask and the original video frame
 to create a new image where the NSFW region is replaced with a mosaic / pixelize pattern. This image as well as the segmentation mask of the mosaic is then saved in the output root directory.
+
+The mosaic detection model will also be trained using ultralytics / YOLO library so the script will also convert the segmentation masks to YOLO-compatible labels.
 
 The script comes with some options you may want to check and adjust before you're running this on a huge dataset.
 
 > [!TIP]
 > You can re-use the source material used for mosaic restoration or NSFW detection dataset creation.
 
-
-The mosaic detection model uses the same architecture as the NSFW detection model YOLO `yolo11m-seg`. Similarly to the steps above we need to convert the dataset first
-to a format that the training library of YOLO *ultralytics* understands. For this we'll convert the binary mask images (PNG files) first to COCO format and then to YOLO format.
-
-```shell
-python scripts/dataset_creation/convert-dataset-mask-images-to-coco.py --images-dir "$mosaic_detection_dataset_tmp_dir/img" --masks-dir "$mosaic_detection_dataset_tmp_dir/mask" --output-file "$mosaic_detection_dataset_tmp_dir/coco.json"
-python scripts/dataset_creation/convert-dataset-coco-to-yolo.py --coco-file "$mosaic_detection_dataset_tmp_dir/coco.json" --yolo-labels-dir "$mosaic_detection_dataset_tmp_dir/labels"
-```
-
-Now we just need to split it into a training and test set.
-
-Now we just need to split it into a training and test set.
-The following shell commands will do just that. You may want to adjust the variable `val_samples_count`.
-It will randomly select items from the dataset up the given number and move it the validation directory `val`.
-Everything else will land in the training set `train`.
-
-```shell
-mosaic_detection_dataset_dir="datasets/mosaic_detection"
-val_samples_count=500
-
-# extract $val_samples_count samples as validation dataset
-mkdir -p "$mosaic_detection_dataset_dir"/{train,val} "$mosaic_detection_dataset_dir"/val/{labels,images}
-find $mosaic_detection_dataset_tmp_dir/img -type f | sort -R | head -n $val_samples_count | while read img_path ; do 
-    mask_path="$mosaic_detection_dataset_tmp_dir/labels/$(basename ${img_path%.jpg}.txt)"
-    mv "$img_path" "$mosaic_detection_dataset_dir/val/images"
-    mv "$mask_path" "$mosaic_detection_dataset_dir/val/labels"
-done
-# whats left will be used as training dataset
-mv "$mosaic_detection_dataset_tmp_dir/img" "$mosaic_detection_dataset_dir/train/images"
-mv "$mosaic_detection_dataset_tmp_dir/labels" "$mosaic_detection_dataset_dir/train/labels"
-
-# delete tmp dataset
-# rm -r $mosaic_detection_dataset_tmp_dir
-```
+For the model to also learn to differentiate between NSFW mosaics (which should be restored) and other mosaics (most commonly on faces) you will have to add such samples to your dataset.
+I've used [Retinaface](https://github.com/yakhyo/retinaface-pytorch) for face detection and created samples this way on the same NSFW source material but also other sources like COCO images. Probably better to
+look into human parsing models and datasets instead of face detection but I couldn't find a workable model for this purpose...
 
 Now we can train the model via
 ```shell
