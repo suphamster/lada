@@ -118,7 +118,7 @@ class Timeline(Gtk.Widget):
         else:
             playhead_color = Adw.AccentColor.BLUE
             uses_dark_scheme = False
-        playhead_color = playhead_color.to_rgba(playhead_color)
+        playhead_color = playhead_color.to_rgba()
 
         timeline_color = Gdk.RGBA()
         cursor_color = Gdk.RGBA()
