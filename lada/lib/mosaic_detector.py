@@ -178,6 +178,8 @@ class Clip:
 class MosaicDetector:
     def __init__(self, model: YOLO, video_file, frame_detection_queue: queue.Queue, mosaic_clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
         self.model = model
+        self.is_segmentation_model = self.model.task == 'segment'
+        self.ignore_non_nsfw_mosaics = True
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
         self.max_clip_length = max_clip_length
@@ -280,7 +282,11 @@ class MosaicDetector:
             logger.debug("frame detector worker: frame_detection_queue producer unblocked")
             return
         for i in range(len(results.boxes)):
-            mask = convert_yolo_mask(results.masks[i], results.orig_shape)
+            if self.is_segmentation_model:
+                mask = convert_yolo_mask(results.masks[i], results.orig_shape)
+            else:
+                # TODO: we currently don't use mosaic masks in the restoration pipeline, so we could also remove it
+                mask = np.zeros(results.orig_shape, dtype=np.uint8)
             box = convert_yolo_box(results.boxes[i], results.orig_shape)
 
             current_scene = None
@@ -340,7 +346,8 @@ class MosaicDetector:
                 frames, _frame_num, eof = raw_frames
                 assert frame_num == _frame_num, "frame detector worker out of sync with frame reader"
                 if len(frames) > 0:
-                    batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device)
+                    classes = [0] if self.ignore_non_nsfw_mosaics else None
+                    batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device, classes=classes)
                     assert len(frames) == len(batch_prediction_results)
                     for i, results in enumerate(batch_prediction_results):
                         self._create_or_append_scenes_based_on_prediction_result(results, scenes, frame_num)

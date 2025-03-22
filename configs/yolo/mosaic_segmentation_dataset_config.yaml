@@ -1,4 +1,4 @@
-path: mosaic_detection
+path: mosaic_segmentation
 train: train/images
 val: val/images
 

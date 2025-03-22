@@ -11,23 +11,27 @@ from lada.lib.video_utils import process_video_v3
 disable_ultralytics_telemetry()
 
 
-def process_frame(in_frame, model):
-    result = model.predict(in_frame, conf=args.mask_threshold, imgsz=640, verbose=False)
+def process_frame(in_frame, model, threshold, classes, negate=False):
+    result = model.predict(in_frame, conf=threshold, imgsz=640, verbose=False, classes=classes)
     processed_frame = result[0].plot()
 
     return processed_frame
 
-def process_image(input_path, output_path, model):
+def process_image(input_path, output_path, model, threshold, classes, negate=False):
     in_frame = cv2.imread(input_path)
-    result = model.predict(in_frame, conf=args.mask_threshold, imgsz=640, verbose=False)
-    processed_frame = result[0].plot()
-    cv2.imwrite(output_path, processed_frame)
+    result = model.predict(in_frame, conf=threshold, imgsz=640, verbose=False, classes=classes)
+    detected = len(result[0].boxes) > 0
+    if detected ^ negate:
+        processed_frame = result[0].plot()
+        cv2.imwrite(output_path, processed_frame)
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str)
     parser.add_argument('--output-dir', type=str)
-    parser.add_argument('--mask-threshold', type=float, default=0.4)
+    parser.add_argument('--threshold', type=float, default=0.4)
+    parser.add_argument('--class-id', type=int, default=0)
+    parser.add_argument('--negate', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--model-path', type=str,
                         default='yolo/runs/segment/train_yolov9_c_sgd_5_more_training_data/weights/best.pt')
     args = parser.parse_args()
@@ -38,10 +42,10 @@ def process_file(input_path: str, output_dir: str):
 
     frame = cv2.imread(input_path)
     if frame is None:
-        process_video_v3(input_path, output_path, lambda in_frame: process_frame(in_frame, model))
+        process_video_v3(input_path, output_path, lambda in_frame: process_frame(in_frame, model, threshold=args.threshold, classes=[args.class_id], negate=args.negate))
     else:
         # input is an image file
-        process_image(input_path, output_path, model)
+        process_image(input_path, output_path, model, threshold=args.threshold, classes=[args.class_id], negate=args.negate)
 
 args = parse_args()
 model = YOLO(args.model_path)
