@@ -12,20 +12,13 @@ from lada import LOG_LEVEL
 from lada.lib import image_utils, video_utils, threading_utils, mask_utils
 from lada.lib import visualization_utils
 from lada.lib.mosaic_detector import MosaicDetector
-from lada.mosaic_cleaning.clean_mosaic_utils import MosaicCleaner
 from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 disable_ultralytics_telemetry()
 
-def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_path, mosaic_restoration_config_path,
-                mosaic_detection_model_path, mosaic_cleaning_edge_detection_model_path=None):
-    mosaic_edge_detection_model = None
-    if mosaic_cleaning_edge_detection_model_path:
-        from lada.mosaic_cleaning.pidinet.inference import load_model as load_edge_detection_model
-        mosaic_edge_detection_model = load_edge_detection_model(mosaic_cleaning_edge_detection_model_path, model_type="tiny")
-
+def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_path, mosaic_restoration_config_path, mosaic_detection_model_path):
     if mosaic_restoration_model_name.startswith("deepmosaics"):
         from lada.deepmosaics.models import loadmodel, model_util
         mosaic_restoration_model = loadmodel.video(model_util.device_to_gpu_id(device), mosaic_restoration_model_path)
@@ -42,13 +35,13 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
         raise NotImplementedError()
 
     mosaic_detection_model = YOLO(mosaic_detection_model_path)
-    return mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, pad_mode
+    return mosaic_detection_model, mosaic_restoration_model, pad_mode
 
 
 class FrameRestorer:
     def __init__(self, device, video_file, preserve_relative_scale, max_clip_length, mosaic_restoration_model_name,
-                 mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode,
-                 mosaic_detection=False, mosaic_cleaning=False):
+                 mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode,
+                 mosaic_detection=False):
         self.device = device
         self.mosaic_restoration_model_name = mosaic_restoration_model_name
         self.max_clip_length = max_clip_length
@@ -56,11 +49,9 @@ class FrameRestorer:
         self.video_meta_data = video_utils.get_video_meta_data(video_file)
         self.mosaic_detection_model = mosaic_detection_model
         self.mosaic_restoration_model = mosaic_restoration_model
-        self.mosaic_cleaner = MosaicCleaner(pidinet_model=mosaic_edge_detection_model)
         self.preferred_pad_mode = preferred_pad_mode
         self.start_ns = 0
         self.start_frame = 0
-        self.mosaic_cleaning = mosaic_cleaning
         self.mosaic_detection = mosaic_detection
         self.eof = False
         self.stop_requested = False
@@ -188,13 +179,7 @@ class FrameRestorer:
         if self.mosaic_detection:
             restored_clip_images = visualization_utils.draw_mosaic_detections(clip)
         else:
-            if self.mosaic_cleaning:
-                images = []
-                for (cropped_img, cropped_mask, cropped_box, orig_crop_shape, pad_after_resize) in clip:
-                    images.append(self.mosaic_cleaner.clean_cropped_mosaic(cropped_img, cropped_mask, pad_after_resize))
-            else:
-                images = clip.get_clip_images()
-
+            images = clip.get_clip_images()
             restored_clip_images = self._restore_clip_frames(images)
         assert len(restored_clip_images) == len(clip.get_clip_images())
 

@@ -56,9 +56,6 @@ class MainWindow(Adw.ApplicationWindow):
         self.widget_video_preview.set_property('max-clip-length', self.config_sidebar.get_property('max-clip-duration'))
         self.config_sidebar.connect("notify::max-clip-duration", lambda object, spec: self.widget_video_preview.set_property('max-clip-length', object.get_property(spec.name)))
 
-        self.widget_video_preview.set_property('mosaic-cleaning', self.config_sidebar.get_property('mosaic-pre-cleaning'))
-        self.config_sidebar.connect("notify::mosaic-pre-cleaning", lambda object, spec: self.widget_video_preview.set_property('mosaic-cleaning', object.get_property(spec.name)))
-
         self.opened_file: Gio.File = None
 
         application = self.get_application()

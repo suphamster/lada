@@ -33,11 +33,6 @@ def parse_args():
     group_detection = parser.add_argument_group('Mosaic detection')
     group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'), help="(default: %(default)s)")
 
-    group_cleaning = parser.add_argument_group('Mosaic cleaning')
-    group_cleaning.add_argument('--mosaic-cleaning',  default=False, action=argparse.BooleanOptionalAction, help='If enabled will clean detected mosaic pattern from noise before passing it to mosaic restoration model. Not recommended (default: %(default)s)')
-    group_cleaning.add_argument('--mosaic-cleaning-edge-detection-method', type=str, default="canny", help="either canny or pidinet (default: %(default)s)")
-    group_cleaning.add_argument('--mosaic-cleaning-edge-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_edge_detection_model.pth'), help="path to pidinet tiny model (default: %(default)s)")
-
     return parser.parse_args()
 
 
@@ -53,17 +48,15 @@ def main():
         print(f"GPU {args.device} selected but CUDA is not available")
         exit(1)
 
-    mosaic_cleaning_edge_detection_model_path = args.mosaic_cleaning_edge_detection_model_path if args.mosaic_cleaning and args.mosaic_cleaning_edge_detection_method == 'pidinet' else None
-
-    mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode = load_models(
+    mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(
         args.device, args.mosaic_restoration_model, args.mosaic_restoration_model_path, args.mosaic_restoration_config_path,
-        args.mosaic_detection_model_path, mosaic_cleaning_edge_detection_model_path
+        args.mosaic_detection_model_path
     )
 
     video_metadata = get_video_meta_data(args.input)
 
     frame_restorer = FrameRestorer(args.device, args.input, args.preserve_relative_scale, args.max_clip_length, args.mosaic_restoration_model,
-                 mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, preferred_pad_mode, mosaic_cleaning=args.mosaic_cleaning)
+                 mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode)
     success = True
     video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
     pathlib.Path(args.output).parent.mkdir(exist_ok=True, parents=True)

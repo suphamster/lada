@@ -20,7 +20,6 @@ class ConfigSidebar(Gtk.ScrolledWindow):
     combo_row_export_codec = Gtk.Template.Child()
     spin_row_preview_buffer_duration = Gtk.Template.Child()
     spin_row_clip_max_duration = Gtk.Template.Child()
-    switch_row_mosaic_cleaning = Gtk.Template.Child()
     switch_row_mute_audio = Gtk.Template.Child()
     list_box = Gtk.Template.Child()
 
@@ -83,7 +82,6 @@ class ConfigSidebar(Gtk.ScrolledWindow):
 
         self.spin_row_preview_buffer_duration.set_value(config.preview_buffer_duration)
         self.spin_row_clip_max_duration.set_value(config.max_clip_duration)
-        self.switch_row_mosaic_cleaning.set_active(config.mosaic_pre_cleaning)
         self.switch_row_mute_audio.set_active(config.mute_audio)
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
@@ -148,19 +146,6 @@ class ConfigSidebar(Gtk.ScrolledWindow):
             return
         self.config.max_clip_duration = value
         self.notify('max-clip-duration')
-        if self.save_config:
-            self.config.save()
-
-    @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
-    def mosaic_pre_cleaning(self):
-        return self.config.mosaic_pre_cleaning
-
-    @mosaic_pre_cleaning.setter
-    def mosaic_pre_cleaning(self, value):
-        if value == self.config.mosaic_pre_cleaning:
-            return
-        self.config.mosaic_pre_cleaning = value
-        self.notify('mosaic-pre-cleaning')
         if self.save_config:
             self.config.save()
 
@@ -276,12 +261,6 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         self.max_clip_duration = spin_row.get_property("value")
 
     @Gtk.Template.Callback()
-    def switch_row_mosaic_cleaning_active_callback(self, switch_row, active):
-        if not self.init_done:
-            return
-        self.mosaic_pre_cleaning = switch_row.get_property("active")
-
-    @Gtk.Template.Callback()
     def switch_row_mute_audio_active_callback(self, switch_row, active):
         if not self.init_done:
             return
@@ -300,7 +279,6 @@ class ConfigSidebar(Gtk.ScrolledWindow):
             self.export_crf = default_config.export_crf
             self.export_codec = default_config.export_codec
             self.mute_audio = default_config.mute_audio
-            self.mosaic_pre_cleaning = default_config.mosaic_pre_cleaning
             self.init_sidebar_from_config(self.config)
             self.config.save()
         finally:

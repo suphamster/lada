@@ -29,7 +29,6 @@ class Config:
         self.preview_buffer_duration = None
         self.max_clip_duration = None
         self.device = None
-        self.mosaic_pre_cleaning = None
         self.mute_audio = None
 
         self.set_defaults()
@@ -42,7 +41,6 @@ class Config:
         self.preview_buffer_duration = 0
         self.max_clip_duration = 180
         self.device = 'cuda:0'
-        self.mosaic_pre_cleaning = False
         self.mute_audio = False
 
     def get_default_restoration_model(self):
@@ -84,7 +82,6 @@ class Config:
             preview_buffer_duration=self.preview_buffer_duration,
             max_clip_duration=self.max_clip_duration,
             device=self.device,
-            mosaic_pre_cleaning=self.mosaic_pre_cleaning,
             mute_audio=self.mute_audio
         )
 
@@ -100,7 +97,6 @@ class Config:
         update_prop('preview_buffer_duration')
         update_prop('max_clip_duration')
         update_prop('device')
-        update_prop('mosaic_pre_cleaning')
         update_prop('mute_audio')
 
 

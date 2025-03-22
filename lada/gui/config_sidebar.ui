@@ -46,14 +46,6 @@
                                 </property>
                             </object>
                         </child>
-                        <child>
-                            <object class="AdwSwitchRow" id="switch_row_mosaic_cleaning">
-                                <property name="title">Mosaic Pre-Cleaning</property>
-                                <property name="tooltip-text">If enabled will clean detected mosaic pattern from noise before passing it to the mosaic restoration model. Not recommended.</property>
-                                <signal name="notify::active"
-                                        handler="switch_row_mosaic_cleaning_active_callback"/>
-                            </object>
-                        </child>
                     </object>
                 </child>
                 <child>

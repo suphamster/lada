@@ -39,7 +39,6 @@ class VideoPreview(Gtk.Widget):
         super().__init__(**kwargs)
 
         self._passthrough = False
-        self._mosaic_cleaning = False
         self._mosaic_detection = False
         self._mosaic_restoration_model_name = 'basicvsrpp-generic-1.2'
         self._device = "cpu"
@@ -155,18 +154,6 @@ class VideoPreview(Gtk.Widget):
         if self._mosaic_restoration_model_name == value:
             return
         self._mosaic_restoration_model_name = value
-        if self._video_preview_init_done:
-            self.reset_appsource_worker()
-
-    @GObject.Property()
-    def mosaic_cleaning(self):
-        return self._mosaic_cleaning
-
-    @mosaic_cleaning.setter
-    def mosaic_cleaning(self, value):
-        if self._mosaic_cleaning == value:
-            return
-        self._mosaic_cleaning = value
         if self._video_preview_init_done:
             self.reset_appsource_worker()
 
@@ -686,23 +673,22 @@ class VideoPreview(Gtk.Widget):
         if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
             logger.info(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
             mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
-            mosaic_detection_model, mosaic_restoration_model, mosaic_edge_detection_model, mosaic_restoration_model_preferred_pad_mode = load_models(
+            mosaic_detection_model, mosaic_restoration_model, mosaic_restoration_model_preferred_pad_mode = load_models(
                 self._device, self._mosaic_restoration_model_name, mosaic_restoration_model_path, None,
-                os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'),None
+                os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt')
             )
 
             self.models_cache = dict(mosaic_restoration_model_name=self._mosaic_restoration_model_name,
                                      mosaic_detection_model=mosaic_detection_model,
                                      mosaic_restoration_model=mosaic_restoration_model,
-                                     mosaic_edge_detection_model=mosaic_edge_detection_model,
                                      mosaic_restoration_model_preferred_pad_mode=mosaic_restoration_model_preferred_pad_mode)
 
         if self._passthrough:
             self.frame_restorer = PassthroughFrameRestorer(self.video_metadata.video_file)
         else:
             self.frame_restorer = FrameRestorer(self._device, self.video_metadata.video_file, True, self._max_clip_length, self._mosaic_restoration_model_name,
-                                                self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_edge_detection_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
-                                                mosaic_detection=self._mosaic_detection, mosaic_cleaning=self._mosaic_cleaning)
+                                                self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"], self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
+                                                mosaic_detection=self._mosaic_detection)
 
     def _setup_shortcuts(self):
         self._application.shortcuts.register_group("preview", "Preview")
