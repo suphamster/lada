@@ -81,8 +81,6 @@ class BasicVSRPlusPlusNet(BaseModule):
             mid_channels, 64, 2, upsample_kernel=3)
         self.conv_hr = nn.Conv2d(64, 64, 3, 1, 1)
         self.conv_last = nn.Conv2d(64, 3, 3, 1, 1)
-        self.img_upsample = nn.Upsample(
-            scale_factor=4, mode='bilinear', align_corners=False)
 
         # activation function
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
@@ -194,7 +192,7 @@ class BasicVSRPlusPlusNet(BaseModule):
             feats (dict): The features from the propagation branches.
 
         Returns:
-            Tensor: Output HR sequence with shape (n, t, c, 4h, 4w).
+            Tensor: Output HR sequence with shape (n, t, c, h, w).
         """
 
         outputs = []
@@ -256,13 +254,7 @@ class BasicVSRPlusPlusNet(BaseModule):
                 module = f'{direction}_{iter_}'
 
                 feats[module] = []
-
-                if direction == 'backward':
-                    flows = flows_backward
-                elif flows_forward is not None:
-                    flows = flows_forward
-                else:
-                    flows = flows_backward.flip(1)
+                flows = flows_backward if direction == 'backward' else flows_forward
 
                 feats = self.propagate(feats, flows, module)
 

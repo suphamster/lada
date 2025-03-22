@@ -42,7 +42,7 @@ def flow_warp(x,
             torch.arange(0, h, device=device, dtype=x.dtype),
             torch.arange(0, w, device=device, dtype=x.dtype))
     grid = torch.stack((grid_x, grid_y), 2)  # h, w, 2
-    grid.requires_grad = False
+    grid.requires_grad_(False)
 
     grid_flow = grid + flow
     # scale grid_flow to [-1,1]
