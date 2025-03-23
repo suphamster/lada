@@ -129,8 +129,9 @@ You can select the model to use in the sidepanel or if using the CLI by passing 
 > There are also models for detection for both mosaiced/pixelated and non-obstructed NSFW sources which are used internally for pre-processing and model training.
 
 ## Developer Installation
+This section describes how to install the app from source.
 
-### CLI {#install_cli}
+### Install CLI
 
 1) Install system dependencies with your system package manager or compile/install from source
    * Python >= 3.12
@@ -171,9 +172,9 @@ You can select the model to use in the sidepanel or if using the CLI by passing 
 
 Now you should be able to run the CLI by calling `lada-cli`.
 
-### GUI
+### Install GUI
 
-1) Install everything mentioned in [CLI](#install_cli)
+1) Install everything mentioned in [Install CLI](#install-cli)
 
 2) Install system dependencies with your system package manager or compile/install from source
    * Gstreamer >= 1.14
@@ -192,45 +193,8 @@ Now you should be able to run the CLI by calling `lada-cli`.
 
 Now you should be able to run the GUI by calling `lada`.
 
-### Requirements to train your own models and datasets
-
-1) Install everything mentioned in [CLI](#install_cli)
-
-2) Install python dependencies
-    ```bash
-    python -m pip install -e '.[training,dataset-creation]'
-    ````
-
-   > [!CAUTION]
-   > When installing the dataset-creating extra dependencies `albuminations` will be installed. There seems to be an issue with its dependency management as albumentations will install opencv headless even though opencv is already available and you'll end up with both (you can check via `pip freeze | grep opencv`). 
-   > 
-   > If you run into conflicts related to OpenCV then uninstall both `opencv-python-headless` and `opencv-python` and install only `opencv-python`. (Noticed on version `albumentations==1.4.24`).
-
-3) Apply patches
-
-    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.7`):
-    ```bash
-    patch -u ./.venv/lib/python3.1[23]/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
-    ```
-
-4) Download model weights
-
-   To train the models and create your own datasets you'll also need these files
-   ```shell
-   wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
-   wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
-   wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
-   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.1-beta/lada_nsfw_detection_model_v1.3.pt'
-   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta4/lada_watermark_detection_model_v1.2.pt'
-   wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
-   ```
-
-> [!CAUTION]
-> The last download command currently doesn't work as the NudeNet project is set to age-restricted.
-> You'll have to be logged into GitHub, then you can download the file manually on their [release page]('https://github.com/notAI-tech/NudeNet/releases/): release `v3.4` / file `640m.pt`
-> The model is optional though and only used in `create-mosaic-restoration-dataset.py`.
-   
-Now you should be prepared to create datasets and train the models used in Lada. You will find instructions and further details in [Training and dataset creation](docs/training_and_dataset_creation.md).
+## Training and dataset creation
+If you're interested in training your own models and datasets you can find instructions and further details in [Training and dataset creation](docs/training_and_dataset_creation.md).
 
 ## Credits
 This project builds on work done by these fantastic people

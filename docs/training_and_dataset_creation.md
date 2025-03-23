@@ -1,3 +1,43 @@
+# Requirements
+In order to work on the models and datasets you'll have to install the requirements:
+
+1) Install everything mentioned in [Install CLI](../README.md#install-cli)
+
+2) Install python dependencies
+    ```bash
+    python -m pip install -e '.[training,dataset-creation]'
+    ````
+
+> [!CAUTION]
+> When installing the dataset-creating extra dependencies `albuminations` will be installed. There seems to be an issue with its dependency management as albumentations will install opencv headless even though opencv is already available and you'll end up with both (you can check via `pip freeze | grep opencv`). 
+> 
+> If you run into conflicts related to OpenCV then uninstall both `opencv-python-headless` and `opencv-python` and install only `opencv-python`. (Noticed on version `albumentations==1.4.24`).
+
+3) Apply patches
+
+    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.7`):
+    ```bash
+    patch -u ./.venv/lib/python3.1[23]/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
+    ```
+
+4) Download model weights
+
+   To train the models and create your own datasets you'll also need these files
+   ```shell
+   wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
+   wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
+   wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.1-beta/lada_nsfw_detection_model_v1.3.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta4/lada_watermark_detection_model_v1.2.pt'
+   wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
+   ```
+
+> [!CAUTION]
+> The last download command currently may not work as the NudeNet project is set to age-restricted.
+> You'll have to be logged into GitHub, then you can download the file manually on their [release page]('https://github.com/notAI-tech/NudeNet/releases/): release `v3.4` / file `640m.pt`
+> The model is optional though and only used in `create-mosaic-restoration-dataset.py`.
+   
+
 # Training
 The app uses two models: mosaic detection and mosaic restoration.
 The goal of the mosaic detection model is to detect for each frame of the video if and where pixelated/mosaic regions exist.
