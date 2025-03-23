@@ -2,6 +2,7 @@ import json
 import math
 import os
 import random
+import re
 import subprocess
 from contextlib import contextmanager
 from fractions import Fraction
@@ -484,7 +485,18 @@ def approx_max_length_by_memory_limit(video_metadata: VideoMetadata, limit_in_me
     return max_length_seconds
 
 class VideoWriter:
-    def __init__(self, output_path, width, height, fps, codec, crf=None, preset=None, time_base=None, moov_front=False):
+    def parse_custom_options(self, custom_encoder_options):
+        # squeeze spaces
+        custom_encoder_options = ' '.join(custom_encoder_options.split())
+        regex = re.compile(r"-(\w+ \w+)")
+        matches = regex.findall(custom_encoder_options)
+        encoder_options = {}
+        for match in matches:
+            option, value = match.split()
+            encoder_options[option] = value
+        return encoder_options
+
+    def __init__(self, output_path, width, height, fps, codec, crf=None, preset=None, time_base=None, moov_front=False, custom_encoder_options=None):
         container_options = {"movflags": "+frag_keyframe+empty_moov+faststart"} if moov_front else {}
         encoder_options = {}
         if crf:
@@ -495,6 +507,8 @@ class VideoWriter:
                 encoder_options['crf'] = str(crf)
         if preset:
             encoder_options['preset'] = preset
+        if custom_encoder_options:
+            encoder_options.update(self.parse_custom_options(custom_encoder_options))
 
         output_container = av.open(output_path, "w", options=container_options)
         video_stream_out = output_container.add_stream(codec, fps)

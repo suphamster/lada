@@ -27,6 +27,7 @@ def parse_args():
     export.add_argument('--preset', type=str, default=None, help='Encoder preset. Mostly affects file-size and speed. (default: %(default)s)')
     export.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written (default: %(default)s)")
     export.add_argument('--list-codecs', action='store_true', help="List available Codecs and hardware devices / GPUs for hardware-accelerated video encoding. Uses FFmpeg wrapper library PyAV which is used for encoding the restored video.")
+    export.add_argument('--custom-encoder-options', type=str, help="Pass arbitrary encoder options. Pass it like you'd specify them using ffmpeg cli. e.g --custom-encoder-options \"-rc-lookahead 32 -rc vbr_hq\".")
 
     group_restoration = parser.add_argument_group('Mosaic restoration')
     group_restoration.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp-generic", help="Model used to restore mosaic clips (default: %(default)s)")
@@ -88,7 +89,7 @@ def main():
     try:
         frame_restorer.start()
 
-        video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front, time_base=video_metadata.time_base, preset=args.preset)
+        video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front, time_base=video_metadata.time_base, preset=args.preset, custom_encoder_options=args.custom_encoder_options)
         try:
             for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
                 if elem is None:
