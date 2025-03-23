@@ -325,7 +325,7 @@ class VideoPreview(Gtk.Widget):
 
                 video_writer = video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
                                            self.video_metadata.video_height, self.video_metadata.video_fps_exact,
-                                           time_base=self.video_metadata.time_base, codec=video_codec, crf=crf)
+                                           video_codec, time_base=self.video_metadata.time_base, crf=crf)
                 try:
                     for frame_num, elem in enumerate(self.frame_restorer):
                         if elem is None:

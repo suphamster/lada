@@ -483,16 +483,26 @@ def approx_max_length_by_memory_limit(video_metadata: VideoMetadata, limit_in_me
     return max_length_seconds
 
 class VideoWriter:
-    def __init__(self, output_path, width, height, fps, crf=15, preset='medium', codec='h264', time_base=None, moov_front=False):
-        options = {"movflags": "+frag_keyframe+empty_moov+faststart"} if moov_front else {}
-        output_container = av.open(output_path, "w", options=options)
+    def __init__(self, output_path, width, height, fps, codec, crf=None, preset=None, time_base=None, moov_front=False):
+        container_options = {"movflags": "+frag_keyframe+empty_moov+faststart"} if moov_front else {}
+        encoder_options = {}
+        if crf:
+            if codec in ('hevc_nvenc', 'h264_nvenc'):
+                encoder_options['rc'] = 'constqp'
+                encoder_options['qp'] = str(crf)
+            else:
+                encoder_options['crf'] = str(crf)
+        if preset:
+            encoder_options['preset'] = preset
+
+        output_container = av.open(output_path, "w", options=container_options)
         video_stream_out = output_container.add_stream(codec, fps)
         video_stream_out.width = width
         video_stream_out.height = height
         video_stream_out.thread_count = 0
         video_stream_out.thread_type = 3
         video_stream_out.time_base = time_base
-        video_stream_out.options = {'crf': str(crf), 'preset': preset}
+        video_stream_out.options = encoder_options
         self.output_container = output_container
         self.video_stream = video_stream_out
         self.time_base = time_base
