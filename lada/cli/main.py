@@ -23,7 +23,7 @@ def parse_args():
 
     export = parser.add_argument_group('Video export (Encoder settings)')
     export.add_argument('--codec', type=str, default="h264", help='FFmpeg video codec. E.g. "h264, "hevc" or "hevc_nvenc". Use "--list-available-codecs" to see whats available. (default: %(default)s)')
-    export.add_argument('--crf', type=int, default=21, help='Constant rate factor (quality setting for video encoder). The lower the better with the caveat of producing larger files size and increased compute resources. Note: If you have selected GPU codecs "h264_nvenc" or "hevc_nvenc" then the option "qp" will be used instead as those encoders do not support the option "crf". (default: %(default)s)')
+    export.add_argument('--crf', type=int, default=None, help='Constant rate factor (quality setting for video encoder). The lower the better with the caveat of producing larger files size and increased compute resources. Note: If you have selected GPU codecs "h264_nvenc" or "hevc_nvenc" then the option "qp" will be used instead as those encoders do not support the option "crf". (default: %(default)s)')
     export.add_argument('--preset', type=str, default=None, help='Encoder preset. Mostly affects file-size and speed. (default: %(default)s)')
     export.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written (default: %(default)s)")
     export.add_argument('--list-codecs', action='store_true', help="List available Codecs and hardware devices / GPUs for hardware-accelerated video encoding. Uses FFmpeg wrapper library PyAV which is used for encoding the restored video.")
