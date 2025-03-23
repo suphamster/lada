@@ -130,86 +130,107 @@ You can select the model to use in the sidepanel or if using the CLI by passing 
 
 ## Developer Installation
 
-### System dependencies
+### CLI {#install_cli}
 
-1) Install Python 3.12
-   > If your OS doesn't provide this version you could use `conda` or some of its clones like `micromamba` to install python
+1) Install system dependencies with your system package manager or compile/install from source
+   * Python >= 3.12
+   * FFmpeg >= 5.0
 
-2) [Install FFmpeg](https://ffmpeg.org/download.html)
+   On Arch Linux this could be done via: `sudo pacman -Syu python ffmpeg`
 
-3) [Install GStreamer](https://gstreamer.freedesktop.org/documentation/installing/index.html)
-
-4) [Install GTK](https://www.gtk.org/docs/installations/)
-
-> [!TIP]
-> 3/4 are only needed when running the GUI and can be skipped for CLI-only use
-
-### Python dependencies
-This is a Python project so let's install our dependencies from PyPi:
-
-1) Create a new virtual environment
+2) Create a new virtual environment to install python dependencies
     ```bash
     python -m venv .venv
     source .venv/bin/activate
     ```
 
-2) [Install PyTorch](https://pytorch.org/get-started/locally)
+3) [Install PyTorch](https://pytorch.org/get-started/locally)
 
-3) Install this project together with the remaining dependencies
+4) Install this project together with the remaining dependencies
     ```bash
-    python -m pip install -e '.[basicvsrpp,gui]'
+    python -m pip install -e '.[basicvsrpp]'
     ````
-    These extras are enough to run the model, GUI and CLI. If you want to train the model(s) or work on the dataset(s) install additional extras `training,dataset-creation`. `gui` is optional and can be skipped if only working with the CLI.
+
+5) Apply patches
+    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit (tested with `ultralytics==8.3.92`):
+    ```bash
+    patch -u ./.venv/lib/python3.1[23]/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
+    ```
+
+6) Download model weights
+   Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
+   ```shell
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth'
+   ```
+
+   If you're interested in running DeepMosaics' restoration model you can also download their pretrained model `clean_youknow_video.pth`
+   ```shell
+   wget -O model_weights/3rd_party/clean_youknow_video.pth 'https://drive.usercontent.google.com/download?id=1ulct4RhRxQp1v5xwEmUH7xz7AK42Oqlw&export=download&confirm=t'
+   ```
+
+Now you should be able to run the CLI by calling `lada-cli`.
+
+### GUI
+
+1) Install everything mentioned in [CLI](#install_cli)
+
+2) Install system dependencies with your system package manager or compile/install from source
+   * Gstreamer >= 1.14
+   * PyGObject
+   * GTK >= 4.0
+   * libadwaita >= 1.6
+
+   On Arch Linux this could be done via: `sudo pacman -Syu gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-plugin-gtk4 python-gobject gtk4 libadwaita`
+
+3) Install python dependencies
+    ```bash
+    python -m pip install -e '.[gui]'
+    ````
+   > [!TIP]
+   > If you intend to hack on the GUI code install also `gui-dev` extra: `python -m pip install -e '.[gui-dev]'`
+
+Now you should be able to run the GUI by calling `lada`.
+
+### Requirements to train your own models and datasets
+
+1) Install everything mentioned in [CLI](#install_cli)
+
+2) Install python dependencies
+    ```bash
+    python -m pip install -e '.[training,dataset-creation]'
+    ````
 
    > [!CAUTION]
    > When installing the dataset-creating extra dependencies `albuminations` will be installed. There seems to be an issue with its dependency management as albumentations will install opencv headless even though opencv is already available and you'll end up with both (you can check via `pip freeze | grep opencv`). 
    > 
    > If you run into conflicts related to OpenCV then uninstall both `opencv-python-headless` and `opencv-python` and install only `opencv-python`. (Noticed on version `albumentations==1.4.24`).
 
-4) Apply patches
+3) Apply patches
 
-    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.6`):
+    In order to fix resume training of the mosaic restoration model apply the following patch (tested with `mmengine==0.10.7`):
     ```bash
-    patch -u ./.venv/lib/python3.12/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
+    patch -u ./.venv/lib/python3.1[23]/site-packages/mmengine/runner/loops.py -i patches/adjust_mmengine_resume_dataloader.patch
     ```
 
-    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit (tested with `ultralytics==8.3.58`):
-    ```bash
-    patch -u ./.venv/lib/python3.12/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
-    ```
+4) Download model weights
 
-### Install models
-Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
-```shell
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt'
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth'
-```
-
-If you're interested in running DeepMosaics' restoration model you can also download their pretrained model `clean_youknow_video.pth`
-```shell
-wget -O model_weights/3rd_party/clean_youknow_video.pth 'https://drive.usercontent.google.com/download?id=1ulct4RhRxQp1v5xwEmUH7xz7AK42Oqlw&export=download&confirm=t'
-```
-
-To train the models and create your own datasets you'll also need these files
-```shell
-wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
-wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
-wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.1-beta/lada_nsfw_detection_model_v1.3.pt'
-wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta4/lada_watermark_detection_model_v1.2.pt'
-wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
-```
+   To train the models and create your own datasets you'll also need these files
+   ```shell
+   wget -P model_weights/3rd_party/ 'https://download.openmmlab.com/mmediting/restorers/basicvsr/spynet_20210409-c6c1bd09.pth'
+   wget -P model_weights/3rd_party/ 'https://download.pytorch.org/models/vgg19-dcbb9e9d.pth'
+   wget -P model_weights/3rd_party/ 'https://github.com/QualityAssessment/DOVER/releases/download/v0.1.0/DOVER.pth'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.1-beta/lada_nsfw_detection_model_v1.3.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.5.0-beta4/lada_watermark_detection_model_v1.2.pt'
+   wget -P model_weights/3rd_party/ 'https://github.com/notAI-tech/NudeNet/releases/download/v3.4-weights/640m.pt'
+   ```
 
 > [!CAUTION]
 > The last download command currently doesn't work as the NudeNet project is set to age-restricted.
 > You'll have to be logged into GitHub, then you can download the file manually on their [release page]('https://github.com/notAI-tech/NudeNet/releases/): release `v3.4` / file `640m.pt`
 > The model is optional though and only used in `create-mosaic-restoration-dataset.py`.
-
-Now you should be able to run the GUI via `lada` or the CLI via `lada-cli`.
-
-
-## Training and dataset creation
-If you're interested in training your own model(s) or create custom dataset(s) you can find out more in [Training and dataset creation](docs/training_and_dataset_creation.md).
+   
+Now you should be prepared to create datasets and train the models used in Lada. You will find instructions and further details in [Training and dataset creation](docs/training_and_dataset_creation.md).
 
 ## Credits
 This project builds on work done by these fantastic people
