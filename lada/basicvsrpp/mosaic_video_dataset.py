@@ -5,16 +5,32 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.utils.data as data
+
+import lada.lib.image_utils
 from lada.basicvsrpp.mmagic.data_sample import DataSample
 from lada.basicvsrpp.mmagic.registry import DATASETS
 
 import lada.lib.video_utils as video_utils
-from lada.lib import random_utils, degradation_utils
+from lada.lib import random_utils, transforms as realesrgan_transforms
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image, scale_pad
-from lada.lib.degradation_utils import apply_video_degradation_v2, MosaicRandomDegradationParamsV2
 from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV2
 
+from torchvision.transforms import transforms as torchvision_transforms
+
+def create_degradation_pipeline(lq_size):
+    return torchvision_transforms.Compose([
+        realesrgan_transforms.ResizeFrames(lq_size),
+        realesrgan_transforms.VideoCompression(p=0.9, codecs=['libx264', 'libx265', 'libvpx-vp9', 'mpeg2video'], codec_probs=[0.3, 0.3, 0.3, 0.1],
+                                               crf_ranges={'libx264': (16, 28), 'libx265': (20, 36)},
+                                               bitrate_ranges={'libvpx-vp9': (6_000, 16_000), 'mpeg2video': (18_000, 40_000)}),
+        realesrgan_transforms.GaussianBlur(sigma_range=[1., 4.], p=0.3),
+        realesrgan_transforms.GaussianNoise(snr=50, p=0.2),
+        realesrgan_transforms.VideoCompression(p=0.15, codecs=['libx264'],
+                                               codec_probs=[1.],
+                                               crf_ranges={'libx264': (24, 28)},
+                                               bitrate_ranges={}),
+    ])
 
 @DATASETS.register_module()
 class MosaicVideoDataset(data.Dataset):
@@ -101,12 +117,8 @@ class MosaicVideoDataset(data.Dataset):
                                                  feather=mosaic_feather_size)
                 img_lqs.append(pad_image_by_pad(img_lq, pad))
             if self.degrade:
-                degradation_params = MosaicRandomDegradationParamsV2(repeatable_random=self.repeatable_random)
-                img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
-                img_lqs = apply_video_degradation_v2(img_lqs, degradation_params)
-                if degradation_params.should_run_video_compression_second_pass:
-                    degradation_params.reinit_second_pass()
-                    img_lqs = apply_video_degradation_v2(img_lqs, degradation_params)
+                degrade = create_degradation_pipeline(self.lq_size)
+                img_lqs = degrade(img_lqs)
 
         img_gts = video_utils.resize_video_frames(img_gts, self.lq_size)
         img_lqs = video_utils.resize_video_frames(img_lqs, self.lq_size)
@@ -121,8 +133,8 @@ class MosaicVideoDataset(data.Dataset):
 
         if self.rng_random.random()<0.3:
             rotation_deg = self.rng_random.choice([-2, -1, 1, 2])
-            img_lqs = [degradation_utils.rotate(img, rotation_deg) for img in img_lqs]
-            img_gts = [degradation_utils.rotate(img, rotation_deg) for img in img_gts]
+            img_lqs = [lada.lib.image_utils.rotate(img, rotation_deg) for img in img_lqs]
+            img_gts = [lada.lib.image_utils.rotate(img, rotation_deg) for img in img_gts]
 
         img_gts = video_utils.img2tensor(img_gts, float32=False, bgr2rgb=True)
         img_lqs = video_utils.img2tensor(img_lqs, float32=False, bgr2rgb=True)

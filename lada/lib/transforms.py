@@ -128,14 +128,19 @@ class GaussianNoise(torch.nn.Module):
         self.mean = 0
         self.should_apply = np.random.random() < p
 
-    def forward(self, img):
-        if not self.should_apply:
-            return img
+    def apply_noise(self, img):
         img = img / 255.0
         noise = np.random.normal(self.mean, 10 ** (-self.snr / 20), img.shape)
         img = np.clip(img + noise, 0, 1)
         img = (img * 255).astype(np.uint8)
         return img
+
+    def forward(self, img):
+        if not self.should_apply:
+            return img
+        imgs_in = img if isinstance(img, list) else [img]
+        imgs_out = [self.apply_noise(_img) for _img in imgs_in]
+        return imgs_out if isinstance(img, list) else imgs_out[0]
 
 class GaussianBlur(torch.nn.Module):
     def __init__(self, sigma_range: list[float], p: float):
@@ -146,7 +151,9 @@ class GaussianBlur(torch.nn.Module):
     def forward(self, img):
         if not self.should_apply:
             return img
-        return cv2.GaussianBlur(img, (13,13), self.sigma)
+        imgs_in = img if isinstance(img, list) else [img]
+        imgs_out = [cv2.GaussianBlur(_img, (13,13), self.sigma) for _img in imgs_in]
+        return imgs_out if isinstance(img, list) else imgs_out[0]
 
 class ResizeFrames(torch.nn.Module):
     def __init__(self, size):
@@ -154,7 +161,9 @@ class ResizeFrames(torch.nn.Module):
         self.size = size
 
     def forward(self, imgs):
-        return video_utils.resize_video_frames(imgs, self.lq_size)
+        frames = imgs if isinstance(imgs, list) else [imgs]
+        resized_frames = video_utils.resize_video_frames(frames, self.size)
+        return resized_frames if isinstance(imgs, list) else resized_frames[0]
 
 class JPEGCompression(torch.nn.Module):
     def __init__(self, jpeger: DiffJPEG, jpeg_range: list[int]):

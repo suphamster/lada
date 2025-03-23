@@ -193,10 +193,11 @@ def read_video_frames(path: str, float32: bool = True, start_idx: int = 0, end_i
                 break
     return frames
 
-def resize_video_frames(frames: list, size):
+def resize_video_frames(frames: list, size: int | tuple[int, int]):
     resized = []
+    target_size = size if isinstance(size, (list, tuple)) else (size, size)
     for frame in frames:
-        if frame.shape[:2] == (size, size):
+        if frame.shape[:2] == target_size:
             resized.append(frame)
         else:
             resized.append(cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR))

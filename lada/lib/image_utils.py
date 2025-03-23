@@ -7,6 +7,8 @@ import torch
 from torch.nn import functional as F
 from torchvision.utils import make_grid
 
+from lada.lib import Image
+
 def pad_image(img, max_height, max_width, mode='zero'):
     height, width = img.shape[:2]
     if height == max_height and width == max_width:
@@ -240,3 +242,10 @@ class UnsharpMaskingSharpener(torch.nn.Module):
         sharp = img + weight * residual
         sharp = torch.clip(sharp, 0, 1)
         return soft_mask * sharp + (1 - soft_mask) * img
+
+
+def rotate(img: Image, deg):
+    h,w = img.shape[:2]
+    M = cv2.getRotationMatrix2D((w/2,h/2),deg,1)
+    img = cv2.warpAffine(img,M,(w,h))
+    return img

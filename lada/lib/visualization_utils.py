@@ -1,7 +1,6 @@
 import cv2
 from lada.lib import image_utils
 from lada.lib import Image
-from lada.lib.mosaic_detector import Clip
 
 def overlay_mask(frame, mask):
     overlay = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
@@ -40,7 +39,7 @@ def draw_text(text, position, output, font_scale=0.5):
     cv2.putText(output, text, position, cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2,
                 cv2.LINE_AA)
 
-def draw_mosaic_detections(clip: Clip, border_color = (255, 0, 255)) -> list[Image]:
+def draw_mosaic_detections(clip, border_color = (255, 0, 255)) -> list[Image]:
     mosaic_detection_images = []
     box_border_thickness = 2
     border_thickness_half = box_border_thickness // 2

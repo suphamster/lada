@@ -1,16 +1,16 @@
 import pathlib
 import concurrent.futures as concurrent_futures
 from dataclasses import dataclass
+from typing import Callable
 from pathlib import Path
 from typing import Literal, Optional
 
 import cv2
 import numpy as np
 
+from lada.basicvsrpp.mosaic_video_dataset import create_degradation_pipeline
 from lada.lib import mask_utils, restoration_dataset_metadata, Pad, Mask, Image
 from lada.lib import video_utils, image_utils
-# todo: switch to MosaicRandomDegradationParamsV2
-from lada.lib.degradation_utils import MosaicRandomDegradationParams, apply_frame_degradation
 from lada.dover.evaluate import VideoQualityEvaluator
 from lada.lib.image_utils import pad_image
 from lada.lib.mosaic_classifier import MosaicClassifier
@@ -84,7 +84,7 @@ class MosaicRandomParams:
         self.mosaic_mask_dilation_iterations = np.random.choice(range(2))
 
 class DatasetItem:
-    def __init__(self, cropped_scene: CroppedScene, scene: Optional[Scene], mosaic: bool, crop: bool, resize_crops: Optional[bool], resize_crop_size: Optional[int], mosaic_params: Optional[MosaicRandomParams], mosaic_degradation_params: Optional[MosaicRandomDegradationParams], scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped']):
+    def __init__(self, cropped_scene: CroppedScene, scene: Optional[Scene], mosaic: bool, crop: bool, resize_crops: Optional[bool], resize_crop_size: Optional[int], mosaic_params: Optional[MosaicRandomParams], degrade: Callable, scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped']):
         self._images: list[Image] = []
         self._masks: list[Mask] = []
         self._pads: list[Pad] = []
@@ -96,7 +96,7 @@ class DatasetItem:
         self._censoring_detected: Optional[bool] = None
         self._scene_type: Literal['cropped_scaled', 'cropped_unscaled', 'uncropped'] = scene_type
 
-        self._init_images_masks_and_pad(cropped_scene, scene, mosaic, crop, resize_crops, resize_crop_size, mosaic_params, mosaic_degradation_params)
+        self._init_images_masks_and_pad(cropped_scene, scene, mosaic, crop, resize_crops, resize_crop_size, mosaic_params, degrade)
 
     @property
     def images(self):
@@ -150,7 +150,7 @@ class DatasetItem:
     def censoring_detected(self, value):
         self._censoring_detected = value
 
-    def _init_images_masks_and_pad(self, cropped_scene: CroppedScene, scene: Optional[Scene], mosaic: bool, crop: bool, resize_crops: bool, resize_crop_size: Optional[int], mosaic_params: Optional[MosaicRandomParams], mosaic_degradation_params: Optional[MosaicRandomDegradationParams]):
+    def _init_images_masks_and_pad(self, cropped_scene: CroppedScene, scene: Optional[Scene], mosaic: bool, crop: bool, resize_crops: bool, resize_crop_size: Optional[int], mosaic_params: Optional[MosaicRandomParams], degrade: Callable):
 
         for i in range(len(cropped_scene)):
             if mosaic:
@@ -164,8 +164,12 @@ class DatasetItem:
 
             if crop:
                 image, mask = cropped_image, cropped_mask
-                if mosaic and mosaic_degradation_params:
-                    image = apply_frame_degradation(image, mosaic_degradation_params)
+                if mosaic and degrade:
+                    # todo: running mosaic restoration dataset degradation pipeline on single images will produce different results compared to passing intended list of consecutive frames to it
+                    #  either refactor this code or just remove it. its only used for debugging, degraded frames should be generated dynamically in the dataset class instead of pre-generated via dataset creation script.
+                    shape_before_degrade = image.shape
+                    image = degrade(image)
+                    image = cv2.resize(np.array(image), (shape_before_degrade[1], shape_before_degrade[0]))
                 if resize_crops:
                     mask = image_utils.resize(mask, resize_crop_size, interpolation=cv2.INTER_NEAREST)
                     image = image_utils.resize(image, resize_crop_size, interpolation=cv2.INTER_CUBIC)
@@ -182,8 +186,9 @@ class DatasetItem:
                     t, l, b, r = scene_box
                     image = scene_image.copy()
                     image[t:b + 1, l:r + 1, :] = cropped_image
-                    if mosaic_degradation_params:
-                        image = apply_frame_degradation(image, mosaic_degradation_params)
+                    if degrade:
+                        # todo: degradation pipeline currently is optimized for 256x256 video crops not arbitrary large vids. lets skip degradations for now
+                        pass
                     mask = np.zeros_like(scene_mask, dtype=scene_mask.dtype)
                     mask[t:b + 1, l:r + 1] = cropped_mask
                 else:
@@ -361,14 +366,14 @@ class SceneProcessor:
         #########
         if scene_processing_options.save_mosaic:
             mosaic_params = MosaicRandomParams(scene)
-            degradation_params = MosaicRandomDegradationParams() if scene_processing_options.degrade_mosaic else None
+            degrade = create_degradation_pipeline(scene_processing_options.out_size)
             if scene_processing_options.save_cropped:
                 if scene_processing_options.preserve_crops:
-                    dataset_item_mosaic_crop_unscaled = DatasetItem(cropped_scene, scene, True, True, False, scene_processing_options.out_size, mosaic_params, degradation_params, 'cropped_unscaled')
+                    dataset_item_mosaic_crop_unscaled = DatasetItem(cropped_scene, scene, True, True, False, scene_processing_options.out_size, mosaic_params, degrade, 'cropped_unscaled')
                 if scene_processing_options.resize_crops:
-                    dataset_item_mosaic_crop_scaled = DatasetItem(cropped_scene, scene, True, True, True, scene_processing_options.out_size, mosaic_params, degradation_params, 'cropped_scaled')
+                    dataset_item_mosaic_crop_scaled = DatasetItem(cropped_scene, scene, True, True, True, scene_processing_options.out_size, mosaic_params, degrade, 'cropped_scaled')
             if scene_processing_options.save_uncropped:
-                dataset_item_mosaic_uncropped = DatasetItem(cropped_scene, scene, True, False, None, None, mosaic_params, degradation_params, 'uncropped')
+                dataset_item_mosaic_uncropped = DatasetItem(cropped_scene, scene, True, False, None, None, mosaic_params, degrade, 'uncropped')
         if scene_processing_options.save_cropped:
             if scene_processing_options.save_cropped:
                 if scene_processing_options.preserve_crops:
