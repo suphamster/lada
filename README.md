@@ -177,7 +177,7 @@ This section describes how to install the app from source.
 6) Download model weights
    Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
    ```shell
-   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.7.0/lada_mosaic_detection_model_v3.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt'
    wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth'
    ```
 
