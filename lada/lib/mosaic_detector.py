@@ -176,7 +176,7 @@ class Clip:
         return self.data[item]
 
 class MosaicDetector:
-    def __init__(self, model: YOLO, video_file, frame_detection_queue: queue.Queue, mosaic_clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
+    def __init__(self, model: YOLO, video_file, frame_detection_queue: queue.Queue, mosaic_clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4, conf=0.2):
         self.model = model
         self.is_segmentation_model = self.model.task == 'segment'
         self.ignore_non_nsfw_mosaics = True
@@ -201,6 +201,7 @@ class MosaicDetector:
         self.frame_detector_thread_should_be_running = False
         self.stop_requested = False
         self.batch_size = batch_size
+        self.conf = conf
 
     def start(self, start_ns):
         self.start_ns = start_ns
@@ -347,7 +348,7 @@ class MosaicDetector:
                 assert frame_num == _frame_num, "frame detector worker out of sync with frame reader"
                 if len(frames) > 0:
                     classes = [0] if self.ignore_non_nsfw_mosaics else None
-                    batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device, classes=classes)
+                    batch_prediction_results = self.model.predict(source=frames, stream=False, verbose=False, device=self.device, classes=classes, conf=self.conf)
                     assert len(frames) == len(batch_prediction_results)
                     for i, results in enumerate(batch_prediction_results):
                         self._create_or_append_scenes_based_on_prediction_result(results, scenes, frame_num)
