@@ -15,7 +15,7 @@ setup(
         'basicvsrpp': ['mmengine==0.10.7', 'torchvision'], # mmengine pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
         'gui': ['pycairo', 'PyGObject'],
         'gui-dev': ['pygobject-stubs'],
-        'training': ['torchvision', 'albumentations', 'tensorboard'],
+        'training': ['torchvision', 'albumentations', 'tensorboard', 'standard-imghdr'],
         'dataset-creation': ['lap>=0.5.12', 'timm', 'einops', 'torchvision', 'pillow']
     },
     include_package_data=True,
