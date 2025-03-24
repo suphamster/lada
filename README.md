@@ -137,11 +137,13 @@ This section describes how to install the app from source.
    * Python >= 3.12
    * FFmpeg >= 5.0
 
-   On Arch Linux this could be done via: `sudo pacman -Syu python ffmpeg`
+   Arch Linux: `sudo pacman -Syu python ffmpeg`
+   
+   Ubuntu 24.10: `sudo apt install python3.12 python3.12-venv ffmpeg` 
 
 2) Create a new virtual environment to install python dependencies
     ```bash
-    python -m venv .venv
+    python3 -m venv .venv
     source .venv/bin/activate
     ```
 
@@ -182,14 +184,24 @@ Now you should be able to run the CLI by calling `lada-cli`.
    * GTK >= 4.0
    * libadwaita >= 1.6
 
-   On Arch Linux this could be done via: `sudo pacman -Syu gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-plugin-gtk4 python-gobject gtk4 libadwaita`
+   Arch Linux: 
+   ```bash
+   sudo pacman -Syu python-gobject gtk4 libadwaita gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-plugins-base-libs gst-plugins-bad-libs gst-plugin-gtk4
+   ```
+   
+   Ubuntu 24.10:
+   ```bash
+   sudo apt install libgirepository-2.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gstreamer-1.0
+   sudo apt install libgstreamer1.0-0 libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pulseaudio gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-tools gstreamer1.0-libav  gstreamer1.0-gtk4
+   ```
 
 3) Install python dependencies
     ```bash
     python -m pip install -e '.[gui]'
     ````
-   > [!TIP]
-   > If you intend to hack on the GUI code install also `gui-dev` extra: `python -m pip install -e '.[gui-dev]'`
+
+> [!TIP]
+> If you intend to hack on the GUI code install also `gui-dev` extra: `python -m pip install -e '.[gui-dev]'`
 
 Now you should be able to run the GUI by calling `lada`.
 
