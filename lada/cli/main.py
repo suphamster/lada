@@ -89,8 +89,10 @@ def main():
     try:
         frame_restorer.start()
 
-        video_writer = VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height, video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front, time_base=video_metadata.time_base, preset=args.preset, custom_encoder_options=args.custom_encoder_options)
-        try:
+        with VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height,
+                         video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front,
+                         time_base=video_metadata.time_base, preset=args.preset,
+                         custom_encoder_options=args.custom_encoder_options) as video_writer:
             for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
                 if elem is None:
                     success = False
@@ -98,8 +100,6 @@ def main():
                     break
                 (restored_frame, restored_frame_pts) = elem
                 video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
-        finally:
-            video_writer.release()
     except (Exception, KeyboardInterrupt) as e:
         success = False
         if isinstance(e, KeyboardInterrupt):

@@ -522,6 +522,12 @@ class VideoWriter:
         self.video_stream = video_stream_out
         self.time_base = time_base
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.release()
+
     def write(self, frame, frame_pts=None, bgr2rgb=False):
         if bgr2rgb:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

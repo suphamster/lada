@@ -323,10 +323,10 @@ class VideoPreview(Gtk.Widget):
             try:
                 self.frame_restorer.start(start_ns=0)
 
-                video_writer = video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
-                                           self.video_metadata.video_height, self.video_metadata.video_fps_exact,
-                                           video_codec, time_base=self.video_metadata.time_base, crf=crf)
-                try:
+                with video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
+                                             self.video_metadata.video_height, self.video_metadata.video_fps_exact,
+                                             video_codec, time_base=self.video_metadata.time_base,
+                                             crf=crf) as video_writer:
                     for frame_num, elem in enumerate(self.frame_restorer):
                         if elem is None:
                             success = False
@@ -336,8 +336,7 @@ class VideoPreview(Gtk.Widget):
                         video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
                         if frame_num % progress_update_step_size == 0:
                             self.emit('video-export-progress', frame_num / self.video_metadata.frames_count)
-                finally:
-                    video_writer.release()
+
             except Exception as e:
                 success = False
                 logger.error("Error on export", exc_info=e)
