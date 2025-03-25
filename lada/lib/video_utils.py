@@ -496,9 +496,28 @@ class VideoWriter:
             encoder_options[option] = value
         return encoder_options
 
+    def get_default_encoder_options(self):
+        libx264 = {
+            'preset': 'medium',
+            'crf': '20'
+        }
+        libx265 = {
+            'preset': 'medium',
+            'crf': '23',
+            'x265-params': 'log_level=error'
+        }
+        encoder_defaults = {}
+        encoder_defaults['libx264'] = libx264
+        encoder_defaults['h264'] = libx264
+        encoder_defaults['libx265'] = libx265
+        encoder_defaults['hevc'] = libx265
+        return encoder_defaults
+
     def __init__(self, output_path, width, height, fps, codec, crf=None, preset=None, time_base=None, moov_front=False, custom_encoder_options=None):
         container_options = {"movflags": "+frag_keyframe+empty_moov+faststart"} if moov_front else {}
-        encoder_options = {}
+        encoder_defaults = self.get_default_encoder_options()
+        encoder_options = encoder_defaults.get(codec, {})
+
         if crf:
             if codec in ('hevc_nvenc', 'h264_nvenc'):
                 encoder_options['rc'] = 'constqp'
@@ -507,6 +526,7 @@ class VideoWriter:
                 encoder_options['crf'] = str(crf)
         if preset:
             encoder_options['preset'] = preset
+
         if custom_encoder_options:
             encoder_options.update(self.parse_custom_options(custom_encoder_options))
 
