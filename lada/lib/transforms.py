@@ -16,11 +16,12 @@ from lada.lib.jpeg_utils import DiffJPEG
 
 
 class Blur(torch.nn.Module):
-    def __init__(self, kernel_range: list[int], kernel_list: list[str], kernel_prob: list[float], sinc_prob: float, blur_sigma, betag_range, betap_range, device):
+    def __init__(self, kernel_range: list[int], kernel_list: list[str], kernel_prob: list[float], sinc_prob: float, blur_sigma, betag_range, betap_range, device, p:float):
         super().__init__()
         use_sync_filter = np.random.uniform() < sinc_prob
         kernel_size = random.choice(kernel_range)
         self.kernel = self._generate_kernel(kernel_size, use_sync_filter, kernel_list, kernel_prob, blur_sigma, betag_range, betap_range).to(device)
+        self.should_apply = np.random.uniform() < p
 
     def _generate_kernel(self, kernel_size: int, use_sync_filter: bool, kernel_list: list[str], kernel_prob: list[float], blur_sigma, betag_range, betap_range):
         if use_sync_filter:
@@ -47,15 +48,18 @@ class Blur(torch.nn.Module):
         return torch.FloatTensor(kernel)
 
     def forward(self, img):
+        if not self.should_apply:
+            return img
         return filter2D(img, self.kernel)
 
 
 class SincFilter(torch.nn.Module):
-    def __init__(self, kernel_range: list[int], sinc_prob: float, device):
+    def __init__(self, kernel_range: list[int], sinc_prob: float, device, p: float):
         super().__init__()
         use_sync_filter = np.random.uniform() < sinc_prob
         kernel_size = random.choice(kernel_range)
         self.kernel = self._generate_kernel(kernel_size, use_sync_filter).to(device)
+        self.should_apply = np.random.uniform() < p
 
     def _generate_kernel(self, kernel_size: int, use_sync_filter: bool):
         if use_sync_filter:
@@ -71,10 +75,12 @@ class SincFilter(torch.nn.Module):
         return sinc_kernel
 
     def forward(self, img):
+        if not self.should_apply:
+            return img
         return filter2D(img, self.kernel)
 
 class Resize(torch.nn.Module):
-    def __init__(self, resize_range: list[float], resize_prob: list[float], target_base_h: float|int, target_base_w: float|int):
+    def __init__(self, resize_range: list[float], resize_prob: list[float], target_base_h: float|int, target_base_w: float|int, p: float):
         super().__init__()
         resize_operation = random.choices(['up', 'down', 'keep'], resize_prob)[0]
         if resize_operation == 'up':
@@ -85,29 +91,36 @@ class Resize(torch.nn.Module):
             scale_factor = 1
         self.size = (int(target_base_h * scale_factor), int(target_base_w * scale_factor))
         self.interpolation_mode = random.choice(['area', 'bilinear', 'bicubic'])
+        self.should_apply = np.random.uniform() < p
 
     def forward(self, img):
+        if not self.should_apply:
+            return img
         img = F.interpolate(img, size=self.size, mode=self.interpolation_mode)
 
         return img
 
 class Sharpen(torch.nn.Module):
-    def __init__(self, sharpener: UnsharpMaskingSharpener):
+    def __init__(self, sharpener: UnsharpMaskingSharpener, p: float):
         super().__init__()
         self.sharpener = sharpener
+        self.should_apply = np.random.uniform() < p
 
     def forward(self, img):
-        return self.sharpener(img)
+        return self.sharpener(img) if self.should_apply else img
 
 class GaussianPoissonNoise(torch.nn.Module):
-    def __init__(self, sigma_range: list[float], poisson_scale_range: list[float], gaussian_noise_prob: float, gray_noise_prob: float):
+    def __init__(self, sigma_range: list[float], poisson_scale_range: list[float], gaussian_noise_prob: float, gray_noise_prob: float, p:float):
         super().__init__()
         self.use_gaussian_noise = np.random.uniform() < gaussian_noise_prob
         self.sigma_range = sigma_range
         self.poisson_scale_range = poisson_scale_range
         self.gray_noise_prob = gray_noise_prob
+        self.should_apply = np.random.uniform() < p
 
     def forward(self, img):
+        if not self.should_apply:
+            return img
         if self.use_gaussian_noise:
             img = random_add_gaussian_noise_pt(img, sigma_range=self.sigma_range, clip=True, rounds=False,
                                                gray_prob=self.gray_noise_prob)
@@ -166,12 +179,15 @@ class ResizeFrames(torch.nn.Module):
         return resized_frames if isinstance(imgs, list) else resized_frames[0]
 
 class JPEGCompression(torch.nn.Module):
-    def __init__(self, jpeger: DiffJPEG, jpeg_range: list[int]):
+    def __init__(self, jpeger: DiffJPEG, jpeg_range: list[int], p: float):
         super().__init__()
         self.jpeger = jpeger
         self.jpeg_range = jpeg_range
+        self.should_apply = np.random.random() < p
 
     def forward(self, img):
+        if not self.should_apply:
+            return img
         jpeg_p = img.new_zeros(img.size(0)).uniform_(*self.jpeg_range)
         img = torch.clamp(img, 0, 1)  # clamp to [0, 1], otherwise JPEGer will result in unpleasant artifacts
         img = self.jpeger(img, quality=jpeg_p)
@@ -190,16 +206,17 @@ class VideoCompression(torch.nn.Module):
     def forward(self, imgs: list[Image] | Image):
         if not self.should_apply:
             return imgs
-        frames = imgs if isinstance(imgs, list) else [imgs]
-        frames = video_utils.pad_to_compatible_size_for_video_codecs(frames)
+        multiplier = 3
+        frames = imgs if isinstance(imgs, list) else [imgs]*multiplier
         h, w = frames[0].shape[:2]
+        frames = video_utils.pad_to_compatible_size_for_video_codecs(frames)
         try:
             degraded_frames = self._apply_video_compression(frames, self.codec, self.bitrate, self.crf)
         except Exception as e:
             print("ERROR while applying video compression, ignoring...", e)
             degraded_frames = frames
         unpadded_frames = [img[0:h, 0:w, :] for img in degraded_frames]
-        return unpadded_frames if isinstance(imgs, list) else unpadded_frames[0]
+        return unpadded_frames if isinstance(imgs, list) else unpadded_frames[np.random.randint(0, multiplier)]
 
     def _apply_video_compression(self, imgs: list[Image], codec, bitrate, crf=None) -> list[Image]:
         buf = io.BytesIO()
@@ -313,4 +330,4 @@ class Mosaic(torch.nn.Module):
             img_lqs.append(img_lq)
             mask_lqs.append(mask_lq)
 
-        return (img_lqs[0], mask_lqs[0]) if single_image else (img_lqs, mask_lqs)
+        return (img_lqs[0], mask_lqs[0], mosaic_size) if single_image else (img_lqs, mask_lqs, mosaic_size)
