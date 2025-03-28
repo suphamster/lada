@@ -37,7 +37,7 @@ def _create_realesrgan_degradation_pipeline(img, target_size, mosaic_size, devic
     jpeger = DiffJPEG(differentiable=False).to(device)
     kernel_range = [2 * v + 1 for v in range(3, 5)]
 
-    small_mosaic_blocks =mosaic_size < min(img.shape[:2]) * 18 / 1000
+    small_mosaic_blocks = mosaic_size < min(img.shape[:2]) * 14 / 1000
     low_resolution_image = min(img.shape[:2]) < 700
     if small_mosaic_blocks or low_resolution_image:
         # skip heavy degradations
@@ -45,9 +45,9 @@ def _create_realesrgan_degradation_pipeline(img, target_size, mosaic_size, devic
     else:
         first_pass = torchvision_transforms.Compose([
             lada_transforms.Blur(kernel_range=kernel_range, kernel_list=['iso', 'aniso', 'generalized_iso', 'generalized_aniso', 'plateau_iso', 'plateau_aniso'], kernel_prob=[0.45, 0.25, 0.12, 0.03, 0.12, 0.03],
-                                 sinc_prob=0.1, blur_sigma=[0.2, 2], betag_range=[0.5, 4], betap_range=[1, 2], device=device, p=0.8),
+                                 sinc_prob=0.1, blur_sigma=[0.2, 1.4], betag_range=[0.5, 4], betap_range=[1, 2], device=device, p=0.4),
             lada_transforms.Resize(resize_range=[0.75, 1.25], resize_prob=[0.2, 0.7, 0.1], target_base_h=target_h, target_base_w=target_w, p=0.8),
-            lada_transforms.GaussianPoissonNoise(sigma_range=[0., 4.], poisson_scale_range=[0., 0.5], gaussian_noise_prob=0.5, gray_noise_prob=0.4, p=0.8),
+            lada_transforms.GaussianPoissonNoise(sigma_range=[0., 3.2], poisson_scale_range=[0., 0.5], gaussian_noise_prob=0.5, gray_noise_prob=0.4, p=0.8),
             lada_transforms.JPEGCompression(jpeger, jpeg_range=[45, 95], p=0.7),
         ])
 
@@ -56,17 +56,17 @@ def _create_realesrgan_degradation_pipeline(img, target_size, mosaic_size, devic
         lada_transforms.Sharpen(sharpener, p=0.5),
         first_pass,
         lada_transforms.Blur(kernel_range=kernel_range, kernel_list=['iso', 'aniso', 'generalized_iso', 'generalized_aniso', 'plateau_iso', 'plateau_aniso'], kernel_prob=[0.45, 0.25, 0.12, 0.03, 0.12, 0.03],
-                             sinc_prob=0.1, blur_sigma=[0.1, 1.], betag_range=[0.5, 4], betap_range=[1, 2], device=device, p=0.8),
+                             sinc_prob=0.1, blur_sigma=[0.1, 0.6 if small_mosaic_blocks else 0.9], betag_range=[0.5, 4], betap_range=[1, 2], device=device, p=0.4),
         lada_transforms.Resize(resize_range=[0.85, 1.15], resize_prob= [0.3, 0.4, 0.3], target_base_h=target_h, target_base_w=target_w, p=0.8),
-        lada_transforms.GaussianPoissonNoise(sigma_range=[0., 2.], poisson_scale_range=[0., 0.3], gaussian_noise_prob=0.5, gray_noise_prob=0.4, p=0.8),
+        lada_transforms.GaussianPoissonNoise(sigma_range=[0., 1.6 if small_mosaic_blocks else 2.], poisson_scale_range=[0., 0.3], gaussian_noise_prob=0.5, gray_noise_prob=0.4, p=0.8),
         torchvision_transforms.RandomChoice(transforms=[
             torchvision_transforms.Compose([
                 lada_transforms.Resize(resize_range=[1., 1.], resize_prob=[0, 0, 1], target_base_h=target_h, target_base_w=target_w, p=1.0),
                 lada_transforms.SincFilter(kernel_range=kernel_range, sinc_prob=0., device=device, p=0.),
-                lada_transforms.JPEGCompression(jpeger, jpeg_range=[30, 95], p=0.7),
+                lada_transforms.JPEGCompression(jpeger, jpeg_range=[65 if small_mosaic_blocks else 45, 95], p=0.7),
             ]),
             torchvision_transforms.Compose([
-                lada_transforms.JPEGCompression(jpeger, jpeg_range=[45, 95], p=0.7),
+                lada_transforms.JPEGCompression(jpeger, jpeg_range=[65 if small_mosaic_blocks else 45, 95], p=0.7),
                 lada_transforms.Resize(resize_range=[1., 1.], resize_prob=[0, 0, 1], target_base_h=target_h, target_base_w=target_w, p=1.0),
                 lada_transforms.SincFilter(kernel_range=kernel_range, sinc_prob=0., device=device, p=0.),
             ])
@@ -99,12 +99,12 @@ def process_image_file(file_path, output_root, nsfw_frame_generator: NsfwImageDe
     img_mosaic, mask_mosaic, mosaic_size = lada_transforms.Mosaic()(img, mask)
     degrade = create_degradation_pipeline(img, target_size=target_size, device=device, mosaic_size=mosaic_size)
 
-    img_mosaic = degrade(img_mosaic)
-    mask_mosaic = image_utils.resize(mask_mosaic, img_mosaic.shape[:2], interpolation=cv2.INTER_NEAREST)
+    degraded_mosaic = degrade(img_mosaic)
+    mask_mosaic = image_utils.resize(mask_mosaic, degraded_mosaic.shape[:2], interpolation=cv2.INTER_NEAREST)
 
     if show:
-        show_img = visualization_utils.overlay_mask_boundary(img_mosaic, mask_mosaic, color=(0, 255, 0))
-        mask = image_utils.resize(mask, img_mosaic.shape[:2], interpolation=cv2.INTER_NEAREST)
+        show_img = visualization_utils.overlay_mask_boundary(degraded_mosaic, mask_mosaic, color=(0, 255, 0))
+        mask = image_utils.resize(mask, degraded_mosaic.shape[:2], interpolation=cv2.INTER_NEAREST)
         show_img = visualization_utils.overlay_mask_boundary(show_img, mask, color=(255, 0, 0))
 
         cv2.imshow(window_name, show_img)
@@ -115,7 +115,8 @@ def process_image_file(file_path, output_root, nsfw_frame_generator: NsfwImageDe
                 break
     else:
         name = osp.splitext(os.path.basename(file_path))[0]
-        cv2.imwrite(f"{output_root}/images/{name}.jpg", img_mosaic, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        cv2.imwrite(f"{output_root}/images/{name}.jpg", degraded_mosaic, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        cv2.imwrite(f"{output_root}/images_hq/{name}.jpg", img_mosaic, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
         cv2.imwrite(f"{output_root}/masks/{name}.png", mask_mosaic)
 
 def get_files(dir, filter_func):
@@ -150,6 +151,7 @@ def main():
     if not args.show:
         os.makedirs(f"{args.output_root}/masks", exist_ok=True)
         os.makedirs(f"{args.output_root}/images", exist_ok=True)
+        os.makedirs(f"{args.output_root}/images_hq", exist_ok=True)
         os.makedirs(f"{args.output_root}/background_images", exist_ok=True)
         os.makedirs(f"{args.output_root}/detection_labels", exist_ok=True)
         os.makedirs(f"{args.output_root}/segmentation_labels", exist_ok=True)
