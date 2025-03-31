@@ -48,7 +48,6 @@ class Timeline(Gtk.Widget):
         self._playhead_position = 0
         self.cursor_position_x: int | None = None
         self._duration = 0
-        self.video_file = None
         self.set_hexpand(True)
         self.set_css_name('timeline')
 
@@ -118,7 +117,13 @@ class Timeline(Gtk.Widget):
         else:
             playhead_color = Adw.AccentColor.BLUE
             uses_dark_scheme = False
-        playhead_color = playhead_color.to_rgba()
+
+        # On current libadwaita==1.7.0 / PyGObject==3.52.3 Adw.AccentColor.to_rgba() takes no additional argument,
+        # previously one had to pass itself
+        try:
+            playhead_color = playhead_color.to_rgba()
+        except TypeError:
+            playhead_color = playhead_color.to_rgba(playhead_color)
 
         timeline_color = Gdk.RGBA()
         cursor_color = Gdk.RGBA()
