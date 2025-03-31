@@ -35,7 +35,7 @@ def parse_args():
     group_restoration.add_argument('--mosaic-restoration-config-path', type=str)
 
     group_detection = parser.add_argument_group('Mosaic detection')
-    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'), help="(default: %(default)s)")
+    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt'), help="(default: %(default)s)")
 
     return parser.parse_args()
 

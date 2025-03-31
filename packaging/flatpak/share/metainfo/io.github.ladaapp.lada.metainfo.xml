@@ -50,6 +50,14 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2025-03-31" version="0.7.0">
+            <description>
+                <ul>
+                    <li>New mosaic detection model: Much faster and more accurate</li>
+                    <li>Additional CLI options for video encoding settings: --custom-encoder-options, --list-codecs and --preset</li>
+                </ul>
+            </description>
+        </release>
         <release date="2025-02-07" version="0.6.0">
             <description>
                 <ul>

@@ -98,13 +98,13 @@ If your GPU is not fast enough to watch the video in real-time you'll have to ex
 
 Technically running the app on your CPU is also supported where *supported* is defined as: It will not crash but processing will be so slow you wish you haven't given it a try.
 
-Here are some speed performance numbers using Lada v0.4.0 on my available hardware to give you an idea what to expect (used h264 codec with default settings):
+Here are some speed performance numbers using Lada v0.7.0 on my available hardware to give you an idea what to expect (used h264 codec with default settings; RTX 3090 results are limited by CPU encoding and could be faster with other settings):
 
 | Video name | Video description                                                                                    | Video<br>duration / resolution / FPS | Lada<br>runtime / FPS<br>Nvidia RTX 3050<br>(*Laptop GPU*) | Lada<br>runtime / FPS<br>Nvidia RTX 3090<br>(Desktop GPU) |
 |------------|------------------------------------------------------------------------------------------------------|--------------------------------------|------------------------------------------------------------|-----------------------------------------------------------|
-| vid1       | multiple mosaic regions present on all frames                                                        | 1m30s / 10920x1080 / 30 FPS          | 15m33s / 2.8 FPS                                           | 1m41s / 26 FPS                                            |
-| vid2       | single mosaic region present on all frames                                                           | 3m0s / 1920x1080 / 30 FPS            | 20m36s / 4.3 FPS                                           | 2m18s / 39 FPS                                            |
-| vid3       | half of the video doesn't have any mosaics present,<br>the other half mostly single mosaic per frame | 41m16s / 852x480 / 30 FPS            | 3h20m57s / 6.1 FPS                                         | 13m10s / 94 FPS                                           |
+| vid1       | multiple mosaic regions present on all frames                                                        | 1m30s / 10920x1080 / 30 FPS          | 3m36s / 12 FPS                                             | 1m33s / 30 FPS                                            |
+| vid2       | single mosaic region present on all frames                                                           | 3m0s / 1920x1080 / 30 FPS            | 4m11s / 21 FPS                                             | 2m16s / 39 FPS                                            |
+| vid3       | half of the video doesn't have any mosaics present,<br>the other half mostly single mosaic per frame | 41m16s / 852x480 / 30 FPS            | 26m30s / 46 FPS                                            | 10m20s / 119 FPS                                          |
 
 
 It may or may not work on Windows and Mac and other GPUs. You'll have to try to follow Developer Installation below and see how far you get.
@@ -182,7 +182,7 @@ This section describes how to install the app from source.
 6) Download model weights
    Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
    ```shell
-   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.7.0/lada_mosaic_detection_model_v3.pt'
    wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth'
    ```
 

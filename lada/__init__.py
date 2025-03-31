@@ -7,6 +7,6 @@ else:
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
-VERSION = '0.6.0-dev'
+VERSION = '0.7.0'
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING")

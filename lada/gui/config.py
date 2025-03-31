@@ -37,7 +37,7 @@ class Config:
         self.preview_mode = 'mosaic-removal'
         self.mosaic_restoration_model = self.get_default_restoration_model()
         self.export_codec = 'h264'
-        self.export_crf = 22
+        self.export_crf = 20
         self.preview_buffer_duration = 0
         self.max_clip_duration = 180
         self.device = 'cuda:0'
