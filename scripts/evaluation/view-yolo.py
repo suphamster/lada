@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import os
-from pathlib import Path
 from ultralytics import YOLO
 import argparse
 import hashlib
@@ -13,7 +12,8 @@ def update():
     global frame
     if videomode:
         vid_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-        res, frame = vid_capture.read()
+        res, _frame = vid_capture.read()
+        if res: frame =_frame
 
     result = net.predict(frame, conf=args.mask_threshold, imgsz=640)
     output = result[0].plot()
@@ -41,23 +41,6 @@ def screenshot(dir):
     file_path = os.path.join(dir, f"{hashlib.sha256(frame).hexdigest()}-{frame_num}.jpg")
     print("Saved screenshot:", file_path)
     cv2.imwrite(file_path, frame)
-
-
-def get_boxes(mask):
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    retval = []
-    if len(contours) > 0:
-        for contour in contours:
-            box = cv2.boundingRect(contour)
-            area = cv2.contourArea(contour)
-            tmp = np.zeros_like(mask)
-            tmp = cv2.fillPoly(tmp, [contour], (255))
-            mask_tmp = mask.copy()
-            mask_tmp[tmp != 255] = 0
-            masked = np.ma.masked_equal(mask_tmp, 0)
-            mean = masked.mean()
-            retval.append((box, area, mean))
-    return retval
 
 
 def parse_args():
