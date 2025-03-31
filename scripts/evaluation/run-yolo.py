@@ -5,10 +5,7 @@ from pathlib import Path
 from ultralytics import YOLO
 import argparse
 
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.video_utils import process_video_v3
-
-disable_ultralytics_telemetry()
 
 
 def process_frame(in_frame, model, threshold, classes, negate=False):

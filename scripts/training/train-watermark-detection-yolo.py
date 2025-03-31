@@ -1,7 +1,6 @@
 from ultralytics import YOLO
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, set_default_settings
+from lada.lib.ultralytics_utils import set_default_settings
 
-disable_ultralytics_telemetry()
 set_default_settings()
 
 model = YOLO('yolo11s.pt')

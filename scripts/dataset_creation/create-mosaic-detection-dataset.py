@@ -13,9 +13,7 @@ from ultralytics import YOLO
 from lada.lib import visualization_utils, image_utils, transforms as lada_transforms
 from lada.lib.nsfw_frame_detector import NsfwImageDetector, NsfwFrame
 from lada.lib.threading_utils import clean_up_completed_futures
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_binary_mask_to_yolo_detection_labels, convert_segment_masks_to_yolo_segmentation_labels
-
-disable_ultralytics_telemetry()
+from lada.lib.ultralytics_utils import convert_binary_mask_to_yolo_detection_labels, convert_segment_masks_to_yolo_segmentation_labels
 
 from torchvision.transforms import transforms as torchvision_transforms
 

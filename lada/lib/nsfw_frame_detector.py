@@ -4,10 +4,7 @@ import numpy as np
 import ultralytics.models
 from lada.lib import Mask, Box, Image
 from lada.lib import mask_utils
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry, convert_yolo_box, convert_yolo_mask, \
-    choose_biggest_detection
-
-disable_ultralytics_telemetry()
+from lada.lib.ultralytics_utils import convert_yolo_box, convert_yolo_mask, choose_biggest_detection
 
 
 @dataclass

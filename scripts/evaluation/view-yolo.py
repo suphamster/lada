@@ -6,10 +6,6 @@ from ultralytics import YOLO
 import argparse
 import hashlib
 
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
-
-disable_ultralytics_telemetry()
-
 
 # The function to be called anytime a slider's value changes
 def update():

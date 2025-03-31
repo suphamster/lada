@@ -19,10 +19,8 @@ from lada.lib.mosaic_utils import get_random_parameter, addmosaic_base, get_mosa
 from lada.lib.nsfw_scene_detector import Scene, CroppedScene
 from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
 from lada.lib.threading_utils import wait_until_completed
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.watermark_detector import WatermarkDetector
 
-disable_ultralytics_telemetry()
 
 @dataclass
 class SceneProcessingOptions:

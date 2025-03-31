@@ -12,10 +12,7 @@ from lada.lib.nsfw_scene_detector import NsfwDetector, FileProcessingOptions
 from lada.lib.nsfw_scene_processor import SceneProcessingOptions, SceneProcessor
 from lada.lib.nudenet_nsfw_detector import NudeNetNsfwDetector
 from lada.lib.threading_utils import wait_until_completed, clean_up_completed_futures
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 from lada.lib.watermark_detector import WatermarkDetector
-
-disable_ultralytics_telemetry()
 
 def parse_args():
     parser = argparse.ArgumentParser("Create mosaic restoration dataset")

@@ -1,0 +1,121 @@
+--- old/.venv/lib/python3.12/site-packages/ultralytics/utils/__init__.py	2025-03-31 13:12:08.630256521 +0200
++++ new/.venv/lib/python3.12/site-packages/ultralytics/utils/__init__.py	2025-03-31 13:12:40.632678234 +0200
+@@ -648,22 +648,7 @@
+ 
+ 
+ def is_online() -> bool:
+-    """
+-    Check internet connectivity by attempting to connect to a known online host.
+-
+-    Returns:
+-        (bool): True if connection is successful, False otherwise.
+-    """
+-    try:
+-        assert str(os.getenv("YOLO_OFFLINE", "")).lower() != "true"  # check if ENV var YOLO_OFFLINE="True"
+-        import socket
+-
+-        for dns in ("1.1.1.1", "8.8.8.8"):  # check Cloudflare and Google DNS
+-            socket.create_connection(address=(dns, 80), timeout=2.0).close()
+-            return True
+-    except Exception:
+-        return False
+-
++    return True
+ 
+ def is_pip_package(filepath: str = __name__) -> bool:
+     """
+@@ -1009,77 +994,6 @@
+ 
+     return wrapper
+ 
+-
+-def set_sentry():
+-    """
+-    Initialize the Sentry SDK for error tracking and reporting.
+-
+-    Only used if sentry_sdk package is installed and sync=True in settings. Run 'yolo settings' to see and update
+-    settings.
+-
+-    Conditions required to send errors (ALL conditions must be met or no errors will be reported):
+-        - sentry_sdk package is installed
+-        - sync=True in YOLO settings
+-        - pytest is not running
+-        - running in a pip package installation
+-        - running in a non-git directory
+-        - running with rank -1 or 0
+-        - online environment
+-        - CLI used to run package (checked with 'yolo' as the name of the main CLI command)
+-    """
+-    if (
+-        not SETTINGS["sync"]
+-        or RANK not in {-1, 0}
+-        or Path(ARGV[0]).name != "yolo"
+-        or TESTS_RUNNING
+-        or not ONLINE
+-        or not IS_PIP_PACKAGE
+-        or IS_GIT_DIR
+-    ):
+-        return
+-    # If sentry_sdk package is not installed then return and do not use Sentry
+-    try:
+-        import sentry_sdk  # noqa
+-    except ImportError:
+-        return
+-
+-    def before_send(event, hint):
+-        """
+-        Modify the event before sending it to Sentry based on specific exception types and messages.
+-
+-        Args:
+-            event (dict): The event dictionary containing information about the error.
+-            hint (dict): A dictionary containing additional information about the error.
+-
+-        Returns:
+-            dict: The modified event or None if the event should not be sent to Sentry.
+-        """
+-        if "exc_info" in hint:
+-            exc_type, exc_value, _ = hint["exc_info"]
+-            if exc_type in {KeyboardInterrupt, FileNotFoundError} or "out of memory" in str(exc_value):
+-                return None  # do not send event
+-
+-        event["tags"] = {
+-            "sys_argv": ARGV[0],
+-            "sys_argv_name": Path(ARGV[0]).name,
+-            "install": "git" if IS_GIT_DIR else "pip" if IS_PIP_PACKAGE else "other",
+-            "os": ENVIRONMENT,
+-        }
+-        return event
+-
+-    sentry_sdk.init(
+-        dsn="https://888e5a0778212e1d0314c37d4b9aae5d@o4504521589325824.ingest.us.sentry.io/4504521592406016",
+-        debug=False,
+-        auto_enabling_integrations=False,
+-        traces_sample_rate=1.0,
+-        release=__version__,
+-        environment="runpod" if is_runpod() else "production",
+-        before_send=before_send,
+-        ignore_errors=[KeyboardInterrupt, FileNotFoundError],
+-    )
+-    sentry_sdk.set_user({"id": SETTINGS["uuid"]})  # SHA-256 anonymized UUID hash
+-
+-
+ class JSONDict(dict):
+     """
+     A dictionary-like class that provides JSON persistence for its contents.
+@@ -1216,7 +1130,7 @@
+             "weights_dir": str(root / "weights"),  # Model weights directory
+             "runs_dir": str(root / "runs"),  # Experiment runs directory
+             "uuid": hashlib.sha256(str(uuid.getnode()).encode()).hexdigest(),  # SHA-256 anonymized UUID hash
+-            "sync": True,  # Enable synchronization
++            "sync": False,  # Disable synchronization
+             "api_key": "",  # Ultralytics API Key
+             "openai_api_key": "",  # OpenAI API Key
+             "clearml": True,  # ClearML integration
+@@ -1340,7 +1254,6 @@
+     else platform.system()
+ )
+ TESTS_RUNNING = is_pytest_running() or is_github_action_running()
+-set_sentry()
+ 
+ # Apply monkey patches
+ torch.load = torch_load

@@ -12,11 +12,9 @@ from lada import LOG_LEVEL
 from lada.lib import image_utils, video_utils, threading_utils, mask_utils
 from lada.lib import visualization_utils
 from lada.lib.mosaic_detector import MosaicDetector
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
-disable_ultralytics_telemetry()
 
 def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_path, mosaic_restoration_config_path, mosaic_detection_model_path):
     if mosaic_restoration_model_name.startswith("deepmosaics"):

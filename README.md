@@ -171,8 +171,13 @@ This section describes how to install the app from source.
 5) Apply patches
     On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit (tested with `ultralytics==8.3.92`):
     ```bash
-    patch -u ./.venv/lib/python3.1[23]/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
+    patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
     ```
+   
+   Disable crash-reporting / telemetry of one of our dependencies (ultralytics):
+   ```bash
+   patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/__init__.py  patches/remove_ultralytics_telemetry.patch
+   ```
 
 6) Download model weights
    Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that

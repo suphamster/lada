@@ -6,10 +6,6 @@ import os
 import argparse
 from ultralytics import YOLO
 
-from lada.lib.ultralytics_utils import disable_ultralytics_telemetry
-
-disable_ultralytics_telemetry()
-
 
 class PolygonSaver:
     """

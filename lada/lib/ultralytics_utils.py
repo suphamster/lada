@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import cv2
@@ -9,13 +8,6 @@ from ultralytics import settings
 from ultralytics.utils.ops import scale_image
 
 from lada.lib import Box, Mask, mask_utils
-
-
-def disable_ultralytics_telemetry():
-    # Disable analytics and crash reporting
-    os.environ["YOLO_AUTOINSTALL"] = "false"
-    os.environ["YOLO_OFFLINE"] = "true"
-    settings.update({'sync': False})
 
 def set_default_settings():
     settings.update({'runs_dir': './experiments/yolo', 'datasets_dir': './datasets', 'tensorboard': True})
