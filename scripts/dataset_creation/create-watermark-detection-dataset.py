@@ -20,26 +20,29 @@ logger = getLogger(__name__)
 def create_dataset(
     image_directory: str, logo_directory: str, yolo_labels_path: str, yolo_images_path: str, dataset_min_size: int
 ) -> None:
-    font_paths = load_fonts()
-    logo_pathes: List[str] = os.listdir(logo_directory)
+    font_paths_english = load_fonts("en")
+    assert len(font_paths_english) > 0, "No English fonts found"
+    font_paths_japanese = load_fonts("ja")
+    assert len(font_paths_japanese) > 0, "No Japanese fonts found"
+    logo_paths: List[str] = os.listdir(logo_directory)
     images_paths: List[str] = glob.glob(os.path.join(image_directory, '*'))
     image_multiplier = math.ceil(dataset_min_size / len(images_paths)) if len(images_paths) < dataset_min_size else 1
     images_paths = (images_paths * image_multiplier)[:dataset_min_size]
-    random.shuffle(logo_pathes)
+    random.shuffle(logo_paths)
 
     for idx, image_path in enumerate(tqdm(images_paths, desc="Generating watermarks")):
-        font = font_paths[idx % len(font_paths)]
-        logo_path: str = logo_directory + "/" + logo_pathes[idx % len(logo_pathes)]
-
+        image_pil: Image = Image.open(image_path)
         try:
             if idx % 2 == 0:
-                image_pil: Image = Image.open(image_path)
+                logo_path: str = logo_directory + "/" + logo_paths[idx % len(logo_paths)]
                 logo_pil: Image = Image.open(logo_path)
                 assert logo_pil.mode == "RGBA"
                 watermarked_image, bbox, category = add_logo_watermark(image_pil, logo_pil)
             else:
-                image_pil: Image = Image.open(image_path)
-                watermarked_image, bbox, category = add_text_watermark(image_pil, font)
+                lang = random.choice(["en", "ja"])
+                font_paths = font_paths_japanese if lang == "ja" else font_paths_english
+                font = font_paths[idx % len(font_paths)]
+                watermarked_image, bbox, category = add_text_watermark(image_pil, font, lang=lang)
         except Exception as e:
             logger.warning(e)
             continue

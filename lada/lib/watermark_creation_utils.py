@@ -12,10 +12,22 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
-def load_fonts() -> List[str]:
-    cmd_result = subprocess.run(["bash", "-c", "fc-list :lang=en | cut -d : -f 1 | grep .ttf"], stdout=subprocess.PIPE)
-    font_paths = cmd_result.stdout.decode('utf-8').split(sep='\n')
+def load_fonts(lang="en") -> List[str]:
+    cmd_result = subprocess.run(["bash", "-c", f"fc-list :lang={lang} | cut -d : -f 1 | grep .ttf"], stdout=subprocess.PIPE)
+    stdout = cmd_result.stdout.decode('utf-8').strip()
+    font_paths = stdout.split(sep='\n') if stdout else []
     return font_paths
+
+def generate_random_japanese_string(length: int) -> str:
+    kanji: str = "日�会人年大十二本中長出三同�事自行社見月分議後前民生�発間対上部東�地合�内相方四定今回新場金員九入選立開手米力学問高代明実円関決子動京全目表戦経��氏現理調体化田当八六約主題下首意法不来作�要用制治度務強気小七成期公持野協取都和統以機平総加山�話世受区領多県続�安設保改数記院女初北午指権心界支第産結百派�報済書府活原先共得解名交資予川向際査勝面委告軍文反元重近千�認画海�利組知案道信策集在件団別物側任引使�次水半品昨論計死官増�特情投示変打男基私各始島直両朝革価式確村提運�果西勢減台広容必応演電歳住争談能無再位置企真流格有疑口過�放税検藤町常校料沢裁状工建語球営空職証土与��供可役構木割聞身費付施切由説転食比難防補車優夫研収断井何南石足違消境神番規術護展態導鮮�害配副算視条幹独警宮究�輸訪楽起万�店述残想線率病農州武声質念待試族象�助労例衛然早張映限親額監環験追審商葉義伝働形景落欧担好�賞訴辺�被株頭�毎医復仕去姿味負閣韓渡失移差衆�写評課末守若脳極種美岡影命含福蔵量望松非撃佐核観察整段横融型白深字答夜製票況音申様財港識注呼渉達"
+    hiragana: str = "ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ"
+    katakana: str = "゠ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶヷヸヹヺ・ーヽヾヿ"
+    digits = '0123456789'
+    punctuation: str = "、，゠＝…‥。『　』〜：！？♪"
+    whitespace: str = " "
+    characters: str = kanji + hiragana + katakana + digits + punctuation + whitespace
+    result_str: str = "".join(random.choice(characters) for _ in range(length))
+    return result_str
 
 def generate_random_string(length: int) -> str:
     """
@@ -27,11 +39,13 @@ def generate_random_string(length: int) -> str:
     Returns:
         str: The random string
     """
-    punctuation: str = "/+-_@#."
-    letters: str = string.ascii_letters + string.digits + punctuation
-    letters += string.whitespace.replace("\n", "").replace("\t", "")
-    result_str: str = "".join(random.choice(letters) for _ in range(length))
-
+    alphabet_lowercase = 'abcdefghijklmnopqrstuvwxyz'
+    alphabet_uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    digits = '0123456789'
+    punctuation: str = "/+-_@#.!?,;:~'><="
+    whitespace: str = " "
+    characters: str = alphabet_lowercase + alphabet_uppercase + digits + punctuation + whitespace
+    result_str: str = "".join(random.choice(characters) for _ in range(length))
     return result_str
 
 
@@ -165,7 +179,7 @@ def _convert_bbox_to_correct_format(bbox: tuple | None) -> tuple:
 
 
 def add_text_watermark(
-    img: Image.Image, font_name: str, size=512,
+    img: Image.Image, font_name: str, size=512, lang="en"
 ) -> Tuple[Image.Image, tuple | None, int]:
     """
     Add a text watermark to an image
@@ -182,13 +196,13 @@ def add_text_watermark(
     img = resize_image(img, size, size)
     w, h = img.size
 
-    txt: str = generate_random_string(np.random.randint(8, 9))
-    size: int = np.random.randint(30, min(w, h) // 5)
+    txt: str = generate_random_japanese_string(np.random.randint(4, 16)) if lang == "ja" else generate_random_string(np.random.randint(8, 24))
+    size: int = np.random.randint(24, min(w, h) // 5)
     position: dict = _get_position(w, h, size)
     rotation: int = _get_rotation_from_position(position)
     color: tuple = _get_color_from_rotation_and_position(position, rotation)
     position_values: tuple[float, float] = position[list(position.keys())[0]]
-    font = ImageFont.truetype(font_name, size=size)
+    font = ImageFont.truetype(font_name, size=size, encoding='UTF-8')
 
     stroke = random.random() < 0.2
     stroke_width = np.random.randint(2, size//8) if stroke else 0
