@@ -3,7 +3,6 @@ source: https://github.com/tgenlis83/dnn-watermark
 """
 import os
 import random
-import string
 import subprocess
 from typing import List, Tuple
 
@@ -63,7 +62,7 @@ def _get_position(
     Returns:
         tuple: The position of the watermark
     """
-    padding = 0.05
+    padding = 0.04
     positions = [
         {"top_left": (img_width * padding, img_height * padding + text_size)},
         {"top_right": (img_width * (1 - padding), img_height * padding + text_size)},
@@ -99,7 +98,7 @@ def _get_rotation_from_position(position: dict) -> int:
     return 0  # np.random.choice(rotations)
 
 
-def _get_alpha_from_rotation_and_position(position: dict, rotation: int) -> int:
+def _get_alpha(min=0.25, max=0.9) -> int:
     """
     Returns a random alpha value for the watermark
 
@@ -110,25 +109,11 @@ def _get_alpha_from_rotation_and_position(position: dict, rotation: int) -> int:
     Returns:
         int: The alpha value
     """
-    possible_alpha_ranges = [
-        (255 * 0.3, 255 * 0.6),
-        (255 * 0.8, 255),
-    ]
-    pos_key = list(position.keys())[0]
-    if pos_key in [
-        "top_left",
-        "top_right",
-        "bottom_left",
-        "bottom_right",
-    ] and rotation in [0, 180]:
-        alpha_range = possible_alpha_ranges[1]
-    else:
-        alpha_range = possible_alpha_ranges[0]
-
-    return np.random.randint(alpha_range[0], alpha_range[1])
+    alpha_min, alpha_max = 255 * min, 255 * max
+    return np.random.randint(alpha_min, alpha_max)
 
 
-def _get_color_from_rotation_and_position(position: dict, rotation: int) -> tuple:
+def _get_color() -> tuple:
     """
     Returns a random color
     """
@@ -136,7 +121,7 @@ def _get_color_from_rotation_and_position(position: dict, rotation: int) -> tupl
         np.random.randint(0, 255),
         np.random.randint(0, 255),
         np.random.randint(0, 255),
-        _get_alpha_from_rotation_and_position(position, rotation),
+        _get_alpha(),
     )
 
 
@@ -200,13 +185,13 @@ def add_text_watermark(
     size: int = np.random.randint(24, min(w, h) // 5)
     position: dict = _get_position(w, h, size)
     rotation: int = _get_rotation_from_position(position)
-    color: tuple = _get_color_from_rotation_and_position(position, rotation)
+    color: tuple = _get_color()
     position_values: tuple[float, float] = position[list(position.keys())[0]]
     font = ImageFont.truetype(font_name, size=size, encoding='UTF-8')
 
     stroke = random.random() < 0.2
     stroke_width = np.random.randint(2, size//8) if stroke else 0
-    stroke_fill = _get_color_from_rotation_and_position(position, rotation) if stroke else 0
+    stroke_fill = _get_color() if stroke else 0
 
     new_img = img.copy().convert("RGBA")
     txt_new_img = Image.new("RGBA", new_img.size, (255, 255, 255, 0))
@@ -217,7 +202,7 @@ def add_text_watermark(
     color_background = random.random() < 0.2
     if color_background:
         border_size = np.random.randint(0, size//4)
-        background_color = _get_color_from_rotation_and_position(position, rotation)
+        background_color = _get_color()
         left, top, right, bottom = draw.textbbox(position_values, txt, font=font, direction=direction, anchor=anchor, stroke_width=stroke_width)
         draw.rectangle((left - border_size, top - border_size, right + border_size, bottom + border_size), fill=background_color)
     draw.text(
@@ -339,7 +324,7 @@ def add_logo_watermark(img: Image.Image, logo: Image.Image, size=512) -> tuple:
     rotation: int = _get_rotation_from_position(position)
     position_values = position[list(position.keys())[0]]
     position_values = int(position_values[0]), int(position_values[1])
-    alpha = _get_alpha_from_rotation_and_position(position, rotation)
+    alpha = _get_alpha()
 
     logo_resized = logo_resized.rotate(rotation)
     logo_resized = np.array(logo_resized)
