@@ -1,5 +1,6 @@
 import logging
 import queue
+import textwrap
 import threading
 import time
 from typing import Optional
@@ -87,6 +88,16 @@ class FrameRestorer:
         self.frame_restoration_thread_should_be_running = False
         self.stop_requested = False
 
+        self.queue_stats = {}
+        self.queue_stats["restored_clip_queue_max_size"] = 0
+        self.queue_stats["restored_clip_queue_wait_time_put"] = 0
+        self.queue_stats["restored_clip_queue_wait_time_get"] = 0
+        self.queue_stats["mosaic_clip_queue_wait_time_get"] = 0
+        self.queue_stats["frame_restoration_queue_max_size"] = 0
+        self.queue_stats["frame_restoration_queue_wait_time_get"] = 0
+        self.queue_stats["frame_restoration_queue_wait_time_put"] = 0
+        self.queue_stats["frame_detection_queue_wait_time_get"] = 0
+
     def start(self, start_ns=0):
         assert self.frame_restoration_thread is None and self.clip_restoration_thread is None, "Illegal State: Tried to start FrameRestorer when it's already running. You need to stop it first"
 
@@ -140,6 +151,29 @@ class FrameRestorer:
         threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
 
         logger.debug(f"FrameRestorer: stopped, took {time.time() - start}")
+
+        logger.debug(textwrap.dedent(f"""\
+            FrameRestorer: Queue stats:
+                frame_restoration_queue/wait-time-get: {self.queue_stats["frame_restoration_queue_wait_time_get"]:.0f}
+                frame_restoration_queue/wait-time-put: {self.queue_stats["frame_restoration_queue_wait_time_put"]:.0f}
+                frame_restoration_queue/max-qsize: {self.queue_stats["frame_restoration_queue_max_size"]}/{self.frame_restoration_queue.maxsize}
+                ---
+                mosaic_clip_queue/wait-time-get: {self.queue_stats["mosaic_clip_queue_wait_time_get"]:.0f}
+                mosaic_clip_queue/wait-time-put: {self.mosaic_detector.queue_stats["mosaic_clip_queue_wait_time_put"]:.0f}
+                mosaic_clip_queue/max-qsize: {self.mosaic_detector.queue_stats["mosaic_clip_queue_max_size"]}/{self.mosaic_clip_queue.maxsize}
+                ---
+                frame_detection_queue/wait-time-get: {self.queue_stats["frame_detection_queue_wait_time_get"]:.0f}
+                frame_detection_queue/wait-time-put: {self.mosaic_detector.queue_stats["frame_detection_queue_wait_time_put"]:.0f}
+                frame_detection_queue/max-qsize: {self.mosaic_detector.queue_stats["frame_detection_queue_max_size"]}/{self.frame_detection_queue.maxsize}
+                ---
+                restored_clip_queue/wait-time-get: {self.queue_stats["restored_clip_queue_wait_time_get"]:.0f}
+                restored_clip_queue/wait-time-put: {self.queue_stats["restored_clip_queue_wait_time_put"]:.0f}
+                restored_clip_queue/max-qsize: {self.queue_stats["restored_clip_queue_max_size"]}/{self.restored_clip_queue.maxsize}
+                ---
+                frame_feeder_queue/wait-time-get: {self.mosaic_detector.queue_stats["frame_feeder_queue_wait_time_get"]:.0f}
+                frame_feeder_queue/wait-time-put: {self.mosaic_detector.queue_stats["frame_feeder_queue_wait_time_put"]:.0f}
+                frame_feeder_queue/max-qsize: {self.mosaic_detector.queue_stats["frame_feeder_queue_max_size"]}/{self.mosaic_detector.frame_feeder_queue.maxsize}"""))
+
 
     def _restore_clip_frames(self, images):
         if self.mosaic_restoration_model_name.startswith("deepmosaics"):
@@ -197,18 +231,26 @@ class FrameRestorer:
         logger.debug("clip restoration worker: started")
         eof = False
         while self.clip_restoration_thread_should_be_running:
+            s = time.time()
             clip = self.mosaic_clip_queue.get()
+            self.queue_stats["mosaic_clip_queue_wait_time_get"] += time.time() - s
             if self.stop_requested:
                 logger.debug("clip restoration worker: mosaic_clip_queue consumer unblocked")
             if clip is None:
                 if not self.stop_requested:
                     eof = True
                     self.clip_restoration_thread_should_be_running = False
+                    self.queue_stats["restored_clip_queue_max_size"] = max(self.restored_clip_queue.qsize()+1, self.queue_stats["restored_clip_queue_max_size"])
+                    s = time.time()
                     self.restored_clip_queue.put(None)
+                    self.queue_stats["restored_clip_queue_wait_time_put"] += time.time() -s
                     logger.debug("clip restoration worker: restored_clip_queue producer unblocked")
             else:
                 self._restore_clip(clip)
+                self.queue_stats["restored_clip_queue_max_size"] = max(self.restored_clip_queue.qsize()+1, self.queue_stats["restored_clip_queue_max_size"])
+                s = time.time()
                 self.restored_clip_queue.put(clip)
+                self.queue_stats["restored_clip_queue_wait_time_put"] += time.time() - s
                 if self.stop_requested:
                     logger.debug("clip restoration worker: restored_clip_queue producer unblocked")
         if eof:
@@ -218,12 +260,16 @@ class FrameRestorer:
         try:
             frame, frame_pts = next(video_frames_generator)
         except StopIteration:
+            s = time.time()
             elem = self.frame_detection_queue.get()
+            self.queue_stats["frame_detection_queue_wait_time_get"] += time.time() - s
             if self.stop_requested:
                 logger.debug("frame restoration worker: frame_detection_queue consumer unblocked")
             assert elem is None, f"Illegal state: Expected to read None (EOF marker) from detection queue but received f{elem}"
             return None
+        s = time.time()
         elem = self.frame_detection_queue.get()
+        self.queue_stats["frame_detection_queue_wait_time_get"] += time.time() - s
         if self.stop_requested:
             logger.debug("frame restoration worker: frame_detection_queue consumer unblocked")
             return None
@@ -233,7 +279,9 @@ class FrameRestorer:
         return mosaic_detected, frame, frame_pts
 
     def _read_next_clip(self, current_frame_num, clip_buffer) -> bool:
+        s = time.time()
         clip = self.restored_clip_queue.get()
+        self.queue_stats["restored_clip_queue_wait_time_get"] += time.time() - s
         if self.stop_requested:
             logger.debug("frame restoration worker: restored_clip_queue consumer unblocked")
         if clip is None:
@@ -271,12 +319,18 @@ class FrameRestorer:
                         clips_remaining = self._read_next_clip(frame_num, clip_buffer)
 
                     self._restore_frame(frame, frame_num, clip_buffer)
+                    self.queue_stats["frame_restoration_queue_max_size"] = max(self.frame_restoration_queue.qsize()+1, self.queue_stats["frame_restoration_queue_max_size"])
+                    s = time.time()
                     self.frame_restoration_queue.put((frame, frame_pts))
+                    self.queue_stats["frame_restoration_queue_wait_time_put"] += time.time() -s
                     if self.stop_requested:
                         logger.debug("frame restoration worker: frame_restoration_queue producer unblocked")
                     self._collect_garbage(clip_buffer)
                 else:
+                    self.queue_stats["frame_restoration_queue_max_size"] = max(self.frame_restoration_queue.qsize()+1, self.queue_stats["frame_restoration_queue_max_size"])
+                    s = time.time()
                     self.frame_restoration_queue.put((frame, frame_pts))
+                    self.queue_stats["frame_restoration_queue_wait_time_put"] += time.time() - s
                     if self.stop_requested:
                         logger.debug("frame restoration worker: frame_restoration_queue producer unblocked")
                 frame_num += 1
@@ -294,7 +348,9 @@ class FrameRestorer:
             raise StopIteration
         else:
             while not self.stop_requested:
+                s = time.time()
                 elem = self.frame_restoration_queue.get()
+                self.queue_stats["frame_restoration_queue_wait_time_get"] += time.time() -s
                 if self.stop_requested:
                     logger.debug("frame_restoration_queue consumer unblocked")
                 if elem is None and not self.stop_requested:

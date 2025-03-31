@@ -202,6 +202,15 @@ class MosaicDetector:
         self.batch_size = batch_size
         self.conf = conf
 
+        self.queue_stats = {}
+        self.queue_stats["frame_detection_queue_wait_time_put"] = 0
+        self.queue_stats["frame_detection_queue_max_size"] = 0
+        self.queue_stats["mosaic_clip_queue_wait_time_put"] = 0
+        self.queue_stats["mosaic_clip_queue_max_size"] = 0
+        self.queue_stats["frame_feeder_queue_wait_time_put"] = 0
+        self.queue_stats["frame_feeder_queue_wait_time_get"] = 0
+        self.queue_stats["frame_feeder_queue_max_size"] = 0
+
     def start(self, start_ns):
         self.start_ns = start_ns
         self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
@@ -261,13 +270,22 @@ class MosaicDetector:
             if self.preserve_relative_scale and self.dont_preserve_relative_scale:
                 clip_v1 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
                 clip_v2 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
+                self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
+                s = time.time()
                 self.mosaic_clip_queue.put((clip_v1, clip_v2))
+                self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
             elif self.preserve_relative_scale:
                 clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
+                self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
+                s = time.time()
                 self.mosaic_clip_queue.put(clip)
+                self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
             elif self.dont_preserve_relative_scale:
                 clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
+                self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
+                s = time.time()
                 self.mosaic_clip_queue.put(clip)
+                self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
             if self.stop_requested:
                 logger.debug("frame detector worker: mosaic_clip_queue producer unblocked")
                 return
@@ -277,7 +295,10 @@ class MosaicDetector:
 
     def _create_or_append_scenes_based_on_prediction_result(self, results: Results, scenes: list[Scene], frame_num):
         mosaic_detected = len(results.boxes) > 0
+        self.queue_stats["frame_detection_queue_max_size"] = max(self.frame_detection_queue.qsize()+1, self.queue_stats["frame_detection_queue_max_size"])
+        s = time.time()
         self.frame_detection_queue.put((frame_num, mosaic_detected))
+        self.queue_stats["frame_detection_queue_wait_time_put"] += time.time() - s
         if self.stop_requested:
             logger.debug("frame detector worker: frame_detection_queue producer unblocked")
             return
@@ -321,7 +342,10 @@ class MosaicDetector:
                 except StopIteration:
                     eof = True
                     self.frame_feeder_thread_should_be_running = False
+                self.queue_stats["frame_feeder_queue_max_size"] = max(self.frame_feeder_queue.qsize()+1, self.queue_stats["frame_feeder_queue_max_size"])
+                s = time.time()
                 self.frame_feeder_queue.put((frames, frame_num, eof))
+                self.queue_stats["frame_feeder_queue_wait_time_put"] += time.time() - s
                 if self.stop_requested:
                     logger.debug("frame feeder worker: frame_feeder_queue producer unblocked")
                 frame_num += len(frames)
@@ -337,7 +361,9 @@ class MosaicDetector:
             frame_num = self.start_frame
             eof = False
             while self.frame_detector_thread_should_be_running:
+                s = time.time()
                 raw_frames = self.frame_feeder_queue.get()
+                self.queue_stats["frame_feeder_queue_wait_time_get"] += time.time() - s
                 if self.stop_requested:
                     logger.debug("frame detector worker: frame_feeder_queue consumer unblocked")
                 if raw_frames is None:
@@ -355,10 +381,16 @@ class MosaicDetector:
                         frame_num += 1
                 if eof:
                     self._create_clips_for_completed_scenes(scenes, frame_num, eof=True)
+                    self.queue_stats["frame_detection_queue_max_size"] = max(self.frame_detection_queue.qsize()+1, self.queue_stats["frame_detection_queue_max_size"])
+                    s = time.time()
                     self.frame_detection_queue.put(None)
+                    self.queue_stats["frame_detection_queue_wait_time_put"] += time.time() - s
                     if self.stop_requested:
                         logger.debug("frame detector worker: frame_detection_queue producer unblocked")
+                    self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
+                    s = time.time()
                     self.mosaic_clip_queue.put(None)
+                    self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
                     if self.stop_requested:
                         logger.debug("frame detector worker: mosaic_clip_queue producer unblocked")
                     self.frame_detector_thread_should_be_running = False
