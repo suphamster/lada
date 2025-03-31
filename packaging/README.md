@@ -18,13 +18,13 @@ rm -r .venv_requirements_cli
         2. Play/Pause file, Seek file, Change a setting in the sidebar, Reset settings in the sidebar
         3. Export file
    2. Test CLI: export file
-3. Assuming all looks good and nothing is broken: Push a commit in Ladaapp/lada with these changes:
+3. Build docker image from `Dockerfile.Latest` and test CLI export with the same file
+4. Assuming all looks good and nothing is broken: Push a commit in Ladaapp/lada with these changes:
     1. Bump version in `lada/__init__.py`
     2. Write short release notes in `packaging/flatpak/share/metainfo/io.github.ladaapp.lada.metainfo.xml`
-    3. update used git tags in `packaging/docker/Dockerfile.Release ` to this new version
-4. Create a Release on Ladaapp/Lada for this commit. Release notes should be mostly copy-paste from what was written in the xml file but can be more verbose if necessary.
-5. Update the PR in Flathub/lada repo with the release git tag and commit id
-6. Once pipeline went through merge the PR on Flathub/lada. After a few hours it should be available on flathub
-7. Build and test this docker image locally
-8. Push the new image to Dockerhub (make sure to use the same tag as was used on git, as well as 'latest')
-9. Add `-dev` suffix to version in `lada/__init__.py`
+    3. Update git tags in `packaging/docker/Dockerfile.Release` pointing to new git tag for this release vX.Y.Z (actual git tag will be created in 5.)
+5. Create a Release on Ladaapp/Lada and add a new git tag vX.Y.Z pointing to commit from step 4). Release notes should be mostly copy-paste from what was written in the xml file but can be more verbose if necessary.
+6. Update the PR in Flathub/lada repo with the release git tag and commit id
+7. Once pipeline went through merge the PR on Flathub/lada. After a few hours it should be available on flathub
+8. Build, tag and push new Docker image to Dockerhub built from `Dockerfile.Release` (make sure to use the same tag as was used on git, as well as 'latest')
+9. Add `-dev` suffix to version in `lada/__init__.py` to start the next cycle
