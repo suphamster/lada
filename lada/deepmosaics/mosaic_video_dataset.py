@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.utils.data as data
 import lada.lib.video_utils as video_utils
+from lada.lib import image_utils
 
 
 class MosaicVideoDataset(data.Dataset):
@@ -52,8 +53,8 @@ class MosaicVideoDataset(data.Dataset):
         img_lqs = video_utils.read_video_frames(vid_lq_path, float32=True, start_idx=start_frame_idx, end_idx=end_frame_idx, normalize_neg1_pos1=True)
         img_gts = video_utils.read_video_frames(vid_gt_path, float32=True, start_idx=start_frame_idx, end_idx=end_frame_idx, normalize_neg1_pos1=True)
 
-        img_gts = torch.stack(video_utils.img2tensor(img_gts), dim=0)
-        img_lqs = torch.stack(video_utils.img2tensor(img_lqs), dim=0)
+        img_gts = torch.stack(image_utils.img2tensor(img_gts), dim=0)
+        img_lqs = torch.stack(image_utils.img2tensor(img_lqs), dim=0)
 
         img_lqs_batch = []
         img_gts_batch = []

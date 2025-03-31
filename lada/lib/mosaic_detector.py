@@ -3,7 +3,6 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import Generator
 
 import cv2
 import numpy as np
@@ -396,79 +395,3 @@ class MosaicDetector:
                     self.frame_detector_thread_should_be_running = False
             if eof:
                 logger.debug("frame detector worker: stopped itself, EOF")
-
-class MosaicDetectorDeprecated:
-    def __init__(self, model: YOLO, video_file, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, start_ns=0):
-        self.model = model
-        self.video_file = video_file
-        self.device = torch.device(device) if device is not None else device
-        self.max_clip_length = max_clip_length
-        self.clip_size = clip_size
-        self.preserve_relative_scale = preserve_relative_scale
-        self.dont_preserve_relative_scale = dont_preserve_relative_scale
-        self.pad_mode = pad_mode
-        self.clip_counter = 0
-        self.start_ns = start_ns
-        self.video_meta_data = video_utils.get_video_meta_data(self.video_file)
-        self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
-
-        assert preserve_relative_scale or dont_preserve_relative_scale
-
-    def __call__(self, *args, **kwargs) -> Generator[Clip, None, None]:
-        with video_utils.VideoReader(self.video_file) as video_reader:
-            if self.start_ns > 0:
-                video_reader.seek(self.start_ns)
-            video_frames_generator = video_reader.frames()
-            scenes: list[Scene] = []
-            frame_num = self.start_frame
-            eof = False
-            while not eof:
-                try:
-                    frame, _ = next(video_frames_generator)
-                except StopIteration:
-                    eof = True
-                if not eof:
-                    for results in self.model.predict(source=frame, stream=False, verbose=False, device=self.device):
-                        for i in range(len(results.boxes)):
-                            mask = convert_yolo_mask(results.masks[i], results.orig_shape)
-                            box = convert_yolo_box(results.boxes[i], results.orig_shape)
-
-                            current_scene = None
-                            for scene in scenes:
-                                if scene.belongs(box):
-                                    if scene.frame_end == frame_num:
-                                        current_scene = scene
-                                        current_scene.merge_mask_box(mask, box)
-                                    else:
-                                        current_scene = scene
-                                        current_scene.add_frame(frame_num, results.orig_img, mask, box)
-                                    break
-                            if current_scene is None:
-                                current_scene = Scene(self.video_file, self.video_meta_data)
-                                scenes.append(current_scene)
-                                current_scene.add_frame(frame_num, results.orig_img, mask, box)
-
-                completed_scenes = []
-                for current_scene in scenes:
-                    if (current_scene.frame_end < frame_num or len(current_scene) >= self.max_clip_length or eof) and current_scene not in completed_scenes:
-                        completed_scenes.append(current_scene)
-                        other_scenes = [other for other in scenes if other != current_scene]
-                        for other_scene in other_scenes:
-                            if other_scene.frame_start < current_scene.frame_start and other_scene not in completed_scenes:
-                                completed_scenes.append(other_scene)
-
-                for completed_scene in sorted(completed_scenes, key=lambda s: s.frame_start):
-                    if self.preserve_relative_scale and self.dont_preserve_relative_scale:
-                        clip_v1 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                        clip_v2 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                        yield clip_v1, clip_v2
-                    elif self.preserve_relative_scale:
-                        clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                        yield clip
-                    elif self.dont_preserve_relative_scale:
-                        clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                        yield clip
-                    #print(f"frame {frame_num}, yielding clip starting {clip.frame_start}, ending {clip.frame_end}, all scene starts: {[s.frame_start for s in scenes]}, completed scenes: {[s.frame_start for s in completed_scenes]}")
-                    scenes.remove(completed_scene)
-                    self.clip_counter += 1
-                frame_num += 1

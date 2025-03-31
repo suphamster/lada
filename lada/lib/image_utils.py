@@ -7,7 +7,8 @@ import torch
 from torch.nn import functional as F
 from torchvision.utils import make_grid
 
-from lada.lib import Image
+from lada.lib import Image, Pad
+
 
 def pad_image(img, max_height, max_width, mode='zero'):
     height, width = img.shape[:2]
@@ -24,7 +25,7 @@ def pad_image(img, max_height, max_width, mode='zero'):
     assert padded_image.shape[:2] == (max_height, max_width)
     return padded_image, pad
 
-def pad_image_by_pad(img, pad, mode='zero'):
+def pad_image_by_pad(img: Image, pad: Pad, mode='zero'):
     (pad_h_t, pad_h_b,pad_w_l, pad_w_r) = pad
     if img.ndim == 3:
         if mode == 'zero':
@@ -38,7 +39,7 @@ def pad_image_by_pad(img, pad, mode='zero'):
         padded_img = np.pad(img, ((pad_h_t, pad_h_b),(pad_w_l, pad_w_r)), mode='constant', constant_values=0)
     return padded_img
 
-def repad_image(imgs, pads, mode='reflect'):
+def repad_image(imgs: list[Image], pads: list[Pad], mode='reflect'):
     assert len(imgs) == len(pads)
     padded_imgs = []
     for img, pad in zip(imgs, pads):
@@ -57,14 +58,14 @@ def repad_image(imgs, pads, mode='reflect'):
         padded_imgs.append(padded_img)
     return padded_imgs
 
-def scale_pad(pad, scale_h, scale_w):
+def scale_pad(pad: Pad, scale_h: float, scale_w: float):
     if scale_h == 1 and scale_w == 1:
         return pad
     (pad_h_t, pad_h_b, pad_w_l, pad_w_r) = pad
     scaled_pad = (math.ceil(pad_h_t/scale_h), math.ceil(pad_h_b/scale_h), math.ceil(pad_w_l/scale_w), math.ceil(pad_w_r/scale_w))
     return scaled_pad
 
-def unpad_image(img, pad):
+def unpad_image(img: Image, pad: Pad):
     (pad_h_t, pad_h_b, pad_w_l, pad_w_r) = pad
     h, w = img.shape[:2]
     unpadded_img = img[pad_h_t:h - pad_h_b, pad_w_l:w - pad_w_r]
@@ -157,7 +158,7 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         result.append(img_np)
     return result
 
-def resize(img, size: int|tuple[int, int], interpolation=cv2.INTER_LINEAR):
+def resize(img: Image, size: int|tuple[int, int], interpolation=cv2.INTER_LINEAR):
     if type(size) == int:
         h, w = img.shape[:2]
         if max(w, h) == size:
@@ -178,7 +179,7 @@ def resize(img, size: int|tuple[int, int], interpolation=cv2.INTER_LINEAR):
     assert size == max(resized_img.shape[:2]) if type(size) == int else size == resized_img.shape[:2]
     return resized_img
 
-def resize_simple(img,size,interpolation=cv2.INTER_LINEAR):
+def resize_simple(img: Image, size: int, interpolation=cv2.INTER_LINEAR):
     h, w = img.shape[:2]
     if np.min((w,h)) == size:
         return img

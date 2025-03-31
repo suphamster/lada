@@ -11,7 +11,7 @@ from lada.basicvsrpp.mmagic.data_sample import DataSample
 from lada.basicvsrpp.mmagic.registry import DATASETS
 
 import lada.lib.video_utils as video_utils
-from lada.lib import random_utils, transforms as realesrgan_transforms
+from lada.lib import random_utils, transforms as realesrgan_transforms, image_utils
 from lada.lib.mosaic_utils import addmosaic_base, get_random_parameters_by_block_size
 from lada.lib.image_utils import unpad_image, pad_image_by_pad, repad_image, scale_pad
 from lada.lib.restoration_dataset_metadata import RestorationDatasetMetadataV2
@@ -133,11 +133,11 @@ class MosaicVideoDataset(data.Dataset):
 
         if self.rng_random.random()<0.3:
             rotation_deg = self.rng_random.choice([-2, -1, 1, 2])
-            img_lqs = [lada.lib.image_utils.rotate(img, rotation_deg) for img in img_lqs]
-            img_gts = [lada.lib.image_utils.rotate(img, rotation_deg) for img in img_gts]
+            img_lqs = [image_utils.rotate(img, rotation_deg) for img in img_lqs]
+            img_gts = [image_utils.rotate(img, rotation_deg) for img in img_gts]
 
-        img_gts = video_utils.img2tensor(img_gts, float32=False, bgr2rgb=True)
-        img_lqs = video_utils.img2tensor(img_lqs, float32=False, bgr2rgb=True)
+        img_gts = image_utils.img2tensor(img_gts, float32=False, bgr2rgb=True)
+        img_lqs = image_utils.img2tensor(img_lqs, float32=False, bgr2rgb=True)
 
         #print(f"selected from dataset: {clip_name}--({start_frame_idx:06d}-{end_frame_idx:06d})")
 

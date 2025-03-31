@@ -2,7 +2,6 @@
 
 import itertools
 import numpy as np
-import cv2
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -448,28 +447,3 @@ def quality_to_factor(quality):
     else:
         quality = 200. - quality * 2
     return quality / 100.
-
-
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    def uint2single(img):
-        # uint8 [0,255] -> float32 [0.,1.]
-        return np.float32(img / 255.)
-    def single2uint(img):
-        return np.uint8((img.clip(0,1) *255.).round())
-
-
-    jpeg_range2 = [30, 95]
-    img=cv2.imread('../qj.png')
-    img=uint2single(img)
-    img_jpeg=random_add_jpg_compression(img)
-    img_jpeg=single2uint(img_jpeg)
-
-    #img_jpeg=random_add_jpg_compression(img,[30,95])
-
-    img_jpeg=img_jpeg[:,:,::-1]
-    plt.imshow(img_jpeg)
-    plt.show()
