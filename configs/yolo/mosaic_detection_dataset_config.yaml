@@ -2,6 +2,6 @@ path: mosaic_detection
 train: train/images
 val: val/images
 
-names: 
+names:
   0: 'mosaic_nsfw'
-  1: 'mosaic_face'
+  1: 'mosaic_sfw_head'

@@ -1,7 +1,0 @@
-path: mosaic_segmentation
-train: train/images
-val: val/images
-
-names: 
-  0: 'mosaic_nsfw'
-  1: 'mosaic_face'

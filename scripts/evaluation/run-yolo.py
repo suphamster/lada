@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--input', type=str)
     parser.add_argument('--output-dir', type=str)
     parser.add_argument('--threshold', type=float, default=0.4)
-    parser.add_argument('--class-id', type=int, default=0)
+    parser.add_argument('--class-id', type=int, default=None)
     parser.add_argument('--negate', default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument('--model-path', type=str,
                         default='yolo/runs/segment/train_yolov9_c_sgd_5_more_training_data/weights/best.pt')
@@ -39,10 +39,10 @@ def process_file(input_path: str, output_dir: str):
 
     frame = cv2.imread(input_path)
     if frame is None:
-        process_video_v3(input_path, output_path, lambda in_frame: process_frame(in_frame, model, threshold=args.threshold, classes=[args.class_id], negate=args.negate))
+        process_video_v3(input_path, output_path, lambda in_frame: process_frame(in_frame, model, threshold=args.threshold, classes=[args.class_id] if args.class_id is not None else None, negate=args.negate))
     else:
         # input is an image file
-        process_image(input_path, output_path, model, threshold=args.threshold, classes=[args.class_id], negate=args.negate)
+        process_image(input_path, output_path, model, threshold=args.threshold, classes=[args.class_id] if args.class_id is not None else None, negate=args.negate)
 
 
 def is_image_file(file_path):

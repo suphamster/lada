@@ -221,8 +221,8 @@ The script comes with some options you may want to check and adjust before you'r
 > You can re-use the source material used for mosaic restoration or NSFW detection dataset creation.
 
 For the model to also learn to differentiate between NSFW mosaics (which should be restored) and other mosaics (most commonly on faces) you will have to add such samples to your dataset.
-I've used [Retinaface](https://github.com/yakhyo/retinaface-pytorch) for face detection and created samples this way on the same NSFW source material but also other sources like COCO images. Probably better to
-look into human parsing models and datasets instead of face detection but I couldn't find a workable model for this purpose...
+I havn't trained a custom model/dataset for such purpose, instead I've used [Retinaface](https://github.com/yakhyo/retinaface-pytorch) for face detection and [Single-Human-Parsing-LIP](https://github.com/Yukun-Huang/Single-Human-Parsing-LIP) for head detection (filtering for classes hair and face) to create binary masks.
+You'll just have to replace NsfwImageDetector detection/mask creation in the dataset creation script with inference code of these tools. Be prepared to clean up those samples manually though, these models are not very accurate given NSFW video data.
 
 Now we can train the model via
 ```shell
