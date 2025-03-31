@@ -1,10 +1,11 @@
-FROM python:3.12.8-bookworm
+FROM python:3.12.9-bookworm
 RUN useradd --create-home lada
 WORKDIR /home/lada
 ENV PIP_ROOT_USER_ACTION=ignore
 RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/heads/main/packaging/requirements-cli.txt
 RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git'
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/heads/main/patches/increase_mms_time_limit.patch | patch -u -p2 -d /usr/local
+RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/heads/main/patches/remove_ultralytics_telemetry.patch | patch -u -p2 -d /usr/local
 RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-master-latest-linux64-gpl/bin/ffprobe ffmpeg-master-latest-linux64-gpl/bin/ffmpeg && chmod -R 555 ffmpeg
 ENV PATH="/home/lada/ffmpeg:$PATH"
 RUN mkdir -p /home/lada/.config/Ultralytics \
