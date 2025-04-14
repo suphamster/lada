@@ -14,8 +14,8 @@ from lada.lib import audio_utils
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--input', type=str, help='Path to pixelated video file')
-    parser.add_argument('--output', type=str, help='Path to save restored video')
+    parser.add_argument('--input', type=str, required=True, help='Path to pixelated video file')
+    parser.add_argument('--output', type=str, help='Path to save restored video. If not specified will store it at input location with filename suffix ".restored"')
     parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on. Use "cpu" or "cuda". If you have multiple GPUs you can select a specific one via index e.g. "cuda:0" (default: %(default)s)')
     parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering (default: %(default)s)')
     parser.add_argument('--preserve-relative-scale',  default=True, action=argparse.BooleanOptionalAction, help="(default: %(default)s)")
@@ -67,12 +67,18 @@ def main():
     if args.list_codecs:
         dump_pyav_codecs()
         exit(0)
-    if not (args.input and args.output):
-        print("Arguments --input and --output are required. Use --help to find out more.")
+    if not args.input:
+        print("Arguments --input required. Use --help to find out more.")
         exit(1)
     if args.device.startswith("cuda") and not torch.cuda.is_available():
         print(f"GPU {args.device} selected but CUDA is not available")
         exit(1)
+    if args.output:
+        output_path = args.output
+    else:
+        ip = pathlib.Path(args.input)
+        output_path = str(ip.parent.joinpath(ip.stem + ".restored" + ip.suffix))
+        print(f"Restored video will be written to {output_path}")
 
     mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(
         args.device, args.mosaic_restoration_model, args.mosaic_restoration_model_path, args.mosaic_restoration_config_path,
@@ -84,8 +90,8 @@ def main():
     frame_restorer = FrameRestorer(args.device, args.input, args.preserve_relative_scale, args.max_clip_length, args.mosaic_restoration_model,
                  mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode)
     success = True
-    video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(args.output)[0])}.tmp{os.path.splitext(args.output)[1]}")
-    pathlib.Path(args.output).parent.mkdir(exist_ok=True, parents=True)
+    video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(output_path)[0])}.tmp{os.path.splitext(output_path)[1]}")
+    pathlib.Path(output_path).parent.mkdir(exist_ok=True, parents=True)
     try:
         frame_restorer.start()
 
@@ -111,7 +117,7 @@ def main():
 
     if success:
         print("Processing audio")
-        audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, args.output)
+        audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, output_path)
     else:
         if os.path.exists(video_tmp_file_output_path):
             os.remove(video_tmp_file_output_path)
