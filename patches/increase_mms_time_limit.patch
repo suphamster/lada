@@ -1,4 +1,4 @@
---- ./.venv/lib/python3.13/site-packages/ultralytics/utils/ops.py	2025-06-19 00:00:00.0.0
+--- old/.venv/lib/python3.13/site-packages/ultralytics/utils/ops.py	2025-06-19 00:00:00.0.0
 +++ new/.venv/lib/python3.13/site-packages/ultralytics/utils/ops.py	2025-06-19 00:00:00.0.0
 @@ -199,7 +199,7 @@
      labels=(),

@@ -154,12 +154,12 @@ This section describes how to install the app from source.
 
 2) Install system dependencies with your system package manager or compile/install from source
    * Python >= 3.12
-   * FFmpeg >= 5.0
+   * FFmpeg >= 4.4
 
 > [!TIP]
 > Arch Linux: `sudo pacman -Syu python ffmpeg`
 > 
-> Ubuntu 24.10: `sudo apt install python3.12 python3.12-venv ffmpeg` 
+> Ubuntu 25.04: `sudo apt install python3.13 python3.13-venv ffmpeg` 
 
 3) Create a virtual environment to install python dependencies
     ```bash
@@ -175,7 +175,7 @@ This section describes how to install the app from source.
     ````
 
 6) Apply patches
-    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit (tested with `ultralytics==8.3.92`):
+    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit:
     ```bash
     patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
     ```
@@ -183,6 +183,11 @@ This section describes how to install the app from source.
    Disable crash-reporting / telemetry of one of our dependencies (ultralytics):
    ```bash
    patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/__init__.py  patches/remove_ultralytics_telemetry.patch
+   ```
+   
+   Compatibility fix for using mmengine with latest pytorch
+   ```bash
+   patch -u .venv/lib/python3.1[23]/site-packages/mmengine/runner/checkpoint.py  patches/fix_loading_mmengine_weights_on_torch26_and_higher.diff
    ```
 
 7) Download model weights
@@ -215,10 +220,10 @@ Now you should be able to run the CLI by calling `lada-cli`.
 > sudo pacman -Syu python-gobject gtk4 libadwaita gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-plugins-base-libs gst-plugins-bad-libs gst-plugin-gtk4
 > ```
 >   
-> Ubuntu 24.10:
+> Ubuntu 25.04:
 > ```bash
-> sudo apt install libgirepository-2.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gstreamer-1.0
-> sudo apt install libgstreamer1.0-0 libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pulseaudio gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-tools gstreamer1.0-libav  gstreamer1.0-gtk4
+> sudo apt install gcc python3-dev pkg-config libgirepository-2.0-dev libcairo2-dev libadwaita-1-dev gir1.2-gstreamer-1.0
+> sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pulseaudio gstreamer1.0-alsa gstreamer1.0-tools gstreamer1.0-libav gstreamer1.0-gtk4
 > ```
 
 3) Install python dependencies
