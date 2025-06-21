@@ -633,7 +633,7 @@ class VideoPreview(Gtk.Widget):
         if width % 4 != 0:
             frame = np.pad(frame, ((0, 0), (0, width % 4), (0, 0)), mode='constant', constant_values=0)
 
-        data = frame.tostring()
+        data = frame.tobytes()
 
         buf = Gst.Buffer.new_allocate(None, len(data), None)
         buf.fill(0, data)
