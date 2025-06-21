@@ -1,8 +1,8 @@
---- old/.venv/lib/python3.12/site-packages/ultralytics/utils/__init__.py	2025-03-31 13:12:08.630256521 +0200
-+++ new/.venv/lib/python3.12/site-packages/ultralytics/utils/__init__.py	2025-03-31 13:12:40.632678234 +0200
-@@ -648,22 +648,7 @@
- 
- 
+--- old/.venv/lib/python3.13/site-packages/ultralytics/utils/__init__.py	2025-06-19 00:00:00.0.0
++++ new/.venv/lib/python3.13/site-packages/ultralytics/utils/__init__.py	2025-06-19 00:00:00.0.0
+@@ -867,22 +867,7 @@
+
+
  def is_online() -> bool:
 -    """
 -    Check internet connectivity by attempting to connect to a known online host.
@@ -21,13 +21,13 @@
 -        return False
 -
 +    return True
- 
+
  def is_pip_package(filepath: str = __name__) -> bool:
      """
-@@ -1009,77 +994,6 @@
- 
+@@ -1259,77 +1244,6 @@
+
      return wrapper
- 
+
 -
 -def set_sentry():
 -    """
@@ -71,7 +71,7 @@
 -            hint (dict): A dictionary containing additional information about the error.
 -
 -        Returns:
--            dict: The modified event or None if the event should not be sent to Sentry.
+-            (dict | None): The modified event or None if the event should not be sent to Sentry.
 -        """
 -        if "exc_info" in hint:
 -            exc_type, exc_value, _ = hint["exc_info"]
@@ -102,7 +102,7 @@
  class JSONDict(dict):
      """
      A dictionary-like class that provides JSON persistence for its contents.
-@@ -1216,7 +1130,7 @@
+@@ -1468,7 +1382,7 @@
              "weights_dir": str(root / "weights"),  # Model weights directory
              "runs_dir": str(root / "runs"),  # Experiment runs directory
              "uuid": hashlib.sha256(str(uuid.getnode()).encode()).hexdigest(),  # SHA-256 anonymized UUID hash
@@ -111,11 +111,11 @@
              "api_key": "",  # Ultralytics API Key
              "openai_api_key": "",  # OpenAI API Key
              "clearml": True,  # ClearML integration
-@@ -1340,7 +1254,6 @@
+@@ -1593,7 +1507,6 @@
      else platform.system()
  )
  TESTS_RUNNING = is_pytest_running() or is_github_action_running()
 -set_sentry()
- 
+
  # Apply monkey patches
  torch.load = torch_load

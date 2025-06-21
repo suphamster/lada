@@ -58,7 +58,7 @@ class MosaicDetectionModel:
 
     def inference(self, image_batch: torch.Tensor):
         with self._lock:
-            return self.model(image_batch, augment=False, visualize=False, embed=False)
+            return self.model(image_batch, augment=False, visualize=False, embed=None)
 
     def postprocess(self, preds, img, orig_imgs):
         protos = preds[1][-1]

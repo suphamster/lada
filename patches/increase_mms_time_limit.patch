@@ -1,11 +1,11 @@
---- ./.venv/lib/python3.12/site-packages/ultralytics/utils/ops.py	2025-02-07 07:45:03.459649537 +0100
-+++ new/.venv/lib/python3.12/site-packages/ultralytics/utils/ops.py	2025-02-07 07:49:35.822037066 +0100
-@@ -188,7 +188,7 @@
+--- ./.venv/lib/python3.13/site-packages/ultralytics/utils/ops.py	2025-06-19 00:00:00.0.0
++++ new/.venv/lib/python3.13/site-packages/ultralytics/utils/ops.py	2025-06-19 00:00:00.0.0
+@@ -199,7 +199,7 @@
      labels=(),
-     max_det=300,
-     nc=0,  # number of classes (optional)
--    max_time_img=0.05,
-+    max_time_img=0.3,
-     max_nms=30000,
-     max_wh=7680,
-     in_place=True,
+     max_det: int = 300,
+     nc: int = 0,  # number of classes (optional)
+-    max_time_img: float = 0.05,
++    max_time_img: float = 0.3,
+     max_nms: int = 30000,
+     max_wh: int = 7680,
+     in_place: bool = True,
