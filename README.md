@@ -175,7 +175,8 @@ This section describes how to install the app from source.
     ````
 
 6) Apply patches
-    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit:
+   
+   On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit:
     ```bash
     patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
     ```
@@ -185,12 +186,13 @@ This section describes how to install the app from source.
    patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/__init__.py  patches/remove_ultralytics_telemetry.patch
    ```
    
-   Compatibility fix for using mmengine with latest pytorch
+   Compatibility fix for using mmengine (restoration model dependency) with latest PyTorch:
    ```bash
    patch -u .venv/lib/python3.1[23]/site-packages/mmengine/runner/checkpoint.py  patches/fix_loading_mmengine_weights_on_torch26_and_higher.diff
    ```
 
 7) Download model weights
+   
    Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
    ```shell
    wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.7.0/lada_mosaic_detection_model_v3.pt'
