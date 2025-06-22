@@ -7,7 +7,7 @@ import queue
 import time
 
 import numpy as np
-from gi.repository import Gtk, GObject, GdkPixbuf, GLib, Gio, Gst, GstApp, Adw
+from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
 
 from lada.gui.config import MODEL_NAMES_TO_FILES
 from lada.gui.timeline import Timeline
@@ -364,7 +364,7 @@ class VideoPreview(Gtk.Widget):
         self.appsrc.set_property('duration', self.file_duration_ns)
         if self.has_audio:
             if audio_pipeline_already_added:
-                self.audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
+                self.audio_uridecodebin.set_property('uri', pathlib.Path(self.video_metadata.video_file).resolve().as_uri())
             else:
                 self.pipeline_add_audio(mute_audio)
         else:
@@ -466,7 +466,7 @@ class VideoPreview(Gtk.Widget):
         self.pipeline_audio_elements.append(audio_queue)
 
         audio_uridecodebin = Gst.ElementFactory.make('uridecodebin', None)
-        audio_uridecodebin.set_property('uri', 'file://' + self.video_metadata.video_file)
+        audio_uridecodebin.set_property('uri', pathlib.Path(self.video_metadata.video_file).resolve().as_uri())
 
         def on_pad_added(decodebin, decoder_src_pad, audio_queue):
             caps = decoder_src_pad.get_current_caps()
