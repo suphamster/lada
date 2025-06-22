@@ -239,9 +239,8 @@ Now you should be able to run the CLI by calling `lada-cli`.
 > ```bash
 > sudo apt install gcc python3-dev pkg-config libgirepository-2.0-dev libcairo2-dev libadwaita-1-dev gir1.2-gstreamer-1.0
 > sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pulseaudio gstreamer1.0-alsa gstreamer1.0-tools gstreamer1.0-libav
-> ```
-> The gstreamer plugin gtk4 is not available as a binary package in Ubuntu 24.04 so we have to build it ourselves:
-> ```bash
+> #
+> # The gstreamer plugin gtk4 is not available as a binary package in Ubuntu 24.04 so we have to build it ourselves:
 > # get the source code
 > git clone https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git
 > cd gst-plugins-rs
@@ -254,6 +253,7 @@ Now you should be able to run the CLI by calling `lada-cli`.
 > sudo -E cargo cinstall -p gst-plugin-gtk4 --libdir /usr/lib/x86_64-linux-gnu
 > # if the following command does not return an error the plugin is correctly installed
 > gst-inspect-1.0 gtk4paintablesink
+> ```
 
 3) Install python dependencies
     ```bash
