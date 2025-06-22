@@ -1,0 +1,24 @@
+--- old/lada/gui/window.ui	2025-06-19 00:00:00.0.0
++++ new/lada/gui/window.ui	2025-06-19 00:00:00.0.0
+@@ -148,7 +148,8 @@
+                                                             </object>
+                                                         </child>
+                                                         <child>
+-                                                            <object class="AdwSpinner" id="spinner_video_preview">
++                                                            <object class="GtkSpinner" id="spinner_video_preview">
++                                                                <property name="spinning">True</property>
+                                                                 <property name="width-request">64</property>
+                                                                 <property name="height-request">64</property>
+                                                                 <property name="halign">center</property>
+--- old/lada/gui/video_preview.ui	2025-06-19 00:00:00.0.0
++++ new/lada/gui/video_preview.ui	2025-06-19 00:00:00.0.0
+@@ -16,7 +16,8 @@
+                     <object class="GtkPicture" id="picture_video_preview"></object>
+                 </child>
+                 <child type="overlay">
+-                    <object class="AdwSpinner" id="spinner_video_preview">
++                    <object class="GtkSpinner" id="spinner_video_preview">
++                        <property name="spinning">True</property>
+                         <property name="width-request">64</property>
+                         <property name="height-request">64</property>
+                         <property name="halign">center</property>

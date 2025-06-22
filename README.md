@@ -160,6 +160,8 @@ This section describes how to install the app from source.
 > Arch Linux: `sudo pacman -Syu python ffmpeg`
 > 
 > Ubuntu 25.04: `sudo apt install python3.13 python3.13-venv ffmpeg` 
+> 
+> Ubuntu 24.04: `sudo apt install python3.12 python3.12-venv ffmpeg`
 
 3) Create a virtual environment to install python dependencies
     ```bash
@@ -173,6 +175,11 @@ This section describes how to install the app from source.
     ```bash
     python -m pip install -e '.[basicvsrpp]'
     ````
+
+> [!NOTE]
+> This will install PyAV (used for video encoding and decoding) v13.1.0 which properly supports libx265 codec.
+> You may want to upgrade to latest version v14.4.0 which comes with support for Nvidia GPU-accelerated nvenc (h264,hevc) codecs. This version does not ship with libx265 though.
+> If you need both you have to build your own PyAV package for now until upstream releases a new binary that fixes libx265 missing codec.
 
 6) Apply patches
    
@@ -214,7 +221,7 @@ Now you should be able to run the CLI by calling `lada-cli`.
    * Gstreamer >= 1.14
    * PyGObject
    * GTK >= 4.0
-   * libadwaita >= 1.6
+   * libadwaita >= 1.6 [there is a workaround mentioned below to make it work with older versions]
 
 > [!TIP]
 > Arch Linux: 
@@ -227,11 +234,37 @@ Now you should be able to run the CLI by calling `lada-cli`.
 > sudo apt install gcc python3-dev pkg-config libgirepository-2.0-dev libcairo2-dev libadwaita-1-dev gir1.2-gstreamer-1.0
 > sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pulseaudio gstreamer1.0-alsa gstreamer1.0-tools gstreamer1.0-libav gstreamer1.0-gtk4
 > ```
+> 
+> Ubuntu 24.04:
+> ```bash
+> sudo apt install gcc python3-dev pkg-config libgirepository-2.0-dev libcairo2-dev libadwaita-1-dev gir1.2-gstreamer-1.0
+> sudo apt install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-pulseaudio gstreamer1.0-alsa gstreamer1.0-tools gstreamer1.0-libav
+> ```
+> The gstreamer plugin gtk4 is not available as a binary package in Ubuntu 24.04 so we have to build it ourselves:
+> ```bash
+> # get the source code
+> git clone https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git
+> cd gst-plugins-rs
+> # install plugin dependencies
+> sudo apt  install rustup libssl-dev
+> rustup default stable
+> cargo install cargo-c
+> # now we can build and install the plugin. Note that we're installing to the system directory, you might want to adjust this and use GST_PLUGIN_PATH
+> cargo cbuild -p gst-plugin-gtk4 --libdir /usr/lib/x86_64-linux-gnu
+> sudo -E cargo cinstall -p gst-plugin-gtk4 --libdir /usr/lib/x86_64-linux-gnu
+> # if the following command does not return an error the plugin is correctly installed
+> gst-inspect-1.0 gtk4paintablesink
 
 3) Install python dependencies
     ```bash
     python -m pip install -e '.[gui]'
     ````
+> [!TIP]
+> Ubuntu 24.04:
+> The following is patch is *only* needed on Ubuntu 24.04 as its version of libadwaita is too old. For newer distributions where libadwaita >= 1.6 is available this should not be applied.
+> ```bash
+> patch -u -p1 -i patches/adw_spinner_to_gtk_spinner.patch
+> ```
 
 > [!TIP]
 > If you intend to hack on the GUI code install also `gui-dev` extra: `python -m pip install -e '.[gui-dev]'`
