@@ -3,27 +3,11 @@ import logging
 from gi.repository import GLib
 from pathlib import Path
 import json
-import os
 
-from lada import MODEL_WEIGHTS_DIR, LOG_LEVEL
+from lada import LOG_LEVEL
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
-
-RESTORATION_MODEL_FILES_TO_NAMES = {
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'): 'basicvsrpp-generic-1.0',
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'): 'basicvsrpp-generic-1.1',
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'): 'basicvsrpp-generic-1.2',
-    os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth'): 'deepmosaics-clean-youknow',
-}
-RESTORATION_MODEL_NAMES_TO_FILES = {v: k for k, v in RESTORATION_MODEL_FILES_TO_NAMES.items()}
-
-DETECTION_MODEL_FILES_TO_NAMES = {
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'): 'v2',
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt'): 'v3',
-}
-DETECTION_MODEL_NAMES_TO_FILES = {v: k for k, v in DETECTION_MODEL_FILES_TO_NAMES.items()}
-
 
 class Config:
     def __init__(self):
@@ -51,7 +35,7 @@ class Config:
         self.mute_audio = False
 
     def get_default_restoration_model(self):
-        return 'basicvsrpp-generic-1.2'
+        return 'basicvsrpp-1.2'
 
     def get_default_detection_model(self):
         return 'v3'

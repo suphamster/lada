@@ -10,3 +10,33 @@ os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 VERSION = '0.7.0-dev'
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING")
+
+RESTORATION_MODEL_FILES_TO_NAMES = {
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'): 'basicvsrpp-1.0',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'): 'basicvsrpp-1.1',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'): 'basicvsrpp-1.2',
+    os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth'): 'deepmosaics',
+}
+RESTORATION_MODEL_NAMES_TO_FILES = {v: k for k, v in RESTORATION_MODEL_FILES_TO_NAMES.items()}
+
+DETECTION_MODEL_FILES_TO_NAMES = {
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'): 'v2',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt'): 'v3',
+}
+DETECTION_MODEL_NAMES_TO_FILES = {v: k for k, v in DETECTION_MODEL_FILES_TO_NAMES.items()}
+
+
+def get_available_restoration_models():
+  available_models = []
+  for file_path in RESTORATION_MODEL_FILES_TO_NAMES:
+    if os.path.exists(file_path):
+      available_models.append(RESTORATION_MODEL_FILES_TO_NAMES[file_path])
+  return available_models
+
+
+def get_available_detection_models():
+  available_models = []
+  for file_path in DETECTION_MODEL_FILES_TO_NAMES:
+    if os.path.exists(file_path):
+      available_models.append(DETECTION_MODEL_FILES_TO_NAMES[file_path])
+  return available_models

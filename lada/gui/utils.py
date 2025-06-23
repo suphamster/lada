@@ -1,9 +1,4 @@
-import os
-
 import torch
-
-from lada.gui.config import RESTORATION_MODEL_FILES_TO_NAMES, DETECTION_MODEL_FILES_TO_NAMES
-
 
 def is_device_available(device: str) -> bool:
     device = device.lower()
@@ -30,18 +25,3 @@ def get_available_gpus():
             gpu_name = gpu_name.replace("NVIDIA GeForce RTX", "RTX")
         gpus.append((id, gpu_name))
     return gpus
-
-
-def get_available_restoration_models():
-    available_models = []
-    for file_path in RESTORATION_MODEL_FILES_TO_NAMES:
-        if os.path.exists(file_path):
-            available_models.append(RESTORATION_MODEL_FILES_TO_NAMES[file_path])
-    return available_models
-
-def get_available_detection_models():
-    available_models = []
-    for file_path in DETECTION_MODEL_FILES_TO_NAMES:
-        if os.path.exists(file_path):
-            available_models.append(DETECTION_MODEL_FILES_TO_NAMES[file_path])
-    return available_models

@@ -4,6 +4,7 @@ from gi.repository import Gtk, GObject
 
 from lada.gui.config import Config
 from lada.gui import utils
+from lada import get_available_restoration_models, get_available_detection_models
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -60,7 +61,7 @@ class ConfigSidebar(Gtk.ScrolledWindow):
 
         # init restoration model
         combo_row_models_list = Gtk.StringList.new([])
-        available_models = utils.get_available_restoration_models()
+        available_models = get_available_restoration_models()
         for model_name in available_models:
             combo_row_models_list.append(model_name)
         self.combo_row_mosaic_removal_models.set_model(combo_row_models_list)
@@ -75,7 +76,7 @@ class ConfigSidebar(Gtk.ScrolledWindow):
 
         # init detection model
         combo_row_detection_models_list = Gtk.StringList.new([])
-        available_detection_models = utils.get_available_detection_models()
+        available_detection_models = get_available_detection_models()
         for model_name in available_detection_models:
             combo_row_detection_models_list.append(model_name)
         self.combo_row_mosaic_detection_models.set_model(combo_row_detection_models_list)

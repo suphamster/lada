@@ -9,7 +9,7 @@ import time
 import numpy as np
 from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
 
-from lada.gui.config import RESTORATION_MODEL_NAMES_TO_FILES, DETECTION_MODEL_NAMES_TO_FILES
+from lada import RESTORATION_MODEL_NAMES_TO_FILES, DETECTION_MODEL_NAMES_TO_FILES
 from lada.gui.timeline import Timeline
 from lada.lib import audio_utils, video_utils, threading_utils
 from lada.lib.frame_restorer import load_models, FrameRestorer
@@ -40,7 +40,7 @@ class VideoPreview(Gtk.Widget):
 
         self._passthrough = False
         self._mosaic_detection = False
-        self._mosaic_restoration_model_name = 'basicvsrpp-generic-1.2'
+        self._mosaic_restoration_model_name = 'basicvsrpp-1.2'
         self._mosaic_detection_model_name = 'v3'
         self._device = "cpu"
         self._video_preview_init_done = False
