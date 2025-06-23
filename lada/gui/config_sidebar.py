@@ -16,6 +16,7 @@ class ConfigSidebar(Gtk.ScrolledWindow):
     toggle_button_mosaic_removal = Gtk.Template.Child()
     combo_row_gpu = Gtk.Template.Child()
     combo_row_mosaic_removal_models = Gtk.Template.Child()
+    combo_row_mosaic_detection_models = Gtk.Template.Child()
     spin_row_export_crf = Gtk.Template.Child()
     combo_row_export_codec = Gtk.Template.Child()
     spin_row_preview_buffer_duration = Gtk.Template.Child()
@@ -57,9 +58,9 @@ class ConfigSidebar(Gtk.ScrolledWindow):
             self.device = f"cuda:{available_gpus[0][0]}"
             self.combo_row_gpu.set_selected(0)
 
-        # init model
+        # init restoration model
         combo_row_models_list = Gtk.StringList.new([])
-        available_models = utils.get_available_models()
+        available_models = utils.get_available_restoration_models()
         for model_name in available_models:
             combo_row_models_list.append(model_name)
         self.combo_row_mosaic_removal_models.set_model(combo_row_models_list)
@@ -67,10 +68,25 @@ class ConfigSidebar(Gtk.ScrolledWindow):
             idx = available_models.index(config.mosaic_restoration_model)
         else:
             default_model = config.get_default_restoration_model()
-            print(f"configured model {config.mosaic_restoration_model} is not available on the filesystem, falling back to model {default_model}")
+            print(f"configured restoration model {config.mosaic_restoration_model} is not available on the filesystem, falling back to model {default_model}")
             idx = available_models.index(default_model)
             self.mosaic_restoration_model = default_model
         self.combo_row_mosaic_removal_models.set_selected(idx)
+
+        # init detection model
+        combo_row_detection_models_list = Gtk.StringList.new([])
+        available_detection_models = utils.get_available_detection_models()
+        for model_name in available_detection_models:
+            combo_row_detection_models_list.append(model_name)
+        self.combo_row_mosaic_detection_models.set_model(combo_row_detection_models_list)
+        if config.mosaic_detection_model in available_detection_models:
+            idx = available_detection_models.index(config.mosaic_detection_model)
+        else:
+            default_model = config.get_default_detection_model()
+            print(f"configured detection model {config.mosaic_detection_model} is not available on the filesystem, falling back to model {default_model}")
+            idx = available_detection_models.index(default_model)
+            self.mosaic_detection_model = default_model
+        self.combo_row_mosaic_detection_models.set_selected(idx)
 
         self.spin_row_export_crf.set_property('value', config.export_crf)
 
@@ -107,6 +123,19 @@ class ConfigSidebar(Gtk.ScrolledWindow):
             return
         self.config.mosaic_restoration_model = value
         self.notify('mosaic-restoration-model')
+        if self.save_config:
+            self.config.save()
+
+    @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
+    def mosaic_detection_model(self):
+        return self.config.mosaic_detection_model
+
+    @mosaic_detection_model.setter
+    def mosaic_detection_model(self, value):
+        if value == self.config.mosaic_detection_model:
+            return
+        self.config.mosaic_detection_model = value
+        self.notify('mosaic-detection-model')
         if self.save_config:
             self.config.save()
 
@@ -225,6 +254,12 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         if not self.init_done:
             return
         self.mosaic_restoration_model = combo_row.get_property("selected_item").get_string()
+
+    @Gtk.Template.Callback()
+    def combo_row_mosaic_detection_models_selected_callback(self, combo_row, value):
+        if not self.init_done:
+            return
+        self.mosaic_detection_model = combo_row.get_property("selected_item").get_string()
 
     @Gtk.Template.Callback()
     def combo_row_mosaic_export_codec_selected_callback(self, combo_row, value):

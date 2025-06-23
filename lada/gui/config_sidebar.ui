@@ -19,8 +19,19 @@
                         <property name="margin-start">6</property>
                         <property name="margin-end">6</property>
                         <child>
+                            <object class="AdwComboRow" id="combo_row_mosaic_detection_models">
+                                <property name="title">Detection model</property>
+                                <property name="tooltip-text">todo</property>
+                                <signal name="notify::selected"
+                                        handler="combo_row_mosaic_detection_models_selected_callback"/>
+                                <property name="model">
+                                    <object class="GtkStringList"/>
+                                </property>
+                            </object>
+                        </child>
+                        <child>
                             <object class="AdwComboRow" id="combo_row_mosaic_removal_models">
-                                <property name="title">Mosaic removal model</property>
+                                <property name="title">Restoration model</property>
                                 <property name="tooltip-text">Recommended model is 'basicvsrpp-generic'</property>
                                 <signal name="notify::selected"
                                         handler="combo_row_mosaic_removal_models_selected_callback"/>

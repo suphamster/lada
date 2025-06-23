@@ -10,20 +10,26 @@ from lada import MODEL_WEIGHTS_DIR, LOG_LEVEL
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-MODEL_FILES_TO_NAMES = {
+RESTORATION_MODEL_FILES_TO_NAMES = {
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'): 'basicvsrpp-generic-1.0',
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'): 'basicvsrpp-generic-1.1',
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'): 'basicvsrpp-generic-1.2',
     os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth'): 'deepmosaics-clean-youknow',
 }
+RESTORATION_MODEL_NAMES_TO_FILES = {v: k for k, v in RESTORATION_MODEL_FILES_TO_NAMES.items()}
 
-MODEL_NAMES_TO_FILES = {v: k for k, v in MODEL_FILES_TO_NAMES.items()}
+DETECTION_MODEL_FILES_TO_NAMES = {
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'): 'v2',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt'): 'v3',
+}
+DETECTION_MODEL_NAMES_TO_FILES = {v: k for k, v in DETECTION_MODEL_FILES_TO_NAMES.items()}
 
 
 class Config:
     def __init__(self):
         self.preview_mode = None
         self.mosaic_restoration_model = None
+        self.mosaic_detection_model = None
         self.export_codec = None
         self.export_crf = None
         self.preview_buffer_duration = None
@@ -36,6 +42,7 @@ class Config:
     def set_defaults(self):
         self.preview_mode = 'mosaic-removal'
         self.mosaic_restoration_model = self.get_default_restoration_model()
+        self.mosaic_detection_model = self.get_default_detection_model()
         self.export_codec = 'h264'
         self.export_crf = 20
         self.preview_buffer_duration = 0
@@ -45,6 +52,9 @@ class Config:
 
     def get_default_restoration_model(self):
         return 'basicvsrpp-generic-1.2'
+
+    def get_default_detection_model(self):
+        return 'v3'
 
     def save(self):
         config_file_path = get_config_file_path()
@@ -77,6 +87,7 @@ class Config:
         return dict(
             preview_mode=self.preview_mode,
             mosaic_restoration_model=self.mosaic_restoration_model,
+            mosaic_detection_model=self.mosaic_detection_model,
             export_codec=self.export_codec,
             export_crf=self.export_crf,
             preview_buffer_duration=self.preview_buffer_duration,
@@ -92,6 +103,7 @@ class Config:
 
         update_prop('preview_mode')
         update_prop('mosaic_restoration_model')
+        update_prop('mosaic_detection_model')
         update_prop('export_codec')
         update_prop('export_crf')
         update_prop('preview_buffer_duration')

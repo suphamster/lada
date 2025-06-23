@@ -9,7 +9,7 @@ import time
 import numpy as np
 from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
 
-from lada.gui.config import MODEL_NAMES_TO_FILES
+from lada.gui.config import RESTORATION_MODEL_NAMES_TO_FILES, DETECTION_MODEL_NAMES_TO_FILES
 from lada.gui.timeline import Timeline
 from lada.lib import audio_utils, video_utils, threading_utils
 from lada.lib.frame_restorer import load_models, FrameRestorer
@@ -41,6 +41,7 @@ class VideoPreview(Gtk.Widget):
         self._passthrough = False
         self._mosaic_detection = False
         self._mosaic_restoration_model_name = 'basicvsrpp-generic-1.2'
+        self._mosaic_detection_model_name = 'v3'
         self._device = "cpu"
         self._video_preview_init_done = False
         self._max_clip_length = 180
@@ -154,6 +155,18 @@ class VideoPreview(Gtk.Widget):
         if self._mosaic_restoration_model_name == value:
             return
         self._mosaic_restoration_model_name = value
+        if self._video_preview_init_done:
+            self.reset_appsource_worker()
+
+    @GObject.Property()
+    def mosaic_detection_model(self):
+        return self._mosaic_detection_model_name
+
+    @mosaic_detection_model.setter
+    def mosaic_detection_model(self, value):
+        if self._mosaic_detection_model_name == value:
+            return
+        self._mosaic_detection_model_name = value
         if self._video_preview_init_done:
             self.reset_appsource_worker()
 
@@ -669,15 +682,17 @@ class VideoPreview(Gtk.Widget):
             return time
 
     def setup_frame_restorer(self):
-        if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name:
+        if self.models_cache is None or self.models_cache["mosaic_restoration_model_name"] != self._mosaic_restoration_model_name or self.models_cache["mosaic_detection_model_name"] != self._mosaic_detection_model_name:
             logger.info(f"model {self._mosaic_restoration_model_name} not found in cache. Loading...")
-            mosaic_restoration_model_path = MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
+            mosaic_restoration_model_path = RESTORATION_MODEL_NAMES_TO_FILES[self._mosaic_restoration_model_name]
+            mosaic_detection_path = DETECTION_MODEL_NAMES_TO_FILES[self._mosaic_detection_model_name]
             mosaic_detection_model, mosaic_restoration_model, mosaic_restoration_model_preferred_pad_mode = load_models(
                 self._device, self._mosaic_restoration_model_name, mosaic_restoration_model_path, None,
-                os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt')
+                mosaic_detection_path
             )
 
             self.models_cache = dict(mosaic_restoration_model_name=self._mosaic_restoration_model_name,
+                                     mosaic_detection_model_name=self._mosaic_detection_model_name,
                                      mosaic_detection_model=mosaic_detection_model,
                                      mosaic_restoration_model=mosaic_restoration_model,
                                      mosaic_restoration_model_preferred_pad_mode=mosaic_restoration_model_preferred_pad_mode)

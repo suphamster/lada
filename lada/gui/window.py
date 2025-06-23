@@ -50,6 +50,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.widget_video_preview.set_property('mosaic-restoration-model', self.config_sidebar.get_property('mosaic-restoration-model'))
         self.config_sidebar.connect("notify::mosaic-restoration-model", lambda object, spec: self.widget_video_preview.set_property('mosaic-restoration-model', object.get_property(spec.name)))
 
+        self.widget_video_preview.set_property('mosaic-detection-model', self.config_sidebar.get_property('mosaic-detection-model'))
+        self.config_sidebar.connect("notify::mosaic-detection-model", lambda object, spec: self.widget_video_preview.set_property('mosaic-detection-model', object.get_property(spec.name)))
+
         self.widget_video_preview.set_property('buffer-queue-min-thresh-time', self.config_sidebar.get_property('preview-buffer-duration'))
         self.config_sidebar.connect("notify::preview-buffer-duration", lambda object, spec: self.widget_video_preview.set_property('buffer-queue-min-thresh-time', object.get_property(spec.name)))
 
