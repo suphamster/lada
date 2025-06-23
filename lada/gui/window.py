@@ -60,6 +60,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.config_sidebar.connect("notify::max-clip-duration", lambda object, spec: self.widget_video_preview.set_property('max-clip-length', object.get_property(spec.name)))
 
         self.opened_file: Gio.File = None
+        self.preview_close_handler_id = None
 
         application = self.get_application()
 
@@ -113,6 +114,7 @@ class MainWindow(Adw.ApplicationWindow):
         file_dialog.save(callback=lambda dialog, result: self.start_export(dialog.save_finish(result)))
 
     def open_file(self, file: Gio.File):
+        file_changed = self.opened_file is not None
         self.opened_file = file
         self.set_title(os.path.basename(file.get_path()))
         self.config_sidebar.set_property("disabled", True)
@@ -133,9 +135,19 @@ class MainWindow(Adw.ApplicationWindow):
         if self.stack_video_preview.get_visible_child() == self.widget_video_preview:
             show_spinner()
 
-        self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
-        self.widget_video_preview.connect("video-preview-reinit", show_spinner)
-        self.widget_video_preview.open_video_file(file, self.config_sidebar.get_property("mute_audio"))
+        if file_changed:
+            def preview_open_file(*args):
+                if self.preview_close_handler_id:
+                    self.widget_video_preview.disconnect(self.preview_close_handler_id)
+                    self.preview_close_handler_id = None
+                self.widget_video_preview.open_video_file(self.opened_file, self.config_sidebar.get_property("mute_audio"))
+
+            self.preview_close_handler_id = self.widget_video_preview.connect("video-preview-close-done", preview_open_file)
+            self.widget_video_preview.close_video_file()
+        else:
+            self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
+            self.widget_video_preview.connect("video-preview-reinit", show_spinner)
+            self.widget_video_preview.open_video_file(self.opened_file, self.config_sidebar.get_property("mute_audio"))
 
     def start_export(self, file: Gio.File):
         self.stack.set_visible_child_name("file-export")

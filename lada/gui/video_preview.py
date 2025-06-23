@@ -199,6 +199,10 @@ class VideoPreview(Gtk.Widget):
     def video_preview_init_done_signal(self):
         pass
 
+    @GObject.Signal(name="video-preview-close-done")
+    def video_preview_close_done_signal(self):
+        pass
+
     @GObject.Signal(name="video-export-finished")
     def video_export_finished_signal(self):
         pass
@@ -280,22 +284,24 @@ class VideoPreview(Gtk.Widget):
         else:
             self.label_cursor_time.set_visible(False)
 
-    def open_video_file(self, file: Gio.File, mute_audio: bool):
-        file_path = file.get_path()
-
-        if self.pipeline:
+    def close_video_file(self):
+        if not self.pipeline:
+            return
+        def stop_pipeline():
             self.pipeline.set_state(Gst.State.NULL)
             self.stop_appsource_worker()
             self._video_preview_init_done = False
+            self.emit('video-preview-close-done')
+        threading.Thread(target=stop_pipeline).start()
+
+    def open_video_file(self, file: Gio.File, mute_audio: bool):
+        file_path = file.get_path()
 
         self.video_metadata = video_utils.get_video_meta_data(file_path)
         audio_pipeline_already_added = self.has_audio
         self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
         self.button_mute_unmute.set_sensitive(self.has_audio)
         self.set_speaker_icon(mute=not self.has_audio)
-
-        self.setup_frame_restorer()
-        self.start_appsource_worker(start_ns=0)
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
@@ -309,7 +315,9 @@ class VideoPreview(Gtk.Widget):
         else:
             self.init_pipeline(mute_audio)
 
-        self.pipeline.set_state(Gst.State.PLAYING)
+        def start_pipeline():
+            self.pipeline.set_state(Gst.State.PLAYING)
+        threading.Thread(target=start_pipeline).start()
 
     def pause_if_currently_playing(self):
         if not self._video_preview_init_done:
@@ -326,8 +334,7 @@ class VideoPreview(Gtk.Widget):
             self._video_preview_init_done = False
             self._mosaic_detection = False
             self._passthrough = False
-            if self.frame_restorer:
-                self.frame_restorer.stop()
+            self.stop_appsource_worker()
             self.setup_frame_restorer()
 
             progress_update_step_size = 100
@@ -558,13 +565,13 @@ class VideoPreview(Gtk.Widget):
         GLib.timeout_add(20, self.update_current_position)
 
     def on_seek_data(self, appsrc, offset_ns):
-        if offset_ns == self.current_timestamp_ns:
+        if self.frame_restorer and self.video_metadata.video_file == self.frame_restorer.video_meta_data.video_file and offset_ns == self.current_timestamp_ns:
+            # nothing to do, we're already at the desired position in the file
             return True
         logger.debug(f"called on_seek_data of appsrc with offset (sec): {offset_ns / Gst.SECOND}, current position (sec): {self.current_timestamp_ns / Gst.SECOND}")
         self.frame_restorer_lock.acquire()
         self.pipeline.set_state(Gst.State.PAUSED)
         self.stop_appsource_worker()
-        self.setup_frame_restorer()
         self.start_appsource_worker(start_ns=offset_ns)
         self.frame_restorer_lock.release()
         return True
@@ -590,6 +597,7 @@ class VideoPreview(Gtk.Widget):
         self.appsource_thread_should_be_running = True
         self.current_timestamp_ns = start_ns
 
+        self.setup_frame_restorer()
         self.frame_restorer.start(start_ns=int(start_ns))
 
         self.appsource_thread = threading.Thread(target=self._appsource_worker)
@@ -597,6 +605,9 @@ class VideoPreview(Gtk.Widget):
 
     def stop_appsource_worker(self):
         start = time.time()
+        if not self.frame_restorer:
+            logger.debug(f"appsource worker: stopped, took {time.time() - start}")
+            return
         self.appsource_thread_stop_requested = True
         self.appsource_thread_should_be_running = False
 
@@ -606,8 +617,9 @@ class VideoPreview(Gtk.Widget):
         threading_utils.put_closing_queue_marker(self.appsource_queue, "appsource_queue")
         threading_utils.put_closing_queue_marker(self.frame_restorer.get_frame_restoration_queue(), "frame_restorer_thread_queue")
 
-        self.appsource_thread.join()
-        self.appsource_thread = None
+        if self.appsource_thread:
+            self.appsource_thread.join()
+            self.appsource_thread = None
 
         # garbage collection
         threading_utils.empty_out_queue(self.appsource_queue, "appsource_queue")
@@ -713,8 +725,7 @@ class VideoPreview(Gtk.Widget):
         def shutdown():
             if self.audio_volume:
                 self.audio_volume.set_property("mute", True)
-            if self.frame_restorer:
-                self.stop_appsource_worker()
+            self.stop_appsource_worker()
         shutdown_thread = threading.Thread(target=shutdown)
         shutdown_thread.start()
 
