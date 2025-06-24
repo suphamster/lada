@@ -7,4 +7,6 @@ docker build . -f Dockerfile.Release -t ladaapp/lada:<version-tag>
 docker tag ladaapp/lada:<version-tag> latest
 docker login -u ladaapp
 docker push ladaapp/lada:<version-tag>
+docker tag ladaapp/lada:<version-tag> ladaapp/lada:latest
+docker push ladaapp/lada:latest
 ```
