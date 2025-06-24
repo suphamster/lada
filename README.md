@@ -137,12 +137,11 @@ Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/lates
 If you prefer not to use Flatpak or Docker, have different hardware specifications, or are using a non-Linux system, follow the [Developer Installation](#developer-installation) steps. Contributions
 are welcome if someone can package the app for other systems!
 
-> [!NOTE]
-> There have been reports that CLI installation works on both Windows and Windows WSL. Making the GUI work doesn't seem to be that easy though.
-
-
 ## Developer Installation
 This section describes how to install the app from source.
+
+> [!NOTE]
+> If you're on Windows and don't want to use WSL then follow the [Developer Installation (Windows)](docs/windows_install.md) instructions instead.
 
 ### Install CLI
 
