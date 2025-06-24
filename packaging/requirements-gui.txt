@@ -50,7 +50,7 @@ numpy==2.3.1
     #   lada (setup.py)
     #   matplotlib
     #   mmengine
-    #   opencv-python-headless
+    #   opencv-python
     #   pandas
     #   scipy
     #   torchvision
@@ -90,7 +90,7 @@ nvidia-nvjitlink-cu12==12.4.127
     #   torch
 nvidia-nvtx-cu12==12.4.127
     # via torch
-opencv-python-headless==4.11.0.86
+opencv-python==4.11.0.86
     # via
     #   lada (setup.py)
     #   mmengine
