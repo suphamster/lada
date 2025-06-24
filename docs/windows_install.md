@@ -133,7 +133,8 @@ This section describes how to install the app (CLI and GUI) from source.
    
    Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
    ```shell
-   Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.7.0/lada_mosaic_detection_model_v3.pt' -OutFile ".\model_weights\lada_mosaic_detection_model_v3.pt"
+   Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.7.1/lada_mosaic_detection_model_v3.1_accurate.pt' -OutFile ".\model_weights\lada_mosaic_detection_model_v3.1_accurate.pt"
+   Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.7.1/lada_mosaic_detection_model_v3.1_fast.pt' -OutFile ".\model_weights\lada_mosaic_detection_model_v3.1_fast.pt"
    Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth' -OutFile ".\model_weights\lada_mosaic_restoration_model_generic_v1.2.pth"
    ```
 

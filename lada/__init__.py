@@ -7,7 +7,7 @@ else:
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
-VERSION = '0.7.0-dev'
+VERSION = '0.7.1'
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING")
 
@@ -22,6 +22,8 @@ RESTORATION_MODEL_NAMES_TO_FILES = {v: k for k, v in RESTORATION_MODEL_FILES_TO_
 DETECTION_MODEL_FILES_TO_NAMES = {
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v2.pt'): 'v2',
     os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt'): 'v3',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.1_fast.pt'): 'v3.1-fast',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.1_accurate.pt'): 'v3.1-accurate',
 }
 DETECTION_MODEL_NAMES_TO_FILES = {v: k for k, v in DETECTION_MODEL_FILES_TO_NAMES.items()}
 

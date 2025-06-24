@@ -36,7 +36,7 @@ def parse_args():
     group_restoration.add_argument('--list-mosaic-restoration-models', action='store_true', help="List available restoration models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')")
 
     group_detection = parser.add_argument_group('Mosaic detection')
-    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.pt'), help="(default: %(default)s)")
+    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.1_accurate.pt'), help="(default: %(default)s)")
     group_detection.add_argument('--list-mosaic-detection-models', action='store_true', help="List available detection models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')")
 
     return parser.parse_args()

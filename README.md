@@ -82,6 +82,10 @@ The project comes with a generic mosaic removal model that was trained on a dive
 
 You can choose the model to use via the side panel, or when using the CLI by specifying the path and type of the model as arguments.
 
+There exists also a mosaic detection model which is used to detect pixelated areas before they are passed on to the restoration model.
+
+You can choose between to options: fast and accurate. The accurate detection model is used by default. The fast model misses to detect mosaics more often but this depends on the footage at hand.
+
 ## Status
 Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Other scenes can be rather meh and show worse artifacts than the original mosaics.
 
@@ -201,7 +205,8 @@ This section describes how to install the app from source.
    
    Download the models from the GitHub Releases page into the `model_weights` directory. The following commands do just that
    ```shell
-   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.7.0/lada_mosaic_detection_model_v3.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.7.1/lada_mosaic_detection_model_v3.1_accurate.pt'
+   wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.7.1/lada_mosaic_detection_model_v3.1_fast.pt'
    wget -P model_weights/ 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth'
    ```
 

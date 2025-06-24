@@ -50,6 +50,17 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2025-06-24" version="0.7.1">
+            <description>
+                <ul>
+                    <li>Updated mosaic detections models: "fast" and "accurate". "Fast" is pretty much the same model that was shipped in v0.7.0, the new and larger "accurate" model is somewhat slower but catches mosaics which the fast one doesn't detect (new default model).</li>
+                    <li>Detection model can now also be selected in the GUI sidebar</li>
+                    <li>Additional CLI options: --list-mosaic-detection-models, --list-mosaic-restoration-models</li>
+                    <li>Fix GUI becoming unresponsive when models are loaded for the first time (opening a file)</li>
+                    <li>Added build instructions for Windows</li>
+                </ul>
+            </description>
+        </release>
         <release date="2025-03-31" version="0.7.0">
             <description>
                 <ul>

@@ -38,7 +38,7 @@ class Config:
         return 'basicvsrpp-1.2'
 
     def get_default_detection_model(self):
-        return 'v3'
+        return 'v3.1-accurate'
 
     def save(self):
         config_file_path = get_config_file_path()
