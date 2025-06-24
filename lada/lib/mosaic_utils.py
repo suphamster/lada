@@ -118,15 +118,9 @@ def get_mosaic_block_size_v1(mask_img, area_type ='normal'):
     return size
 
 def get_mosaic_block_size_v2(mask):
-    # assumption: if mosaic area covers a huge area its a close-up and we need bigger mosaic block size.
-    # If the area is small in comparison its far away and lesser block size is necessary
-    # there is a minimal block size and also a maximum
     h,w = mask.shape[:2]
-    #contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     contours, _ = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     _, _, box_w, box_h = cv2.boundingRect(contours[0])
-    #mosaic_area = get_mask_area(mask)
-    #full_area = h * w
     mosaic_area = max(box_w, box_h)
     full_area = max(h,w)
     ratio_mosaic_area_covered = mosaic_area / full_area
@@ -145,6 +139,62 @@ def get_mosaic_block_size_v3(uncropped_scene_shape):
     block_size = max(4, length // 100)
     return block_size
 
+def scaled_sigmoid_size(area, alpha=1.0):
+    midpoint = 25000
+    steepness = 0.00018
+    min_val = 5
+    target_val = 12
+
+    sigmoid = 1 / (1 + np.exp(-steepness * (area - midpoint)))
+
+    # Calculate scaling factor needed to reach target_val at area=50000
+    sig_at_target = 1 / (1 + np.exp(-steepness * (50000 - midpoint)))
+    scale = (target_val - min_val) / sig_at_target
+
+    size = alpha * (min_val + scale * sigmoid)
+    return size
+
+
+def get_mosaic_block_size_v4(mask_img, area_type='normal', random=True):
+    h, w = mask_img.shape[:2]
+    size = np.min([h, w])
+    mask = image_utils.resize_simple(mask_img, size)
+    alpha = size / 512
+
+    if area_type == 'normal':
+        area = get_mask_area_by_contour(mask)
+    elif area_type == 'bounding':
+        area = get_mask_area_by_bounding_box(mask)
+    else:
+        raise TypeError("unknown area_type. must be 'normal' or 'bounding'")
+    area = area / (alpha * alpha)
+
+    if area > 50000:
+        size = alpha * ((area - 50000) / 50000 + 12)
+    else:
+        # use a fitted function that is less piecewise.
+        # But fits the previous methods. Should add more variability to the mosaic size
+        # especially with the below random -1, 1
+        size = scaled_sigmoid_size(area, alpha=alpha)
+
+    # Add randomness to the block size
+    if random:
+        if np.random.rand() < 0.75:
+            size += np.random.uniform(-1, 1)
+        else:
+            size += np.random.uniform(-2, 2)
+
+    # Ensure the block size is at least 3x3 pixels
+    size = max(size, 3)
+
+    # round up or down to the nearest integer randomly
+    if np.random.rand() < 0.5:
+        size = math.floor(size)
+    else:
+        size = math.ceil(size)
+
+    return size
+
 def get_random_parameter(mask, randomize_size=True):
     # mosaic size
     p = np.array([0.5,0.5])
@@ -153,23 +203,21 @@ def get_random_parameter(mask, randomize_size=True):
 
     return get_random_parameters_by_block_size(mosaic_size, randomize_size)
 
-def get_random_parameters_by_block_size(mosaic_base_size, randomize_size, repeatable_random=False):
+def get_random_parameters_by_block_size(mosaic_base_size, randomize_size, repeatable_random=False, size_scale=(0.7,2.2)):
     rng_random, rng_numpy = random_utils.get_rngs(repeatable_random)
 
-    mosaic_size = int(mosaic_base_size * rng_random.uniform(0.9, 2.2)) if randomize_size else mosaic_base_size
-    # mosaic mod
+    mosaic_size = int(mosaic_base_size * rng_random.uniform(size_scale[0], size_scale[1])) if randomize_size else mosaic_base_size
     p = np.array([0.25, 0.3, 0.45])
     mod = rng_numpy.choice(['squa_mid', 'squa_avg', 'rect_avg'], p=p.ravel())
 
-    # rect_rat for rect_avg
-    rect_rat = rng_random.uniform(1.1, 1.6)
+    rectangle_ratio = rng_random.uniform(1.1, 1.8)
 
     # feather size
     feather = -1
     if rng_random.random() < 0.7:
-        feather = int(mosaic_size * random.uniform(0, 1.5))
+        feather = int(mosaic_size * random.uniform(0, 2.5))
 
-    return mosaic_size, mod, rect_rat, feather
+    return mosaic_size, mod, rectangle_ratio, feather
 
 if __name__ == '__main__':
     window_name = 'mosaic'
