@@ -1,4 +1,4 @@
-FROM python:3.13.5-bookworm
+FROM python:3.12-bookworm
 RUN useradd --create-home lada
 WORKDIR /home/lada
 ENV PIP_ROOT_USER_ACTION=ignore
