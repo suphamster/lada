@@ -4,10 +4,10 @@ python -m venv .venv_requirements_cli
 source .venv_requirements_cli/bin/activate
 pip install pip-tools
 test -f packaging/requirements-cli.txt && rm packaging/requirements-cli.txt 
-pip-compile --extra basicvsrpp -o packaging/requirements-cli.txt setup.py
+pip-compile --extra basicvsrpp -o packaging/requirements-cli.txt -c packaging/constraints.txt setup.py
 sed -i 's#opencv-python#opencv-python-headless#' packaging/requirements-cli.txt
 test -f packaging/requirements-gui.txt && rm packaging/requirements-gui.txt 
-pip-compile --extra basicvsrpp,gui -o packaging/requirements-gui.txt setup.py
+pip-compile --extra basicvsrpp,gui -o packaging/requirements-gui.txt -c packaging/constraints.txt setup.py
 sed -i 's#opencv-python#opencv-python-headless#' packaging/requirements-gui.txt
 deactivate
 rm -r .venv_requirements_cli
