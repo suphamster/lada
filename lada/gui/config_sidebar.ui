@@ -21,7 +21,7 @@
                         <child>
                             <object class="AdwComboRow" id="combo_row_mosaic_detection_models">
                                 <property name="title">Detection model</property>
-                                <property name="tooltip-text">todo</property>
+                                <property name="tooltip-text">Model to be used for identifying mosaic areas</property>
                                 <signal name="notify::selected"
                                         handler="combo_row_mosaic_detection_models_selected_callback"/>
                                 <property name="model">
@@ -32,7 +32,7 @@
                         <child>
                             <object class="AdwComboRow" id="combo_row_mosaic_removal_models">
                                 <property name="title">Restoration model</property>
-                                <property name="tooltip-text">Recommended model is 'basicvsrpp-generic'</property>
+                                <property name="tooltip-text">Model used for restoring mosaic areas. Recommended model is 'basicvsrpp-generic'</property>
                                 <signal name="notify::selected"
                                         handler="combo_row_mosaic_removal_models_selected_callback"/>
                                 <property name="model">
