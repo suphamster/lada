@@ -74,7 +74,7 @@ This section describes how to install the app (CLI and GUI) from source.
    git clone https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git -b 0.13
    cd gst-plugins-rs
    cargo install cargo-c
-   cargo cinstall -p gst-plugin-gtk4 --prefix ($project + "\build\gtk\x64\release")
+   cargo cinstall -p gst-plugin-gtk4 --prefix ($project + "\build\gtk\x64\release") --libdir ($project + "\build\gtk\x64\release\lib") 
    ```
    If `gst-inspect-1.0.exe gtk4paintablesink` does not return an error everything went fine.
    
@@ -116,17 +116,17 @@ This section describes how to install the app (CLI and GUI) from source.
    
    On low-end hardware running mosaic detection model could run into a timeout defined in ultralytics library and the scene would not be restored. The following patch increases this time limit:
     ```bash
-    patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
+    patch -u .venv/lib/site-packages/ultralytics/utils/ops.py patches/increase_mms_time_limit.patch
     ```
    
    Disable crash-reporting / telemetry of one of our dependencies (ultralytics):
    ```bash
-   patch -u .venv/lib/python3.1[23]/site-packages/ultralytics/utils/__init__.py  patches/remove_ultralytics_telemetry.patch
+   patch -u .venv/lib/site-packages/ultralytics/utils/__init__.py  patches/remove_ultralytics_telemetry.patch
    ```
    
    Compatibility fix for using mmengine (restoration model dependency) with latest PyTorch:
    ```bash
-   patch -u .venv/lib/python3.1[23]/site-packages/mmengine/runner/checkpoint.py  patches/fix_loading_mmengine_weights_on_torch26_and_higher.diff
+   patch -u .venv/lib/site-packages/mmengine/runner/checkpoint.py  patches/fix_loading_mmengine_weights_on_torch26_and_higher.diff
    ```
 
 9) Download model weights
