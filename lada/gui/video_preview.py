@@ -5,6 +5,7 @@ import tempfile
 import threading
 import queue
 import time
+import sys
 
 import numpy as np
 from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
@@ -446,7 +447,9 @@ class VideoPreview(Gtk.Widget):
 
         gtksink = Gst.ElementFactory.make('gtk4paintablesink', None)
         paintable = gtksink.get_property('paintable')
-        if paintable.props.gl_context:
+        # TODO: workaround for #62. On Windows using Nvidia GPU and OpenGL for the paintable when it's available causes messed up colors.
+        #  I could not reproduce this on a VM without a Nvidia card.
+        if paintable.props.gl_context and sys.platform != 'win32':
             video_sink = Gst.ElementFactory.make('glsinkbin', None)
             video_sink.set_property('sink', gtksink)
         else:
