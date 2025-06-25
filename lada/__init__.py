@@ -6,6 +6,7 @@ else:
   MODEL_WEIGHTS_DIR = "model_weights"
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
+os.environ["YOLO_VERBOSE"] = "false"
 
 VERSION = '0.7.1-dev'
 
