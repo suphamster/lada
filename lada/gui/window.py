@@ -4,6 +4,7 @@ import pathlib
 from gi.repository import Adw, Gtk, Gio, Gdk
 import lada.gui.video_preview
 from lada.gui.config_sidebar import ConfigSidebar
+from lada.gui.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -23,6 +24,8 @@ class MainWindow(Adw.ApplicationWindow):
     banner_no_gpu = Gtk.Template.Child()
     shortcut_controller = Gtk.Template.Child()
     config_sidebar: ConfigSidebar = Gtk.Template.Child()
+    header_bar: Adw.HeaderBar = Gtk.Template.Child()
+    button_toggle_fullscreen: Gtk.Button = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -62,6 +65,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.opened_file: Gio.File = None
         self.preview_close_handler_id = None
 
+        self.fullscreen_mouse_activity_controller = None
+        self.connect("notify::fullscreened", lambda object, spec: self.on_fullscreened(object.get_property(spec.name)))
+
         application = self.get_application()
 
         application.shortcuts.register_group("files", "Files")
@@ -78,6 +84,7 @@ class MainWindow(Adw.ApplicationWindow):
             if self.stack.get_visible_child_name() == "page_main" and self.stack_video_preview.get_visible_child() == self.widget_video_preview:
                 self.toggle_button_preview_video_callback(self.toggle_button_preview_video)
         application.shortcuts.add("preview", "toggle-preview", "p", on_shortcut_preview_toggle, "Enable/Disable preview mode")
+        application.shortcuts.add("preview", "toggle-fullscreen", "<Ctrl>f", self.toggle_fullscreen, "Enable/Disable fullscreen")
 
         self.connect("close-request", self.close)
 
@@ -93,6 +100,41 @@ class MainWindow(Adw.ApplicationWindow):
     def toggle_button_preview_video_callback(self, button_clicked):
         passthrough = self.widget_video_preview.get_property("passthrough")
         self.widget_video_preview.set_property('passthrough', not passthrough)
+
+    @Gtk.Template.Callback()
+    def button_toggle_fullscreen_callback(self, button_clicked):
+        self.toggle_fullscreen()
+
+    def toggle_fullscreen(self, *args):
+        if self.is_fullscreen():
+            self.unfullscreen()
+        else:
+            self.fullscreen()
+
+    def on_fullscreen_activity(self, fullscreen_activity: bool):
+        if fullscreen_activity:
+            self.header_bar.set_visible(True)
+            self.set_cursor_from_name("default")
+        else:
+            self.header_bar.set_visible(False)
+            self.set_cursor_from_name("none")
+        self.widget_video_preview.on_fullscreen_activity(fullscreen_activity)
+
+    def on_fullscreened(self, fullscreened: bool):
+        if not self.stack.get_visible_child_name() == "page_main":
+            return
+        if fullscreened:
+            self.fullscreen_mouse_activity_controller = FullscreenMouseActivityController(self)
+            self.header_bar.set_visible(False)
+            self.set_cursor_from_name("none")
+            self.button_toggle_fullscreen.set_property("icon-name", "view-restore-symbolic")
+        else:
+            self.header_bar.set_visible(True)
+            self.set_cursor_from_name("default")
+            self.button_toggle_fullscreen.set_property("icon-name", "view-fullscreen-symbolic")
+        self.widget_video_preview.on_fullscreened(fullscreened)
+        self.fullscreen_mouse_activity_controller.on_fullscreened(fullscreened)
+        self.fullscreen_mouse_activity_controller.connect("notify::fullscreen-activity", lambda object, spec: self.on_fullscreen_activity(object.get_property(spec.name)))
 
     def show_open_dialog(self):
         file_dialog = Gtk.FileDialog()

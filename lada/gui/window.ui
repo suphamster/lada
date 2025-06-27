@@ -70,7 +70,7 @@
                         <property name="child">
                             <object class="AdwToolbarView">
                                 <child type="top">
-                                    <object class="AdwHeaderBar">
+                                    <object class="AdwHeaderBar" id="header_bar">
                                         <property name="title-widget">
                                             <object class="AdwWindowTitle">
                                                 <property name="title" bind-source="MainWindow" bind-property="title"/>
@@ -112,6 +112,14 @@
                                                 <property name="icon-name">open-menu-symbolic</property>
                                                 <property name="tooltip-text">Main Menu</property>
                                                 <property name="menu-model">primary_menu</property>
+                                            </object>
+                                        </child>
+                                        <child type="end">
+                                            <object class="GtkButton" id="button_toggle_fullscreen">
+                                                <property name="icon-name">view-fullscreen-symbolic</property>
+                                                <property name="tooltip-text">Show Restoration Preview in fullscreen mode</property>
+                                                <property name="sensitive">True</property>
+                                                <signal name="clicked" handler="button_toggle_fullscreen_callback"/>
                                             </object>
                                         </child>
                                     </object>
