@@ -12,7 +12,7 @@ from lada.gui.timeline import Timeline
 from lada.lib import audio_utils, video_utils
 from lada import LOG_LEVEL
 from lada.gui.gstreamer_pipeline_appsrc import LadaAppSrc
-from lada.gui.frame_restorer_provider import FrameRestorerProvider
+from lada.gui.frame_restorer_provider import FrameRestorerProvider, FrameRestorerOptions, FRAME_RESTORER_PROVIDER
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -38,13 +38,8 @@ class VideoPreview(Gtk.Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._passthrough = False
-        self._mosaic_detection = False
-        self._mosaic_restoration_model_name = 'basicvsrpp-1.2'
-        self._mosaic_detection_model_name = 'v3.1-accurate'
-        self._device = "cpu"
+        self._frame_restorer_options: FrameRestorerOptions | None = None
         self._video_preview_init_done = False
-        self._max_clip_length = 180
         self._buffer_queue_min_thresh_time = 0
         self._buffer_queue_min_thresh_time_auto_min = 2.
         self._buffer_queue_min_thresh_time_auto_max = 10.
@@ -61,7 +56,7 @@ class VideoPreview(Gtk.Widget):
         self.eos = False
 
         self.lada_appsrc: LadaAppSrc | None = None
-        self.frame_restorer_provider: FrameRestorerProvider | None = None
+        self.frame_restorer_provider: FrameRestorerProvider = FRAME_RESTORER_PROVIDER
         self.file_duration_ns = 0
         self.frame_duration_ns = None
         self.video_metadata: video_utils.VideoMetadata | None = None
@@ -73,28 +68,17 @@ class VideoPreview(Gtk.Widget):
         self.widget_timeline.connect('seek_requested', lambda widget, seek_position: self.seek_video(seek_position))
         self.widget_timeline.connect('cursor_position_changed', lambda widget, cursor_position: self.show_cursor_position(cursor_position))
 
-
     @GObject.Property()
-    def passthrough(self):
-        return self._passthrough
+    def frame_restorer_options(self):
+        return self._frame_restorer_options
 
-    @passthrough.setter
-    def passthrough(self, value):
-        if self._passthrough == value:
+    @frame_restorer_options.setter
+    def frame_restorer_options(self, value: FrameRestorerOptions):
+        if self._frame_restorer_options == value:
             return
-        self._passthrough = value
-        if self._video_preview_init_done:
-            self.reset_appsource_worker()
-
-    @GObject.Property()
-    def device(self):
-        return self._device
-
-    @device.setter
-    def device(self, value):
-        if self._device == value:
-            return
-        self._device = value
+        if self._video_preview_init_done and self._buffer_queue_min_thresh_time == 0 and self._frame_restorer_options.max_clip_length != value.max_clip_length:
+            self.buffer_queue_min_thresh_time_auto = float(value.max_clip_length / value.video_metadata.video_fps_exact)
+        self._frame_restorer_options = value
         if self._video_preview_init_done:
             self.reset_appsource_worker()
 
@@ -113,19 +97,6 @@ class VideoPreview(Gtk.Widget):
             self.update_gst_buffers()
 
     @GObject.Property()
-    def max_clip_length(self):
-        return self._max_clip_length
-
-    @max_clip_length.setter
-    def max_clip_length(self, value):
-        if self._max_clip_length == value:
-            return
-        self._max_clip_length = value
-        if self._video_preview_init_done and self._buffer_queue_min_thresh_time == 0:
-            self.buffer_queue_min_thresh_time_auto = float(self._max_clip_length / self.video_metadata.video_fps_exact)
-            self.reset_appsource_worker()
-
-    @GObject.Property()
     def buffer_queue_min_thresh_time(self):
         return self._buffer_queue_min_thresh_time
 
@@ -136,42 +107,6 @@ class VideoPreview(Gtk.Widget):
         self._buffer_queue_min_thresh_time = value
         if self._video_preview_init_done:
             self.update_gst_buffers()
-
-    @GObject.Property()
-    def mosaic_restoration_model(self):
-        return self._mosaic_restoration_model_name
-
-    @mosaic_restoration_model.setter
-    def mosaic_restoration_model(self, value):
-        if self._mosaic_restoration_model_name == value:
-            return
-        self._mosaic_restoration_model_name = value
-        if self._video_preview_init_done:
-            self.reset_appsource_worker()
-
-    @GObject.Property()
-    def mosaic_detection_model(self):
-        return self._mosaic_detection_model_name
-
-    @mosaic_detection_model.setter
-    def mosaic_detection_model(self, value):
-        if self._mosaic_detection_model_name == value:
-            return
-        self._mosaic_detection_model_name = value
-        if self._video_preview_init_done:
-            self.reset_appsource_worker()
-
-    @GObject.Property()
-    def mosaic_detection(self):
-        return self._mosaic_detection
-
-    @mosaic_detection.setter
-    def mosaic_detection(self, value):
-        if self._mosaic_detection == value:
-            return
-        self._mosaic_detection = value
-        if self._video_preview_init_done:
-            self.reset_appsource_worker()
 
     @GObject.Property(type=Adw.Application)
     def application(self):
@@ -208,14 +143,6 @@ class VideoPreview(Gtk.Widget):
 
     @GObject.Signal(name="video-preview-close-done")
     def video_preview_close_done_signal(self):
-        pass
-
-    @GObject.Signal(name="video-export-finished")
-    def video_export_finished_signal(self):
-        pass
-
-    @GObject.Signal(name="video-export-progress")
-    def video_export_progress_signal(self, status: float):
         pass
 
     @Gtk.Template.Callback()
@@ -305,6 +232,7 @@ class VideoPreview(Gtk.Widget):
         file_path = file.get_path()
 
         self.video_metadata = video_utils.get_video_meta_data(file_path)
+        self._frame_restorer_options = self._frame_restorer_options.with_video_metadata(self.video_metadata)
         audio_pipeline_already_added = self.has_audio
         self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
         self.button_mute_unmute.set_sensitive(self.has_audio)
@@ -312,17 +240,12 @@ class VideoPreview(Gtk.Widget):
 
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
-        self._buffer_queue_min_thresh_time_auto_min = float(self._max_clip_length / self.video_metadata.video_fps_exact)
+        self._buffer_queue_min_thresh_time_auto_min = float(self._frame_restorer_options.max_clip_length / self.video_metadata.video_fps_exact)
         self.buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
 
         self.widget_timeline.set_property("duration", self.file_duration_ns)
 
-        if self.frame_restorer_provider:
-            self.frame_restorer_provider.reinit(self._mosaic_restoration_model_name, self._mosaic_detection_model_name, self.video_metadata, self._device, self._max_clip_length, self._mosaic_detection, self._passthrough)
-        else:
-            self.frame_restorer_provider = FrameRestorerProvider(self._mosaic_restoration_model_name, self._mosaic_detection_model_name,
-                                                self.video_metadata, self._device, self._max_clip_length,
-                                                self._mosaic_detection, self._passthrough)
+        self.frame_restorer_provider.init(self._frame_restorer_options)
 
         if self.pipeline:
             self.adjust_pipeline_with_new_source_file(audio_pipeline_already_added, mute_audio)
@@ -340,54 +263,6 @@ class VideoPreview(Gtk.Widget):
         if pipe_state.state == Gst.State.PLAYING:
             self.should_be_paused = True
             self.pipeline.set_state(Gst.State.PAUSED)
-
-    def export_video(self, file_path, video_codec, crf):
-        def run_export():
-            if self.pipeline:
-                self.pipeline.set_state(Gst.State.NULL)
-            self._video_preview_init_done = False
-            self._mosaic_detection = False
-            self._passthrough = False
-            self.lada_appsrc.stop()
-            self.frame_restorer_provider.reinit(self._mosaic_restoration_model_name, self._mosaic_detection_model_name, self.video_metadata, self._device, self._max_clip_length, self._mosaic_detection, self._passthrough)
-            frame_restorer = self.frame_restorer_provider.get()
-
-            progress_update_step_size = 100
-            success = True
-            video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(file_path)[0])}.tmp{os.path.splitext(file_path)[1]}")
-            try:
-                frame_restorer.start(start_ns=0)
-
-                with video_utils.VideoWriter(video_tmp_file_output_path, self.video_metadata.video_width,
-                                             self.video_metadata.video_height, self.video_metadata.video_fps_exact,
-                                             video_codec, time_base=self.video_metadata.time_base,
-                                             crf=crf) as video_writer:
-                    for frame_num, elem in enumerate(frame_restorer):
-                        if elem is None:
-                            success = False
-                            logger.error("Error on export: frame restorer stopped prematurely")
-                            break
-                        (restored_frame, restored_frame_pts) = elem
-                        video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
-                        if frame_num % progress_update_step_size == 0:
-                            self.emit('video-export-progress', frame_num / self.video_metadata.frames_count)
-
-            except Exception as e:
-                success = False
-                logger.error("Error on export", exc_info=e)
-            finally:
-                frame_restorer.stop()
-
-            if success:
-                audio_utils.combine_audio_video_files(self.video_metadata, video_tmp_file_output_path, file_path)
-                self.emit('video-export-progress', 1.0)
-                self.emit('video-export-finished')
-            else:
-                if os.path.exists(video_tmp_file_output_path):
-                    os.remove(video_tmp_file_output_path)
-
-        exporter_thread = threading.Thread(target=run_export)
-        exporter_thread.start()
 
     def grab_focus(self):
         self.button_play_pause.grab_focus()
@@ -565,7 +440,7 @@ class VideoPreview(Gtk.Widget):
         def reinit():
             self._video_preview_init_done = False
             self.pipeline.set_state(Gst.State.PAUSED)
-            self.frame_restorer_provider.reinit(self._mosaic_restoration_model_name, self._mosaic_detection_model_name, self.video_metadata, self._device, self._max_clip_length, self._mosaic_detection, self._passthrough)
+            self.frame_restorer_provider.init(self._frame_restorer_options)
             self.lada_appsrc.reinit(self.video_metadata)
 
             # seeking flush to flush pipeline / clean out buffers
@@ -604,11 +479,16 @@ class VideoPreview(Gtk.Widget):
         self._application.shortcuts.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
         self._application.shortcuts.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
 
-    def close(self):
+    def close(self, block=False):
         def shutdown():
             if self.audio_volume:
                 self.audio_volume.set_property("mute", True)
+            if self.pipeline:
+                self.pipeline.set_state(Gst.State.NULL)
             if self.lada_appsrc:
                 self.lada_appsrc.stop()
-        shutdown_thread = threading.Thread(target=shutdown)
-        shutdown_thread.start()
+        if block:
+            shutdown()
+        else:
+            shutdown_thread = threading.Thread(target=shutdown)
+            shutdown_thread.start()

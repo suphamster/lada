@@ -1,4 +1,6 @@
 import logging
+from dataclasses import dataclass
+
 from lada import LOG_LEVEL
 from lada.lib import VideoMetadata
 
@@ -8,65 +10,101 @@ from lada import RESTORATION_MODEL_NAMES_TO_FILES, DETECTION_MODEL_NAMES_TO_FILE
 from lada.lib.frame_restorer import load_models, FrameRestorer
 from lada.lib import video_utils
 
-class FrameRestorerProvider:
-    def __init__(self, mosaic_restoration_model_name, mosaic_detection_model_name, video_metadata: VideoMetadata,
-                 device, max_clip_length, mosaic_detection, passthrough):
-        self.models_cache: None | dict = None
-        self.mosaic_restoration_model_name = mosaic_restoration_model_name
-        self.mosaic_detection_model_name = mosaic_detection_model_name
-        self.video_metadata = video_metadata
-        self.device = device
-        self.max_clip_length = max_clip_length
-        self.mosaic_detection = mosaic_detection
-        self.passthrough = passthrough
+import gc
+import torch
 
-    def reinit(self, mosaic_restoration_model_name, mosaic_detection_model_name, video_metadata: VideoMetadata,
-                 device, max_clip_length, mosaic_detection, passthrough):
-        self.mosaic_restoration_model_name = mosaic_restoration_model_name
-        self.mosaic_detection_model_name = mosaic_detection_model_name
-        self.video_metadata = video_metadata
-        if self.device != device:
-            self.models_cache = None
-        self.device = device
-        self.max_clip_length = max_clip_length
-        self.mosaic_detection = mosaic_detection
-        self.passthrough = passthrough
+@dataclass
+class FrameRestorerOptions:
+    mosaic_restoration_model_name: str
+    mosaic_detection_model_name: str
+    video_metadata: VideoMetadata
+    device: str
+    max_clip_length: int
+    mosaic_detection: bool
+    passthrough: bool
+
+    def with_mosaic_restoration_model_name(self, mosaic_restoration_model_name) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(mosaic_restoration_model_name, self.mosaic_detection_model_name, self.video_metadata, self.device, self.max_clip_length, self.mosaic_detection, self.passthrough)
+
+    def with_mosaic_detection_model_name(self, mosaic_detection_model_name) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(self.mosaic_restoration_model_name, mosaic_detection_model_name, self.video_metadata, self.device, self.max_clip_length, self.mosaic_detection, self.passthrough)
+
+    def with_video_metadata(self, video_metadata) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(self.mosaic_restoration_model_name, self.mosaic_detection_model_name, video_metadata, self.device, self.max_clip_length, self.mosaic_detection, self.passthrough)
+
+    def with_device(self, device) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(self.mosaic_restoration_model_name, self.mosaic_detection_model_name, self.video_metadata, device, self.max_clip_length, self.mosaic_detection, self.passthrough)
+
+    def with_max_clip_length(self, max_clip_length) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(self.mosaic_restoration_model_name, self.mosaic_detection_model_name, self.video_metadata, self.device, max_clip_length, self.mosaic_detection, self.passthrough)
+
+    def with_mosaic_detection(self, mosaic_detection) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(self.mosaic_restoration_model_name, self.mosaic_detection_model_name, self.video_metadata, self.device, self.max_clip_length, mosaic_detection, self.passthrough)
+
+    def with_passthrough(self, passthrough) -> 'FrameRestorerOptions':
+        return FrameRestorerOptions(self.mosaic_restoration_model_name, self.mosaic_detection_model_name, self.video_metadata, self.device, self.max_clip_length, self.mosaic_detection, passthrough)
+
+class FrameRestorerProvider:
+    def __init__(self):
+        self.models_cache: None | dict = None
+        self.options: FrameRestorerOptions | None = None
+
+    def init(self, options):
+        if self.options is not None:
+            if self.options.device != options.device:
+                self._clear_cache()
+        self.options = options
 
     def get(self):
-        if self.passthrough:
-            return PassthroughFrameRestorer(self.video_metadata.video_file)
+        assert self.options is not None, "IllegalState: get called but options are not initialized. Call init before using get"
+        if self.options.passthrough:
+            return PassthroughFrameRestorer(self.options.video_metadata.video_file)
 
         is_empty_cache = self.models_cache is None
         cache_miss = False
         if is_empty_cache:
             cache_miss = True
         else:
-            if self.models_cache["mosaic_restoration_model_name"] != self.mosaic_restoration_model_name:
+            if self.models_cache["mosaic_restoration_model_name"] != self.options.mosaic_restoration_model_name:
                 cache_miss = True
-                logger.info(f"model {self.mosaic_restoration_model_name} not found in cache. Loading...")
-            if self.models_cache["mosaic_detection_model_name"] != self.mosaic_detection_model_name:
+                logger.info(f"model {self.options.mosaic_restoration_model_name} not found in cache. Loading...")
+            if self.models_cache["mosaic_detection_model_name"] != self.options.mosaic_detection_model_name:
                 cache_miss = True
-                logger.info(f"model {self.mosaic_detection_model_name} not found in cache. Loading...")
+                logger.info(f"model {self.options.mosaic_detection_model_name} not found in cache. Loading...")
 
         if cache_miss:
-            mosaic_restoration_model_path = RESTORATION_MODEL_NAMES_TO_FILES[self.mosaic_restoration_model_name]
-            mosaic_detection_path = DETECTION_MODEL_NAMES_TO_FILES[self.mosaic_detection_model_name]
+            self._clear_cache()
+
+            mosaic_restoration_model_path = RESTORATION_MODEL_NAMES_TO_FILES[self.options.mosaic_restoration_model_name]
+            mosaic_detection_path = DETECTION_MODEL_NAMES_TO_FILES[self.options.mosaic_detection_model_name]
             mosaic_detection_model, mosaic_restoration_model, mosaic_restoration_model_preferred_pad_mode = load_models(
-                self.device, self.mosaic_restoration_model_name, mosaic_restoration_model_path, None,
+                self.options.device, self.options.mosaic_restoration_model_name, mosaic_restoration_model_path, None,
                 mosaic_detection_path
             )
 
-            self.models_cache = dict(mosaic_restoration_model_name=self.mosaic_restoration_model_name,
-                                     mosaic_detection_model_name=self.mosaic_detection_model_name,
+            self.models_cache = dict(mosaic_restoration_model_name=self.options.mosaic_restoration_model_name,
+                                     mosaic_detection_model_name=self.options.mosaic_detection_model_name,
                                      mosaic_detection_model=mosaic_detection_model,
                                      mosaic_restoration_model=mosaic_restoration_model,
                                      mosaic_restoration_model_preferred_pad_mode=mosaic_restoration_model_preferred_pad_mode)
 
-        return FrameRestorer(self.device, self.video_metadata.video_file, True, self.max_clip_length,
-                             self.mosaic_restoration_model_name,
+        return FrameRestorer(self.options.device, self.options.video_metadata.video_file, True, self.options.max_clip_length,
+                             self.options.mosaic_restoration_model_name,
                              self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"],
                              self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
-                             mosaic_detection=self.mosaic_detection)
+                             mosaic_detection=self.options.mosaic_detection)
+
+    def _clear_cache(self):
+        if self.models_cache is None:
+            return
+        if "mosaic_detection_model" in self.models_cache: del self.models_cache["mosaic_detection_model"]
+        if "mosaic_restoration_model" in self.models_cache: del self.models_cache["mosaic_restoration_model"]
+        gc.collect()
+        try:
+            torch.cuda.empty_cache()
+        except:
+            pass
+        self.models_cache = None
 
 class PassthroughFrameRestorer:
     def __init__(self, video_file):
@@ -104,3 +142,5 @@ class PassthroughFrameRestorer:
 
         def put(self, item, block=True, timeout=None):
             pass
+
+FRAME_RESTORER_PROVIDER = FrameRestorerProvider()

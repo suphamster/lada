@@ -32,9 +32,10 @@ class Config:
         self.max_clip_duration = self._defaults['max_clip_duration']
         self.device = self._defaults['device']
         self.mute_audio = self._defaults['mute_audio']
+        self.loaded = False
 
     def save(self):
-        config_file_path = get_config_file_path()
+        config_file_path = self.get_config_file_path()
         if not config_file_path.parent.exists():
             config_file_path.parent.mkdir(parents=True)
         with open(config_file_path, 'w') as f:
@@ -43,7 +44,7 @@ class Config:
             logger.info(f"Saved config file {config_file_path}: {config_dict}")
 
     def load_config(self):
-        config_file_path = get_config_file_path()
+        config_file_path = self.get_config_file_path()
         if not config_file_path.exists():
             logger.info(f"Config file doesn't exist at {config_file_path}")
             self.save()
@@ -54,6 +55,7 @@ class Config:
                 config_dict = json.load(f)
                 self._from_dict(config_dict)
                 logger.info(f"Loaded config file {config_file_path}: {config_dict}")
+                self.loaded = True
         except Exception as e:
             logger.error(f"Error loading config file {config_file_path}, falling back to defaults: {e}")
 
@@ -84,6 +86,8 @@ class Config:
     def get_default_detection_model(self):
         return self.get_default_value('mosaic_detection_model')
 
-def get_config_file_path() -> Path:
-    base_config_dir = GLib.get_user_config_dir()
-    return Path(base_config_dir).joinpath('lada').joinpath('lada.conf')
+    def get_config_file_path(self) -> Path:
+        base_config_dir = GLib.get_user_config_dir()
+        return Path(base_config_dir).joinpath('lada').joinpath('lada.conf')
+
+CONFIG = Config()

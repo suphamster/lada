@@ -200,16 +200,7 @@
                                     </object>
                                 </child>
                                 <property name="content">
-                                    <object class="AdwStatusPage" id="status_page_export_video">
-                                        <property name="title">Exporting restored video...</property>
-                                        <property name="icon-name">cafe-symbolic</property>
-                                        <child>
-                                            <object class="GtkProgressBar" id="progress_bar_file_export">
-                                                <property name="margin-start">20</property>
-                                                <property name="margin-end">20</property>
-                                            </object>
-                                        </child>
-                                    </object>
+                                    <object class="VideoExport" id="widget_video_export"></object>
                                 </property>
                             </object>
                         </property>

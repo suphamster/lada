@@ -1,10 +1,15 @@
 import os.path
 import pathlib
+from threading import Thread
 
 from gi.repository import Adw, Gtk, Gio, Gdk
 import lada.gui.video_preview
+import lada.gui.video_export
+from lada.gui.config import CONFIG
 from lada.gui.config_sidebar import ConfigSidebar
+from lada.gui.frame_restorer_provider import FrameRestorerOptions
 from lada.gui.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
+from lada.lib import video_utils
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -16,11 +21,10 @@ class MainWindow(Adw.ApplicationWindow):
     button_export_video = Gtk.Template.Child()
     toggle_button_preview_video = Gtk.Template.Child()
     widget_video_preview = Gtk.Template.Child()
+    widget_video_export = Gtk.Template.Child()
     spinner_video_preview = Gtk.Template.Child()
     stack = Gtk.Template.Child()
     stack_video_preview = Gtk.Template.Child()
-    progress_bar_file_export = Gtk.Template.Child()
-    status_page_export_video = Gtk.Template.Child()
     banner_no_gpu = Gtk.Template.Child()
     shortcut_controller = Gtk.Template.Child()
     config_sidebar: ConfigSidebar = Gtk.Template.Child()
@@ -29,6 +33,8 @@ class MainWindow(Adw.ApplicationWindow):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self._frame_restorer_options: FrameRestorerOptions | None = None
 
         # init drag-drop files
         drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
@@ -40,27 +46,37 @@ class MainWindow(Adw.ApplicationWindow):
         if self.config_sidebar.get_property('device') == 'cpu':
             self.banner_no_gpu.set_revealed(True)
 
-        self.widget_video_preview.set_property('mosaic-detection', self.config_sidebar.get_property('preview-mode') == 'mosaic-detection')
+        def on_preview_mode(*args):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection(CONFIG.preview_mode == 'mosaic-detection')
+        self.config_sidebar.connect("notify::preview-mode", on_preview_mode)
 
-        self.config_sidebar.connect("notify::preview-mode", lambda object, spec: self.widget_video_preview.set_property('mosaic-detection', object.get_property(spec.name) == 'mosaic-detection'))
+        def on_passthrough(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_passthrough(object.get_property(spec.name))
+        self.widget_video_preview.connect("notify::passthrough",on_passthrough)
 
-        self.widget_video_preview.set_property('passthrough', not self.toggle_button_preview_video.get_property("active"))
-        self.widget_video_preview.connect("notify::passthrough", lambda object, spec: self.toggle_button_preview_video.set_property('active', not object.get_property(spec.name)))
+        def on_device(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_device(CONFIG.device)
+        self.config_sidebar.connect("notify::device", on_device)
 
-        self.widget_video_preview.set_property('device', self.config_sidebar.get_property('device'))
-        self.config_sidebar.connect("notify::device", lambda object, spec: self.widget_video_preview.set_property('device', object.get_property(spec.name)))
+        def on_mosaic_restoration_model(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_restoration_model_name(CONFIG.mosaic_restoration_model)
+        self.config_sidebar.connect("notify::mosaic-restoration-model", on_mosaic_restoration_model)
 
-        self.widget_video_preview.set_property('mosaic-restoration-model', self.config_sidebar.get_property('mosaic-restoration-model'))
-        self.config_sidebar.connect("notify::mosaic-restoration-model", lambda object, spec: self.widget_video_preview.set_property('mosaic-restoration-model', object.get_property(spec.name)))
+        def on_mosaic_detection_model(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection_model_name(CONFIG.mosaic_detection_model)
+        self.config_sidebar.connect("notify::mosaic-detection-model", on_mosaic_detection_model)
 
-        self.widget_video_preview.set_property('mosaic-detection-model', self.config_sidebar.get_property('mosaic-detection-model'))
-        self.config_sidebar.connect("notify::mosaic-detection-model", lambda object, spec: self.widget_video_preview.set_property('mosaic-detection-model', object.get_property(spec.name)))
-
-        self.widget_video_preview.set_property('buffer-queue-min-thresh-time', self.config_sidebar.get_property('preview-buffer-duration'))
         self.config_sidebar.connect("notify::preview-buffer-duration", lambda object, spec: self.widget_video_preview.set_property('buffer-queue-min-thresh-time', object.get_property(spec.name)))
 
-        self.widget_video_preview.set_property('max-clip-length', self.config_sidebar.get_property('max-clip-duration'))
-        self.config_sidebar.connect("notify::max-clip-duration", lambda object, spec: self.widget_video_preview.set_property('max-clip-length', object.get_property(spec.name)))
+        def on_max_clip_duration(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(CONFIG.max_clip_duration)
+        self.config_sidebar.connect("notify::max-clip-duration", on_max_clip_duration)
 
         self.opened_file: Gio.File = None
         self.preview_close_handler_id = None
@@ -98,12 +114,22 @@ class MainWindow(Adw.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
-        passthrough = self.widget_video_preview.get_property("passthrough")
-        self.widget_video_preview.set_property('passthrough', not passthrough)
+        assert self._frame_restorer_options, "InvalidState: Preview/Passthrough button clicked but FrameRestorerOptions is null. The button should only be clickable if has been opened."
+        self.frame_restorer_options = self._frame_restorer_options.with_passthrough(not self._frame_restorer_options.passthrough)
 
     @Gtk.Template.Callback()
     def button_toggle_fullscreen_callback(self, button_clicked):
         self.toggle_fullscreen()
+
+    @property
+    def frame_restorer_options(self):
+        return self._frame_restorer_options
+
+    @frame_restorer_options.setter
+    def frame_restorer_options(self, value):
+        self._frame_restorer_options = value
+        if self.widget_video_preview:
+            self.widget_video_preview.set_property('frame-restorer-options', self._frame_restorer_options)
 
     def toggle_fullscreen(self, *args):
         if self.is_fullscreen():
@@ -161,6 +187,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_title(os.path.basename(file.get_path()))
         self.config_sidebar.set_property("disabled", True)
         self.toggle_button_preview_video.set_property("sensitive", False)
+        if not CONFIG.loaded: CONFIG.load_config()
+        self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
         self.switch_to_main_view()
 
         def show_spinner(*args):
@@ -182,30 +210,23 @@ class MainWindow(Adw.ApplicationWindow):
                 if self.preview_close_handler_id:
                     self.widget_video_preview.disconnect(self.preview_close_handler_id)
                     self.preview_close_handler_id = None
-                self.widget_video_preview.open_video_file(self.opened_file, self.config_sidebar.get_property("mute_audio"))
+                self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
 
             self.preview_close_handler_id = self.widget_video_preview.connect("video-preview-close-done", preview_open_file)
             self.widget_video_preview.close_video_file()
         else:
             self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
             self.widget_video_preview.connect("video-preview-reinit", show_spinner)
-            self.widget_video_preview.open_video_file(self.opened_file, self.config_sidebar.get_property("mute_audio"))
+            self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
 
     def start_export(self, file: Gio.File):
         self.stack.set_visible_child_name("file-export")
-
-        def show_video_export_success(obj):
-            print("finished exporting")
-            self.status_page_export_video.set_title("Finished video restoration!")
-            self.status_page_export_video.set_icon_name("check-round-outline2-symbolic")
-            self.progress_bar_file_export.set_fraction(1.0)
-
-        def on_video_export_progress(obj, progress):
-            self.progress_bar_file_export.set_fraction(progress)
-
-        self.widget_video_preview.connect("video-export-finished", show_video_export_success)
-        self.widget_video_preview.connect("video-export-progress", on_video_export_progress)
-        self.widget_video_preview.export_video(file.get_path(), self.config_sidebar.get_property("export_codec"), self.config_sidebar.get_property("export_crf"))
+        def run():
+            self.widget_video_preview.close(block=True)
+            if not CONFIG.loaded: CONFIG.load_config()
+            self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, False, False)
+            self.widget_video_export.export_video(file.get_path(), CONFIG.export_codec, CONFIG.export_crf, self._frame_restorer_options)
+        Thread(target=run).start()
 
     def switch_to_main_view(self):
         self.stack.set_visible_child_name("page_main")

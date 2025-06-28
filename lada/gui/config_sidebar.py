@@ -2,7 +2,7 @@ import pathlib
 
 from gi.repository import Gtk, GObject
 
-from lada.gui.config import Config
+from lada.gui.config import Config, CONFIG
 from lada.gui import utils
 from lada import get_available_restoration_models, get_available_detection_models
 
@@ -29,10 +29,9 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         super().__init__(**kwargs)
         self.init_done = False
         self.save_config = True
-        self.config = Config()
-        self.config.load_config()
+        if not CONFIG.loaded: CONFIG.load_config()
 
-        self.init_sidebar_from_config(self.config)
+        self.init_sidebar_from_config(CONFIG)
 
         self.init_done = True
 
@@ -103,120 +102,120 @@ class ConfigSidebar(Gtk.ScrolledWindow):
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def preview_mode(self):
-        return self.config.preview_mode
+        return CONFIG.preview_mode
 
     @preview_mode.setter
     def preview_mode(self, value):
-        if value == self.config.preview_mode:
+        if value == CONFIG.preview_mode:
             return
-        self.config.preview_mode = value
+        CONFIG.preview_mode = value
         self.notify('preview-mode')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def mosaic_restoration_model(self):
-        return self.config.mosaic_restoration_model
+        return CONFIG.mosaic_restoration_model
 
     @mosaic_restoration_model.setter
     def mosaic_restoration_model(self, value):
-        if value == self.config.mosaic_restoration_model:
+        if value == CONFIG.mosaic_restoration_model:
             return
-        self.config.mosaic_restoration_model = value
+        CONFIG.mosaic_restoration_model = value
         self.notify('mosaic-restoration-model')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def mosaic_detection_model(self):
-        return self.config.mosaic_detection_model
+        return CONFIG.mosaic_detection_model
 
     @mosaic_detection_model.setter
     def mosaic_detection_model(self, value):
-        if value == self.config.mosaic_detection_model:
+        if value == CONFIG.mosaic_detection_model:
             return
-        self.config.mosaic_detection_model = value
+        CONFIG.mosaic_detection_model = value
         self.notify('mosaic-detection-model')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def device(self):
-        return self.config.device
+        return CONFIG.device
 
     @device.setter
     def device(self, value):
-        if value == self.config.device:
+        if value == CONFIG.device:
             return
-        self.config.device = value
+        CONFIG.device = value
         self.notify('device')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def preview_buffer_duration(self):
-        return self.config.preview_buffer_duration
+        return CONFIG.preview_buffer_duration
 
     @preview_buffer_duration.setter
     def preview_buffer_duration(self, value):
-        if value == self.config.preview_buffer_duration:
+        if value == CONFIG.preview_buffer_duration:
             return
-        self.config.preview_buffer_duration = value
+        CONFIG.preview_buffer_duration = value
         self.notify('preview-buffer-duration')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def max_clip_duration(self):
-        return self.config.max_clip_duration
+        return CONFIG.max_clip_duration
 
     @max_clip_duration.setter
     def max_clip_duration(self, value):
-        if value == self.config.max_clip_duration:
+        if value == CONFIG.max_clip_duration:
             return
-        self.config.max_clip_duration = value
+        CONFIG.max_clip_duration = value
         self.notify('max-clip-duration')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def mute_audio(self):
-        return self.config.mute_audio
+        return CONFIG.mute_audio
 
     @mute_audio.setter
     def mute_audio(self, value):
-        if value == self.config.mute_audio:
+        if value == CONFIG.mute_audio:
             return
-        self.config.mute_audio = value
+        CONFIG.mute_audio = value
         self.notify('mute-audio')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def export_crf(self):
-        return self.config.export_crf
+        return CONFIG.export_crf
 
     @export_crf.setter
     def export_crf(self, value):
-        if value == self.config.export_crf:
+        if value == CONFIG.export_crf:
             return
-        self.config.export_crf = value
+        CONFIG.export_crf = value
         self.notify('export-crf')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property(flags=GObject.ParamFlags.READWRITE | GObject.ParamFlags.EXPLICIT_NOTIFY)
     def export_codec(self):
-        return self.config.export_codec
+        return CONFIG.export_codec
 
     @export_codec.setter
     def export_codec(self, value):
-        if value == self.config.export_codec:
+        if value == CONFIG.export_codec:
             return
-        self.config.export_codec = value
+        CONFIG.export_codec = value
         self.notify('export-codec')
         if self.save_config:
-            self.config.save()
+            CONFIG.save()
 
     @GObject.Property()
     def disabled(self):
@@ -315,7 +314,7 @@ class ConfigSidebar(Gtk.ScrolledWindow):
             self.export_crf = default_config.export_crf
             self.export_codec = default_config.export_codec
             self.mute_audio = default_config.mute_audio
-            self.init_sidebar_from_config(self.config)
-            self.config.save()
+            self.init_sidebar_from_config(CONFIG)
+            CONFIG.save()
         finally:
             self.save_config = True
