@@ -23,45 +23,9 @@
                             <object class="GtkStackPage">
                                 <property name="name">file-selection</property>
                                 <property name="child">
-                                    <object class="AdwToolbarView">
-                                        <child type="top">
-                                            <object class="AdwHeaderBar">
-                                                <property name="title-widget">
-                                                    <object class="AdwWindowTitle">
-                                                        <property name="title" bind-source="MainWindow" bind-property="title"/>
-                                                    </object>
-                                                </property>
-                                                <child type="end">
-                                                    <object class="GtkMenuButton">
-                                                        <property name="primary">True</property>
-                                                        <property name="icon-name">open-menu-symbolic</property>
-                                                        <property name="tooltip-text">Main Menu</property>
-                                                        <property name="menu-model">primary_menu</property>
-                                                    </object>
-                                                </child>
-                                            </object>
-                                        </child>
-                                        <property name="content">
-                                            <object class="AdwStatusPage">
-                                                <property name="title">Restore video</property>
-                                                <property name="description">Drag and drop a video here
-                                                </property>
-                                                <child>
-                                                    <object class="GtkButton" id="button_open_file">
-                                                        <property name="label">Open Video...</property>
-                                                        <signal name="clicked" handler="button_open_file_callback"/>
-                                                        <property name="halign">center</property>
-                                                        <style>
-                                                            <class name="suggested-action"/>
-                                                            <class name="pill"/>
-                                                        </style>
-                                                    </object>
-                                                </child>
-                                                <style>
-                                                    <class name="title-1"/>
-                                                </style>
-                                            </object>
-                                        </property>
+                                    <object class="FileSelectionView" id="file_selection_view">
+                                        <property name="application" bind-source="MainWindow" bind-property="application"/>
+                                        <property name="window-title" bind-source="MainWindow" bind-property="title"/>
                                     </object>
                                 </property>
                             </object>

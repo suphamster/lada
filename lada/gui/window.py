@@ -2,13 +2,14 @@ import os.path
 import pathlib
 from threading import Thread
 
-from gi.repository import Adw, Gtk, Gio, Gdk
-import lada.gui.video_preview
-import lada.gui.video_export
+from gi.repository import Adw, Gtk, Gio
 from lada.gui.config import CONFIG
 from lada.gui.config_sidebar import ConfigSidebar
+from lada.gui.file_selection_view import FileSelectionView
 from lada.gui.frame_restorer_provider import FrameRestorerOptions
 from lada.gui.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
+from lada.gui.video_export import VideoExport
+from lada.gui.video_preview import VideoPreview
 from lada.lib import video_utils
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -17,11 +18,11 @@ here = pathlib.Path(__file__).parent.resolve()
 class MainWindow(Adw.ApplicationWindow):
     __gtype_name__ = 'MainWindow'
 
-    button_open_file = Gtk.Template.Child()
+    file_selection_view: FileSelectionView = Gtk.Template.Child()
     button_export_video = Gtk.Template.Child()
     toggle_button_preview_video = Gtk.Template.Child()
-    widget_video_preview = Gtk.Template.Child()
-    widget_video_export = Gtk.Template.Child()
+    widget_video_preview: VideoPreview = Gtk.Template.Child()
+    widget_video_export: VideoExport = Gtk.Template.Child()
     spinner_video_preview = Gtk.Template.Child()
     stack = Gtk.Template.Child()
     stack_video_preview = Gtk.Template.Child()
@@ -36,13 +37,6 @@ class MainWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
 
         self._frame_restorer_options: FrameRestorerOptions | None = None
-
-        # init drag-drop files
-        drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
-        def on_connect_drop(drop_target, file: Gio.File, x, y):
-            self.open_file(file)
-        drop_target.connect("drop", on_connect_drop)
-        self.stack.add_controller(drop_target)
 
         if self.config_sidebar.get_property('device') == 'cpu':
             self.banner_no_gpu.set_revealed(True)
@@ -79,7 +73,7 @@ class MainWindow(Adw.ApplicationWindow):
                 self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(CONFIG.max_clip_duration)
         self.config_sidebar.connect("notify::max-clip-duration", on_max_clip_duration)
 
-        self.opened_file: Gio.File = None
+        self.opened_file: Gio.File | None = None
         self.preview_close_handler_id = None
 
         self.fullscreen_mouse_activity_controller = None
@@ -88,9 +82,6 @@ class MainWindow(Adw.ApplicationWindow):
         application = self.get_application()
 
         application.shortcuts.register_group("files", "Files")
-        def on_shortcut_open_file(*args):
-            self.show_open_dialog()
-        application.shortcuts.add("files", "open-file", "o", on_shortcut_open_file, "Open a video file")
         def on_shortcut_export_file(*args):
             if self.stack.get_visible_child_name() == "page_main" and self.stack_video_preview.get_visible_child() == self.widget_video_preview:
                 self.show_export_dialog()
@@ -105,9 +96,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.connect("close-request", self.close)
 
-    @Gtk.Template.Callback()
-    def button_open_file_callback(self, button_clicked):
-        self.show_open_dialog()
+        self.file_selection_view.connect("file-selected", lambda obj, file: self.open_file(file))
 
     @Gtk.Template.Callback()
     def button_export_video_callback(self, button_clicked):
@@ -162,14 +151,6 @@ class MainWindow(Adw.ApplicationWindow):
         self.widget_video_preview.on_fullscreened(fullscreened)
         self.fullscreen_mouse_activity_controller.on_fullscreened(fullscreened)
         self.fullscreen_mouse_activity_controller.connect("notify::fullscreen-activity", lambda object, spec: self.on_fullscreen_activity(object.get_property(spec.name)))
-
-    def show_open_dialog(self):
-        file_dialog = Gtk.FileDialog()
-        video_file_filter = Gtk.FileFilter()
-        video_file_filter.add_mime_type("video/*")
-        file_dialog.set_default_filter(video_file_filter)
-        file_dialog.set_title("Select a video file")
-        file_dialog.open(callback=lambda dialog, result: self.open_file(dialog.open_finish(result)))
 
     def show_export_dialog(self):
         self.widget_video_preview.pause_if_currently_playing()
