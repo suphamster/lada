@@ -54,6 +54,9 @@ class LadaApplication(Adw.Application):
     def on_about_action(self, *args):
         about = Adw.AboutDialog(application_name='lada',
                                 application_icon='io.github.ladaapp.lada',
+                                license_type=Gtk.License.AGPL_3_0,
+                                website='https://github.com/ladaapp',
+                                issue_url='https://github.com/ladaapp/issues',
                                 version=VERSION)
         about.present(self.props.active_window)
 

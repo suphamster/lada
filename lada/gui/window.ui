@@ -213,12 +213,12 @@
     <menu id="primary_menu">
         <section>
             <item>
-                <attribute name="label">About</attribute>
-                <attribute name="action">app.about</attribute>
+                <attribute name="label">Keyboard Shortcuts</attribute>
+                <attribute name="action">app.shortcuts</attribute>
             </item>
             <item>
-                <attribute name="label">Shortcuts</attribute>
-                <attribute name="action">app.shortcuts</attribute>
+                <attribute name="label">About Lada</attribute>
+                <attribute name="action">app.about</attribute>
             </item>
         </section>
     </menu>
