@@ -30,6 +30,7 @@ class MainWindow(Adw.ApplicationWindow):
     config_sidebar: ConfigSidebar = Gtk.Template.Child()
     header_bar: Adw.HeaderBar = Gtk.Template.Child()
     button_toggle_fullscreen: Gtk.Button = Gtk.Template.Child()
+    toast_overlay: Adw.ToastOverlay = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -217,16 +218,24 @@ class MainWindow(Adw.ApplicationWindow):
         self.config_sidebar.set_property("disabled", True)
         self.toggle_button_preview_video.set_property("sensitive", False)
         if not CONFIG.loaded: CONFIG.load_config()
-        self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
-        self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
+        try:
+            self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
+            self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
+        except Exception as e:
+            self.toast_overlay.add_toast(Adw.Toast.new(f"Error opening file: {e}"))
+            raise e
 
     def start_export(self, file: Gio.File):
         self.stack.set_visible_child_name("file-export")
         def run():
             self.widget_video_preview.close(block=True)
             if not CONFIG.loaded: CONFIG.load_config()
-            self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, False, False)
-            self.widget_video_export.export_video(file.get_path(), CONFIG.export_codec, CONFIG.export_crf, self._frame_restorer_options)
+            try:
+                self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, False, False)
+                self.widget_video_export.export_video(file.get_path(), CONFIG.export_codec, CONFIG.export_crf, self._frame_restorer_options)
+            except Exception as e:
+                self.toast_overlay.add_toast(Adw.Toast.new(f"Error exporting file: {e}"))
+                raise e
         Thread(target=run).start()
 
     def switch_to_main_view(self):
