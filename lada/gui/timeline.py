@@ -1,8 +1,15 @@
 import pathlib
+from dataclasses import dataclass
 
 from gi.repository import Gtk, GObject, Gdk, Graphene, Gsk, Adw
 
 here = pathlib.Path(__file__).parent.resolve()
+
+@dataclass
+class TimelineColors:
+    timeline_color: Gdk.RGBA()
+    playhead_color: Gdk.RGBA()
+    cursor_color: Gdk.RGBA()
 
 @Gtk.Template(filename=here / 'timeline.ui')
 class Timeline(Gtk.Widget):
@@ -99,7 +106,7 @@ class Timeline(Gtk.Widget):
         self.queue_draw()
         self.emit('cursor_position_changed', cursor_position)
 
-    def do_snapshot(self, s):
+    def do_snapshot(self, s: Gtk.Snapshot):
         """
         AFAIK, it's currently only possible to get the accent color programmatically. Other colors need apparently be to be
         hardcoded and pray that it somewhat matches the documented Adwaita colors (unless another theme is used)
@@ -111,6 +118,44 @@ class Timeline(Gtk.Widget):
 
         playhead_position_x = min(int((self._playhead_position / self._duration) * width), width - 1) if self._duration > 0 else 0
 
+        colors = self.get_timeline_colors()
+
+        cursor_width = 2
+        playhead_width = 4
+        border_radius = 10
+
+        clip_rect = Graphene.Rect().init(0, 0, width, height)
+        rounded_clip_rect = Gsk.RoundedRect()
+        rounded_clip_rect.init_from_rect(clip_rect, border_radius)
+        s.push_rounded_clip(rounded_clip_rect)
+
+        background_rect = Graphene.Rect().init(0, 0, width, height)
+        background_rounded_rect = Gsk.RoundedRect()
+        background_rounded_rect.init_from_rect(background_rect, border_radius)
+        s.push_rounded_clip(background_rounded_rect)
+        s.append_color(colors.timeline_color, background_rect)
+        s.pop()
+
+        playhead_rect_x = playhead_position_x - (playhead_width // 2)
+        if playhead_rect_x < 0:
+            playhead_rect_x = 0
+        elif playhead_rect_x + playhead_width > width:
+            playhead_rect_x = width - cursor_width
+        playhead_rect = Graphene.Rect().init(playhead_rect_x, 0, playhead_width, height)
+        s.append_color(colors.playhead_color, playhead_rect)
+
+        if self.cursor_position_x:
+            cursor_rect_x = self.cursor_position_x - (cursor_width // 2)
+            if cursor_rect_x < 0:
+                cursor_rect_x = 0
+            elif cursor_rect_x + cursor_width > width:
+                cursor_rect_x = width - cursor_width
+            cursor_rect = Graphene.Rect().init(cursor_rect_x, 0, cursor_width, height)
+            s.append_color(colors.cursor_color, cursor_rect)
+
+        s.pop()
+
+    def get_timeline_colors(self) -> TimelineColors:
         if self.style_manager:
             playhead_color = self.style_manager.get_accent_color()
             uses_dark_scheme = bool(self.style_manager.get_dark())
@@ -134,37 +179,4 @@ class Timeline(Gtk.Widget):
             timeline_color.parse("#0000001a")
             cursor_color.parse("#000000ff")
 
-        cursor_width = 2
-        playhead_width = 4
-        before_width = playhead_position_x - playhead_width // 2
-        after_width = width - playhead_width - before_width
-
-        rect_height = height
-
-        rounded_corner = Graphene.Size()
-        rounded_corner.init(10, 10)
-        regular_corner = Graphene.Size()
-        regular_corner.init(0, 0)
-
-        before = Graphene.Rect().init(0, 0, before_width, rect_height)
-        before_rounded = Gsk.RoundedRect()
-        before_rounded.init(before, rounded_corner, regular_corner, regular_corner, rounded_corner)
-        s.push_rounded_clip(before_rounded)
-        s.append_color(timeline_color, before)
-        s.pop()
-
-        playhead_position = Graphene.Rect().init(before_width, 0, playhead_width, rect_height)
-        s.append_color(playhead_color, playhead_position)
-
-        after = Graphene.Rect().init(before_width + playhead_width, 0, after_width,rect_height)
-        after_rounded = Gsk.RoundedRect()
-        after_rounded.init(after, regular_corner, rounded_corner, rounded_corner, regular_corner)
-        s.push_rounded_clip(after_rounded)
-        s.append_color(timeline_color, after)
-        s.pop()
-
-        if self.cursor_position_x:
-            x = self.cursor_position_x - (cursor_width // 2)
-            width = width - x if x + cursor_width > width else cursor_width
-            cursor_position = Graphene.Rect().init(x, 0, width, rect_height)
-            s.append_color(cursor_color, cursor_position)
+        return TimelineColors(timeline_color, playhead_color, cursor_color)
