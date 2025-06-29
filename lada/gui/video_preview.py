@@ -222,6 +222,8 @@ class VideoPreview(Gtk.Widget):
         if not self.pipeline:
             return
         def stop_pipeline():
+            if self.audio_volume:
+                self.audio_volume.set_property("mute", True)
             self.pipeline.set_state(Gst.State.NULL)
             self.lada_appsrc.stop()
             self._video_preview_init_done = False
@@ -271,6 +273,7 @@ class VideoPreview(Gtk.Widget):
         self.lada_appsrc.reinit(self.video_metadata)
         if self.has_audio:
             if audio_pipeline_already_added:
+                self.audio_volume.set_property("mute", mute_audio)
                 self.audio_uridecodebin.set_property('uri', pathlib.Path(self.video_metadata.video_file).resolve().as_uri())
             else:
                 self.pipeline_add_audio(mute_audio)

@@ -181,43 +181,44 @@ class MainWindow(Adw.ApplicationWindow):
         file_dialog.set_initial_name(f"{os.path.splitext(self.opened_file.get_basename())[0]}.restored.mp4")
         file_dialog.save(callback=lambda dialog, result: self.start_export(dialog.save_finish(result)))
 
-    def open_file(self, file: Gio.File):
-        file_changed = self.opened_file is not None
-        self.opened_file = file
-        self.set_title(os.path.basename(file.get_path()))
+    def _show_spinner(self, *args):
         self.config_sidebar.set_property("disabled", True)
         self.toggle_button_preview_video.set_property("sensitive", False)
-        if not CONFIG.loaded: CONFIG.load_config()
-        self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
+        self.stack_video_preview.set_visible_child(self.spinner_video_preview)
+
+    def _show_video_preview(self, *args):
+        self.config_sidebar.set_property("disabled", False)
+        self.toggle_button_preview_video.set_property("sensitive", True)
+        self.stack_video_preview.set_visible_child(self.widget_video_preview)
+        self.widget_video_preview.grab_focus()
+
+    def open_file(self, file: Gio.File):
         self.switch_to_main_view()
-
-        def show_spinner(*args):
-            self.config_sidebar.set_property("disabled", True)
-            self.toggle_button_preview_video.set_property("sensitive", False)
-            self.stack_video_preview.set_visible_child(self.spinner_video_preview)
-
-        def show_video_preview(*args):
-            self.config_sidebar.set_property("disabled", False)
-            self.toggle_button_preview_video.set_property("sensitive", True)
-            self.stack_video_preview.set_visible_child(self.widget_video_preview)
-            self.widget_video_preview.grab_focus()
-
-        if self.stack_video_preview.get_visible_child() == self.widget_video_preview:
-            show_spinner()
+        self._show_spinner()
+        file_changed = self.opened_file is not None
 
         if file_changed:
             def preview_open_file(*args):
                 if self.preview_close_handler_id:
                     self.widget_video_preview.disconnect(self.preview_close_handler_id)
                     self.preview_close_handler_id = None
-                self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
+                self._open_file(file)
 
             self.preview_close_handler_id = self.widget_video_preview.connect("video-preview-close-done", preview_open_file)
             self.widget_video_preview.close_video_file()
         else:
-            self.widget_video_preview.connect("video-preview-init-done", show_video_preview)
-            self.widget_video_preview.connect("video-preview-reinit", show_spinner)
-            self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
+            self.widget_video_preview.connect("video-preview-init-done", self._show_video_preview)
+            self.widget_video_preview.connect("video-preview-reinit", self._show_spinner)
+            self._open_file(file)
+
+    def _open_file(self, file: Gio.File):
+        self.opened_file = file
+        self.set_title(os.path.basename(file.get_path()))
+        self.config_sidebar.set_property("disabled", True)
+        self.toggle_button_preview_video.set_property("sensitive", False)
+        if not CONFIG.loaded: CONFIG.load_config()
+        self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
+        self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
 
     def start_export(self, file: Gio.File):
         self.stack.set_visible_child_name("file-export")
