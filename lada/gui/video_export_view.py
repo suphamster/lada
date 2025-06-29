@@ -4,8 +4,9 @@ import pathlib
 import tempfile
 import threading
 
-from gi.repository import Gtk, GObject
+from gi.repository import Gtk, GObject, Adw, Gio
 
+from lada.gui.config import CONFIG
 from lada.lib import audio_utils, video_utils
 from lada import LOG_LEVEL
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
@@ -15,17 +16,55 @@ here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-@Gtk.Template(filename=here / 'video_export.ui')
-class VideoExport(Gtk.Widget):
-    __gtype_name__ = 'VideoExport'
+@Gtk.Template(filename=here / 'video_export_view.ui')
+class VideoExportView(Gtk.Widget):
+    __gtype_name__ = 'VideoExportView'
 
+    status_page = Gtk.Template.Child()
     progress_bar_file_export = Gtk.Template.Child()
-    status_page_export_video = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self._application: Adw.Application | None = None
+        self._window_title: str | None = None
+        self._opened_file: Gio.File | None = None
+
         self.connect("video-export-finished", self.show_video_export_success)
         self.connect("video-export-progress", self.on_video_export_progress)
+
+    @GObject.Property(type=Adw.Application)
+    def application(self):
+        return self._application
+
+    @application.setter
+    def application(self, value):
+        self._application = value
+        self._setup_shortcuts()
+
+    @GObject.Property(type=str)
+    def window_title(self):
+        return self._window_title
+
+    @window_title.setter
+    def window_title(self, value):
+        self._window_title = value
+
+    @GObject.Property(type=Gio.File)
+    def opened_file(self):
+        return self._opened_file
+
+    @opened_file.setter
+    def opened_file(self, value):
+        self._opened_file = value
+
+    @GObject.Signal(name="video-export-dialog-opened")
+    def video_export_dialog_opened_signal(self):
+        pass
+
+    @GObject.Signal(name="video-export-requested")
+    def video_export_requested_signal(self, file: Gio.File):
+        pass
 
     @GObject.Signal(name="video-export-finished")
     def video_export_finished_signal(self):
@@ -35,13 +74,28 @@ class VideoExport(Gtk.Widget):
     def video_export_progress_signal(self, status: float):
         pass
 
+    def _setup_shortcuts(self):
+        self._application.shortcuts.register_group("files", "Files")
+        self._application.shortcuts.add("files", "export-file", "e", lambda *args: self.show_export_dialog(), "Export recovered video")
+
     def show_video_export_success(self, obj):
-        self.status_page_export_video.set_title("Finished video restoration!")
-        self.status_page_export_video.set_icon_name("check-round-outline2-symbolic")
+        self.status_page.set_title("Finished video restoration!")
+        self.status_page.set_icon_name("check-round-outline2-symbolic")
         self.progress_bar_file_export.set_fraction(1.0)
 
     def on_video_export_progress(self, obj, progress):
         self.progress_bar_file_export.set_fraction(progress)
+
+    def show_export_dialog(self):
+        file_dialog = Gtk.FileDialog()
+        video_file_filter = Gtk.FileFilter()
+        video_file_filter.add_mime_type("video/*")
+        file_dialog.set_default_filter(video_file_filter)
+        file_dialog.set_title("Save restored video file")
+        file_dialog.set_initial_folder(self._opened_file.get_parent())
+        file_dialog.set_initial_name(f"{os.path.splitext(self._opened_file.get_basename())[0]}.restored.mp4")
+        file_dialog.save(callback=lambda dialog, result: self.emit("video-export-requested", dialog.save_finish(result)))
+        self.emit("video-export-dialog-opened")
 
     def export_video(self, output_file_path: str, video_codec, crf, frame_restorer_options: FrameRestorerOptions):
         def run_export():
@@ -86,3 +140,8 @@ class VideoExport(Gtk.Widget):
 
         exporter_thread = threading.Thread(target=run_export)
         exporter_thread.start()
+
+    def start_export(self, file: Gio.File):
+        if not CONFIG.loaded: CONFIG.load_config()
+        frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, False, False)
+        self.export_video(file.get_path(), CONFIG.export_codec, CONFIG.export_crf, frame_restorer_options)

@@ -147,27 +147,10 @@
                             <object class="GtkStackPage">
                                 <property name="name">file-export</property>
                                 <property name="child">
-                                    <object class="AdwToolbarView">
-                                        <child type="top">
-                                            <object class="AdwHeaderBar">
-                                                <property name="title-widget">
-                                                    <object class="AdwWindowTitle">
-                                                        <property name="title" bind-source="MainWindow" bind-property="title"/>
-                                                    </object>
-                                                </property>
-                                                <child type="end">
-                                                    <object class="GtkMenuButton">
-                                                        <property name="primary">True</property>
-                                                        <property name="icon-name">open-menu-symbolic</property>
-                                                        <property name="tooltip-text">Main Menu</property>
-                                                        <property name="menu-model">primary_menu</property>
-                                                    </object>
-                                                </child>
-                                            </object>
-                                        </child>
-                                        <property name="content">
-                                            <object class="VideoExport" id="widget_video_export"></object>
-                                        </property>
+                                    <object class="VideoExportView" id="video_export_view">
+                                        <property name="application" bind-source="MainWindow" bind-property="application"/>
+                                        <property name="window-title" bind-source="MainWindow" bind-property="title"/>
+                                        <property name="opened-file" bind-source="MainWindow" bind-property="opened-file"/>
                                     </object>
                                 </property>
                             </object>

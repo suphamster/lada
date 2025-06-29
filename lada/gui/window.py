@@ -1,14 +1,13 @@
 import os.path
 import pathlib
-from threading import Thread
 
-from gi.repository import Adw, Gtk, Gio
+from gi.repository import Adw, Gtk, Gio, GObject
 from lada.gui.config import CONFIG
 from lada.gui.config_sidebar import ConfigSidebar
 from lada.gui.file_selection_view import FileSelectionView
 from lada.gui.frame_restorer_provider import FrameRestorerOptions
 from lada.gui.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
-from lada.gui.video_export import VideoExport
+from lada.gui.video_export_view import VideoExportView
 from lada.gui.video_preview import VideoPreview
 from lada.lib import video_utils
 
@@ -19,10 +18,10 @@ class MainWindow(Adw.ApplicationWindow):
     __gtype_name__ = 'MainWindow'
 
     file_selection_view: FileSelectionView = Gtk.Template.Child()
+    video_export_view: VideoExportView = Gtk.Template.Child()
     button_export_video = Gtk.Template.Child()
     toggle_button_preview_video = Gtk.Template.Child()
     widget_video_preview: VideoPreview = Gtk.Template.Child()
-    widget_video_export: VideoExport = Gtk.Template.Child()
     spinner_video_preview = Gtk.Template.Child()
     stack = Gtk.Template.Child()
     stack_video_preview = Gtk.Template.Child()
@@ -73,19 +72,13 @@ class MainWindow(Adw.ApplicationWindow):
                 self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(CONFIG.max_clip_duration)
         self.config_sidebar.connect("notify::max-clip-duration", on_max_clip_duration)
 
-        self.opened_file: Gio.File | None = None
+        self._opened_file: Gio.File | None = None
         self.preview_close_handler_id = None
 
         self.fullscreen_mouse_activity_controller = None
         self.connect("notify::fullscreened", lambda object, spec: self.on_fullscreened(object.get_property(spec.name)))
 
         application = self.get_application()
-
-        application.shortcuts.register_group("files", "Files")
-        def on_shortcut_export_file(*args):
-            if self.stack.get_visible_child_name() == "page_main" and self.stack_video_preview.get_visible_child() == self.widget_video_preview:
-                self.show_export_dialog()
-        application.shortcuts.add("files", "export-file", "e", on_shortcut_export_file, "Export recovered video")
 
         application.shortcuts.register_group("preview", "Preview")
         def on_shortcut_preview_toggle(*args):
@@ -97,10 +90,20 @@ class MainWindow(Adw.ApplicationWindow):
         self.connect("close-request", self.close)
 
         self.file_selection_view.connect("file-selected", lambda obj, file: self.open_file(file))
+        self.video_export_view.connect("video-export-requested", lambda obj, file: self.on_video_export_requested(file))
+        self.video_export_view.connect("video-export-dialog-opened", lambda *args: self.widget_video_preview.pause_if_currently_playing())
+
+    @GObject.Property(type=Gio.File)
+    def opened_file(self):
+        return self._opened_file
+
+    @opened_file.setter
+    def opened_file(self, value):
+        self._opened_file = value
 
     @Gtk.Template.Callback()
     def button_export_video_callback(self, button_clicked):
-        self.show_export_dialog()
+        self.video_export_view.show_export_dialog()
 
     @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
@@ -127,6 +130,11 @@ class MainWindow(Adw.ApplicationWindow):
         else:
             self.fullscreen()
 
+    def on_video_export_requested(self, file: Gio.File):
+        self.stack.set_visible_child_name("file-export")
+        self.widget_video_preview.close(block=True)
+        self.video_export_view.start_export(file)
+
     def on_fullscreen_activity(self, fullscreen_activity: bool):
         if fullscreen_activity:
             self.header_bar.set_visible(True)
@@ -152,17 +160,6 @@ class MainWindow(Adw.ApplicationWindow):
         self.fullscreen_mouse_activity_controller.on_fullscreened(fullscreened)
         self.fullscreen_mouse_activity_controller.connect("notify::fullscreen-activity", lambda object, spec: self.on_fullscreen_activity(object.get_property(spec.name)))
 
-    def show_export_dialog(self):
-        self.widget_video_preview.pause_if_currently_playing()
-        file_dialog = Gtk.FileDialog()
-        video_file_filter = Gtk.FileFilter()
-        video_file_filter.add_mime_type("video/*")
-        file_dialog.set_default_filter(video_file_filter)
-        file_dialog.set_title("Save restored video file")
-        file_dialog.set_initial_folder(self.opened_file.get_parent())
-        file_dialog.set_initial_name(f"{os.path.splitext(self.opened_file.get_basename())[0]}.restored.mp4")
-        file_dialog.save(callback=lambda dialog, result: self.start_export(dialog.save_finish(result)))
-
     def _show_spinner(self, *args):
         self.config_sidebar.set_property("disabled", True)
         self.toggle_button_preview_video.set_property("sensitive", False)
@@ -177,7 +174,7 @@ class MainWindow(Adw.ApplicationWindow):
     def open_file(self, file: Gio.File):
         self.switch_to_main_view()
         self._show_spinner()
-        file_changed = self.opened_file is not None
+        file_changed = self._opened_file is not None
 
         if file_changed:
             def preview_open_file(*args):
@@ -200,24 +197,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.toggle_button_preview_video.set_property("sensitive", False)
         if not CONFIG.loaded: CONFIG.load_config()
         try:
-            self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
-            self.widget_video_preview.open_video_file(self.opened_file, CONFIG.mute_audio)
+            self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
+            self.widget_video_preview.open_video_file(self._opened_file, CONFIG.mute_audio)
         except Exception as e:
             self.toast_overlay.add_toast(Adw.Toast.new(f"Error opening file: {e}"))
             raise e
-
-    def start_export(self, file: Gio.File):
-        self.stack.set_visible_child_name("file-export")
-        def run():
-            self.widget_video_preview.close(block=True)
-            if not CONFIG.loaded: CONFIG.load_config()
-            try:
-                self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, False, False)
-                self.widget_video_export.export_video(file.get_path(), CONFIG.export_codec, CONFIG.export_crf, self._frame_restorer_options)
-            except Exception as e:
-                self.toast_overlay.add_toast(Adw.Toast.new(f"Error exporting file: {e}"))
-                raise e
-        Thread(target=run).start()
 
     def switch_to_main_view(self):
         self.stack.set_visible_child_name("page_main")
