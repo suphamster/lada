@@ -9,7 +9,7 @@ gi.require_version('Adw', '1')
 gi.require_version('Gst', '1.0')
 gi.require_version('GstApp', '1.0')
 
-from gi.repository import Gtk, Gio, Adw, Gdk, Gst
+from gi.repository import Gtk, Gio, Adw, Gdk, Gst, GObject
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -32,18 +32,30 @@ class LadaApplication(Adw.Application):
         resource = Gio.resource_load(str(here.joinpath('resources.gresource')))
         Gio.resources_register(resource)
 
-        self.shortcuts = ShortcutsManager(self)
-
-        self.window = None
+        self._shortcuts_manager: ShortcutsManager = ShortcutsManager()
+        self.window: MainWindow | None = None
 
         Gst.init(None)
+
+    @GObject.Property(type=ShortcutsManager)
+    def shortcuts_manager(self):
+        return self._shortcuts_manager
+
+    @shortcuts_manager.setter
+    def shortcuts_manager(self, value):
+        self._shortcuts_manager = value
 
     def do_activate(self):
         win = self.props.active_window
         if not win:
             win = MainWindow(application=self)
+            self.bind_property("style-manager", win.widget_video_preview.widget_timeline, "style-manager", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("shortcuts-manager", win.widget_video_preview, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("shortcuts-manager", win.video_export_view, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("shortcuts-manager", win.file_selection_view, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
             self.window = win
-            self.shortcuts.init(win.shortcut_controller)
+
+            self._shortcuts_manager.init(win.shortcut_controller)
         win.present()
 
     def on_close(self, *args):
@@ -61,7 +73,7 @@ class LadaApplication(Adw.Application):
         about.present(self.props.active_window)
 
     def on_shortcut_action(self, *args):
-        shortcuts_window = ShortcutsWindow(self)
+        shortcuts_window = ShortcutsWindow(self._shortcuts_manager)
         shortcuts_window.show()
 
     def create_action(self, name, callback, shortcuts=None):

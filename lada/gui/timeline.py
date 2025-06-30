@@ -15,14 +15,13 @@ class TimelineColors:
 class Timeline(Gtk.Widget):
     __gtype_name__ = 'Timeline'
 
-    @GObject.Property(type=Adw.Application)
-    def application(self):
-        return self._application
+    @GObject.Property(type=Adw.StyleManager)
+    def style_manager(self):
+        return self._style_manager
 
-    @application.setter
-    def application(self, value):
-        self._application = value
-        self.style_manager = value.get_property("style-manager")
+    @style_manager.setter
+    def style_manager(self, value):
+        self._style_manager = value
 
     @GObject.Property()
     def duration(self):
@@ -51,7 +50,6 @@ class Timeline(Gtk.Widget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._application = None
         self._playhead_position = 0
         self.cursor_position_x: int | None = None
         self._duration = 0
@@ -72,7 +70,7 @@ class Timeline(Gtk.Widget):
         event_controller_motion.connect("motion", lambda _, x, y: self.update_cursor_position(x))
         self.add_controller(event_controller_motion)
 
-        self.style_manager = None
+        self._style_manager = None
 
     def update_duration(self, value):
         self._duration = value
@@ -156,9 +154,9 @@ class Timeline(Gtk.Widget):
         s.pop()
 
     def get_timeline_colors(self) -> TimelineColors:
-        if self.style_manager:
-            playhead_color = self.style_manager.get_accent_color()
-            uses_dark_scheme = bool(self.style_manager.get_dark())
+        if self._style_manager:
+            playhead_color = self._style_manager.get_accent_color()
+            uses_dark_scheme = bool(self._style_manager.get_dark())
         else:
             playhead_color = Adw.AccentColor.BLUE
             uses_dark_scheme = False

@@ -4,9 +4,10 @@ import pathlib
 import tempfile
 import threading
 
-from gi.repository import Gtk, GObject, Adw, Gio
+from gi.repository import Gtk, GObject, Gio
 
 from lada.gui.config import CONFIG
+from lada.gui.shortcuts import ShortcutsManager
 from lada.lib import audio_utils, video_utils
 from lada import LOG_LEVEL
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
@@ -26,20 +27,20 @@ class VideoExportView(Gtk.Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._application: Adw.Application | None = None
+        self._shortcuts_manager: ShortcutsManager | None = None
         self._window_title: str | None = None
         self._opened_file: Gio.File | None = None
 
         self.connect("video-export-finished", self.show_video_export_success)
         self.connect("video-export-progress", self.on_video_export_progress)
 
-    @GObject.Property(type=Adw.Application)
-    def application(self):
-        return self._application
+    @GObject.Property(type=ShortcutsManager)
+    def shortcuts_manager(self):
+        return self._shortcuts_manager
 
-    @application.setter
-    def application(self, value):
-        self._application = value
+    @shortcuts_manager.setter
+    def shortcuts_manager(self, value):
+        self._shortcuts_manager = value
         self._setup_shortcuts()
 
     @GObject.Property(type=str)
@@ -75,8 +76,8 @@ class VideoExportView(Gtk.Widget):
         pass
 
     def _setup_shortcuts(self):
-        self._application.shortcuts.register_group("files", "Files")
-        self._application.shortcuts.add("files", "export-file", "e", lambda *args: self.show_export_dialog(), "Export recovered video")
+        self._shortcuts_manager.register_group("files", "Files")
+        self._shortcuts_manager.add("files", "export-file", "e", lambda *args: self.show_export_dialog(), "Export recovered video")
 
     def show_video_export_success(self, obj):
         self.status_page.set_title("Finished video restoration!")

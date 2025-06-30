@@ -80,12 +80,12 @@ class MainWindow(Adw.ApplicationWindow):
 
         application = self.get_application()
 
-        application.shortcuts.register_group("preview", "Preview")
+        application.shortcuts_manager.register_group("preview", "Preview")
         def on_shortcut_preview_toggle(*args):
             if self.stack.get_visible_child_name() == "page_main" and self.stack_video_preview.get_visible_child() == self.widget_video_preview:
                 self.toggle_button_preview_video_callback(self.toggle_button_preview_video)
-        application.shortcuts.add("preview", "toggle-preview", "p", on_shortcut_preview_toggle, "Enable/Disable preview mode")
-        application.shortcuts.add("preview", "toggle-fullscreen", "<Ctrl>f", self.toggle_fullscreen, "Enable/Disable fullscreen")
+        application.shortcuts_manager.add("preview", "toggle-preview", "p", on_shortcut_preview_toggle, "Enable/Disable preview mode")
+        application.shortcuts_manager.add("preview", "toggle-fullscreen", "<Ctrl>f", self.toggle_fullscreen, "Enable/Disable fullscreen")
 
         self.connect("close-request", self.close)
 

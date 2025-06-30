@@ -24,7 +24,6 @@
                                 <property name="name">file-selection</property>
                                 <property name="child">
                                     <object class="FileSelectionView" id="file_selection_view">
-                                        <property name="application" bind-source="MainWindow" bind-property="application"/>
                                         <property name="window-title" bind-source="MainWindow" bind-property="title"/>
                                     </object>
                                 </property>
@@ -117,8 +116,6 @@
                                                                 <property name="visible-child">spinner_video_preview</property>
                                                                 <child>
                                                                     <object class="VideoPreview" id="widget_video_preview">
-                                                                        <property name="application" bind-source="MainWindow"
-                                                                                  bind-property="application"/>
                                                                     </object>
                                                                 </child>
                                                                 <child>
@@ -148,7 +145,6 @@
                                 <property name="name">file-export</property>
                                 <property name="child">
                                     <object class="VideoExportView" id="video_export_view">
-                                        <property name="application" bind-source="MainWindow" bind-property="application"/>
                                         <property name="window-title" bind-source="MainWindow" bind-property="title"/>
                                         <property name="opened-file" bind-source="MainWindow" bind-property="opened-file"/>
                                     </object>

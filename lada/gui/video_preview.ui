@@ -98,9 +98,7 @@
                 </child>
 
                 <child>
-                    <object class="Timeline" id="widget_timeline">
-                        <property name="application" bind-source="VideoPreview" bind-property="application"/>
-                    </object>
+                    <object class="Timeline" id="widget_timeline"/>
                 </child>
             </object>
         </child>

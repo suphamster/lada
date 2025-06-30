@@ -1,13 +1,11 @@
 import logging
-import os
 import pathlib
-import tempfile
 import threading
-import time
 import sys
 
-from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
+from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp
 
+from lada.gui.shortcuts import ShortcutsManager
 from lada.gui.timeline import Timeline
 from lada.lib import audio_utils, video_utils
 from lada import LOG_LEVEL
@@ -44,7 +42,7 @@ class VideoPreview(Gtk.Widget):
         self._buffer_queue_min_thresh_time_auto_min = 2.
         self._buffer_queue_min_thresh_time_auto_max = 10.
         self._buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
-        self._application: Adw.Application | None = None
+        self._shortcuts_manager: ShortcutsManager | None = None
 
         self.video_sink = None
         self.audio_uridecodebin: Gst.UriDecodeBin | None = None
@@ -108,13 +106,13 @@ class VideoPreview(Gtk.Widget):
         if self._video_preview_init_done:
             self.update_gst_buffers()
 
-    @GObject.Property(type=Adw.Application)
-    def application(self):
-        return self._application
+    @GObject.Property(type=ShortcutsManager)
+    def shortcuts_manager(self):
+        return self._shortcuts_manager
 
-    @application.setter
-    def application(self, value):
-        self._application = value
+    @shortcuts_manager.setter
+    def shortcuts_manager(self, value):
+        self._shortcuts_manager = value
         self._setup_shortcuts()
 
     def on_fullscreen_activity(self, fullscreen_activity: bool):
@@ -177,8 +175,7 @@ class VideoPreview(Gtk.Widget):
         self.button_image_mute_unmute.set_property("icon-name", icon_name)
 
     def update_gst_buffers(self):
-        buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
-        buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
+        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_gst_buffer_bounds()
 
         self.video_buffer_queue.set_property('max-size-time', buffer_queue_max_thresh_time * Gst.SECOND)
         self.video_buffer_queue.set_property('min-threshold-time', buffer_queue_min_thresh_time * Gst.SECOND)
@@ -294,7 +291,7 @@ class VideoPreview(Gtk.Widget):
             self.buffer_queue_min_thresh_time_auto *= 1.5
             self.update_gst_buffers()
 
-    def get_initial_buffer_queue_thresholds(self):
+    def get_gst_buffer_bounds(self):
         buffer_queue_min_thresh_time = self._buffer_queue_min_thresh_time if self._buffer_queue_min_thresh_time > 0 else self._buffer_queue_min_thresh_time_auto
         buffer_queue_max_thresh_time = buffer_queue_min_thresh_time * 2
         return buffer_queue_min_thresh_time, buffer_queue_max_thresh_time
@@ -304,7 +301,7 @@ class VideoPreview(Gtk.Widget):
         appsrc = self.lada_appsrc.appsrc
         self.pipeline.add(appsrc)
 
-        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_initial_buffer_queue_thresholds()
+        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_gst_buffer_bounds()
 
         buffer_queue = Gst.ElementFactory.make('queue', None)
         buffer_queue.set_property('max-size-bytes', 0)
@@ -348,7 +345,7 @@ class VideoPreview(Gtk.Widget):
         self.audio_buffer_queue = None
 
     def pipeline_add_audio(self, mute_audio: bool):
-        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_initial_buffer_queue_thresholds()
+        buffer_queue_min_thresh_time, buffer_queue_max_thresh_time = self.get_gst_buffer_bounds()
 
         audio_queue = Gst.ElementFactory.make('queue', None)
         audio_queue.set_property('max-size-bytes', 0)
@@ -478,9 +475,9 @@ class VideoPreview(Gtk.Widget):
             return time
 
     def _setup_shortcuts(self):
-        self._application.shortcuts.register_group("preview", "Preview")
-        self._application.shortcuts.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
-        self._application.shortcuts.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
+        self._shortcuts_manager.register_group("preview", "Preview")
+        self._shortcuts_manager.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
+        self._shortcuts_manager.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
 
     def close(self, block=False):
         def shutdown():

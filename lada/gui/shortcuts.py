@@ -1,9 +1,8 @@
 from gi.repository import GObject, Gtk
 
 class ShortcutsManager(GObject.Object):
-    def __init__(self, app):
+    def __init__(self):
         GObject.Object.__init__(self)
-        self.app = app
         self.groups = {}
         self.group_titles = {}
 
@@ -16,8 +15,8 @@ class ShortcutsManager(GObject.Object):
             self.groups[group_key] = {}
 
     def init(self, shortcut_controller: Gtk.ShortcutController):
-        for group_key in self.app.shortcuts.groups:
-            shortcuts = self.app.shortcuts.groups.get(group_key)
+        for group_key in self.groups:
+            shortcuts = self.groups.get(group_key)
             if not shortcuts:
                 continue
 
@@ -29,21 +28,21 @@ class ShortcutsManager(GObject.Object):
                 shortcut_controller.add_shortcut(shortcut)
 
 class ShortcutsWindow(Gtk.ShortcutsWindow):
-    def __init__(self, app):
+    def __init__(self, shortcuts_manager: ShortcutsManager):
         Gtk.ShortcutsWindow.__init__(self)
-        self.app = app
+        self.shortcuts_manager = shortcuts_manager
         self.set_modal(True)
         self.populate()
 
     def populate(self):
         section = Gtk.ShortcutsSection()
         section.show()
-        for group_key in self.app.shortcuts.groups:
-            shortcuts = self.app.shortcuts.groups.get(group_key)
+        for group_key in self.shortcuts_manager.groups:
+            shortcuts = self.shortcuts_manager.groups.get(group_key)
             if not shortcuts:
                 continue
 
-            group = Gtk.ShortcutsGroup(title=self.app.shortcuts.group_titles[group_key])
+            group = Gtk.ShortcutsGroup(title=self.shortcuts_manager.group_titles[group_key])
             group.show()
             for action_key in shortcuts:
                 keyboard_trigger, _, action_title = shortcuts[action_key]
