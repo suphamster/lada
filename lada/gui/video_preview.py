@@ -31,6 +31,7 @@ class VideoPreview(Gtk.Widget):
     label_cursor_time = Gtk.Template.Child()
     spinner_video_preview = Gtk.Template.Child()
     box_playback_controls = Gtk.Template.Child()
+    box_video_preview = Gtk.Template.Child()
 
 
     def __init__(self, **kwargs):
@@ -125,11 +126,11 @@ class VideoPreview(Gtk.Widget):
     def on_fullscreened(self, fullscreened: bool):
         if fullscreened:
             self.box_playback_controls.set_visible(False)
-            self.set_css_classes(["fullscreen-preview"])
+            self.box_video_preview.set_css_classes(["fullscreen-preview"])
         else:
             self.box_playback_controls.set_visible(True)
             self.button_play_pause.grab_focus()
-            self.remove_css_class("fullscreen-preview")
+            self.box_video_preview.remove_css_class("fullscreen-preview")
 
     @GObject.Signal(name="video-preview-reinit")
     def video_preview_init_start_signal(self):

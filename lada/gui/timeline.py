@@ -54,7 +54,6 @@ class Timeline(Gtk.Widget):
         self.cursor_position_x: int | None = None
         self._duration = 0
         self.set_hexpand(True)
-        self.set_css_name('timeline')
 
         self.gesture_drag = Gtk.GestureDrag.new()
         self.drag_start = 0

@@ -13,7 +13,7 @@
         <child>
             <object class="GtkOverlay">
                 <child>
-                    <object class="GtkBox">
+                    <object class="GtkBox" id="box_video_preview">
                         <property name="orientation">vertical</property>
                         <property name="valign">center</property>
                         <property name="vexpand">True</property>
