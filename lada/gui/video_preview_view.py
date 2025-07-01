@@ -1,10 +1,14 @@
 import logging
+import os
 import pathlib
 import threading
 import sys
 
-from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp
+from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
 
+from lada.gui.config import Config
+from lada.gui.config_sidebar import ConfigSidebar
+from lada.gui.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
 from lada.gui.shortcuts import ShortcutsManager
 from lada.gui.timeline import Timeline
 from lada.lib import audio_utils, video_utils
@@ -17,9 +21,9 @@ here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-@Gtk.Template(filename=here / 'video_preview.ui')
-class VideoPreview(Gtk.Widget):
-    __gtype_name__ = 'VideoPreview'
+@Gtk.Template(filename=here / 'video_preview_view.ui')
+class VideoPreviewView(Gtk.Widget):
+    __gtype_name__ = 'VideoPreviewView'
 
     button_play_pause = Gtk.Template.Child()
     button_mute_unmute = Gtk.Template.Child()
@@ -29,10 +33,16 @@ class VideoPreview(Gtk.Widget):
     button_image_mute_unmute = Gtk.Template.Child()
     label_current_time = Gtk.Template.Child()
     label_cursor_time = Gtk.Template.Child()
-    spinner_video_preview = Gtk.Template.Child()
     box_playback_controls = Gtk.Template.Child()
     box_video_preview = Gtk.Template.Child()
-
+    button_export_video = Gtk.Template.Child()
+    toggle_button_preview_video = Gtk.Template.Child()
+    spinner_overlay = Gtk.Template.Child()
+    banner_no_gpu = Gtk.Template.Child()
+    config_sidebar: ConfigSidebar = Gtk.Template.Child()
+    header_bar: Adw.HeaderBar = Gtk.Template.Child()
+    button_toggle_fullscreen: Gtk.Button = Gtk.Template.Child()
+    stack_video_preview: Gtk.Stack = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -44,6 +54,7 @@ class VideoPreview(Gtk.Widget):
         self._buffer_queue_min_thresh_time_auto_max = 10.
         self._buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
         self._shortcuts_manager: ShortcutsManager | None = None
+        self._window_title: str | None = None
 
         self.video_sink = None
         self.audio_uridecodebin: Gst.UriDecodeBin | None = None
@@ -58,16 +69,109 @@ class VideoPreview(Gtk.Widget):
         self.frame_restorer_provider: FrameRestorerProvider = FRAME_RESTORER_PROVIDER
         self.file_duration_ns = 0
         self.frame_duration_ns = None
+        self.opened_file: Gio.File | None = None
         self.video_metadata: video_utils.VideoMetadata | None = None
         self.has_audio: bool = True
         self.should_be_paused = False
         self.seek_in_progress = False
         self.waiting_for_data = False
 
+        self._config: Config | None = None
+
         self.widget_timeline.connect('seek_requested', lambda widget, seek_position: self.seek_video(seek_position))
         self.widget_timeline.connect('cursor_position_changed', lambda widget, cursor_position: self.show_cursor_position(cursor_position))
 
+        self.fullscreen_mouse_activity_controller = None
+
+    @GObject.Property(type=Config)
+    def config(self):
+        return self._config
+
+    @config.setter
+    def config(self, value):
+        self._config = value
+        if self._config.get_property('device') == 'cpu':
+            self.banner_no_gpu.set_revealed(True)
+        self.setup_config_signal_handlers()
+
     @GObject.Property()
+    def buffer_queue_min_thresh_time(self):
+        return self._buffer_queue_min_thresh_time
+
+    @buffer_queue_min_thresh_time.setter
+    def buffer_queue_min_thresh_time(self, value):
+        if self._buffer_queue_min_thresh_time == value:
+            return
+        self._buffer_queue_min_thresh_time = value
+        if self._video_preview_init_done:
+            self.update_gst_buffers()
+
+    @GObject.Property(type=ShortcutsManager)
+    def shortcuts_manager(self):
+        return self._shortcuts_manager
+
+    @shortcuts_manager.setter
+    def shortcuts_manager(self, value):
+        self._shortcuts_manager = value
+        self._setup_shortcuts()
+
+    @GObject.Property(type=str)
+    def window_title(self):
+        return self._window_title
+
+    @window_title.setter
+    def window_title(self, value):
+        self._window_title = value
+
+    @GObject.Signal(name="video-preview-close-done")
+    def video_preview_close_done_signal(self):
+        pass
+
+    @GObject.Signal(name="toggle-fullscreen-requested")
+    def toggle_fullscreen_requested(self):
+        pass
+
+    @GObject.Signal(name="video-export-requested")
+    def video_export_requested_signal(self, file: Gio.File):
+        pass
+
+    @Gtk.Template.Callback()
+    def toggle_button_preview_video_callback(self, button_clicked):
+        if not self._video_preview_init_done:
+            self.frame_restorer_options = self._frame_restorer_options.with_passthrough(not self._frame_restorer_options.passthrough)
+
+    @Gtk.Template.Callback()
+    def button_toggle_fullscreen_callback(self, button_clicked):
+        self.emit("toggle-fullscreen-requested")
+
+    @Gtk.Template.Callback()
+    def button_export_video_callback(self, button_clicked):
+        self.show_export_dialog()
+
+    @Gtk.Template.Callback()
+    def button_play_pause_callback(self, button_clicked):
+        if not self._video_preview_init_done or self.seek_in_progress:
+            return
+        if self.eos:
+            self.seek_video(0)
+        pipe_state = self.pipeline.get_state(20 * Gst.MSECOND)
+        if pipe_state.state == Gst.State.PLAYING:
+            self.should_be_paused = True
+            self.pipeline.set_state(Gst.State.PAUSED)
+        elif pipe_state.state == Gst.State.PAUSED:
+            self.should_be_paused = False
+            self.pipeline.set_state(Gst.State.PLAYING)
+        else:
+            logger.warning(f"unhandled pipeline state in button_play_pause_callback: {pipe_state.nick_value}")
+
+    @Gtk.Template.Callback()
+    def button_mute_unmute_callback(self, button_clicked):
+        if not (self.has_audio and self._video_preview_init_done):
+            return
+        muted = self.audio_volume.get_property("mute")
+        self.set_mute_audio(self.audio_volume, not muted)
+
+    @property
     def frame_restorer_options(self):
         return self._frame_restorer_options
 
@@ -95,77 +199,33 @@ class VideoPreview(Gtk.Widget):
         if self._video_preview_init_done:
             self.update_gst_buffers()
 
-    @GObject.Property()
-    def buffer_queue_min_thresh_time(self):
-        return self._buffer_queue_min_thresh_time
+    def setup_config_signal_handlers(self):
+        def on_preview_mode(*args):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection(self._config.preview_mode == 'mosaic-detection')
+        self._config.connect("notify::preview-mode", on_preview_mode)
 
-    @buffer_queue_min_thresh_time.setter
-    def buffer_queue_min_thresh_time(self, value):
-        if self._buffer_queue_min_thresh_time == value:
-            return
-        self._buffer_queue_min_thresh_time = value
-        if self._video_preview_init_done:
-            self.update_gst_buffers()
+        def on_device(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_device(self._config.device)
+        self._config.connect("notify::device", on_device)
 
-    @GObject.Property(type=ShortcutsManager)
-    def shortcuts_manager(self):
-        return self._shortcuts_manager
+        def on_mosaic_restoration_model(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_restoration_model_name(self._config.mosaic_restoration_model)
+        self._config.connect("notify::mosaic-restoration-model", on_mosaic_restoration_model)
 
-    @shortcuts_manager.setter
-    def shortcuts_manager(self, value):
-        self._shortcuts_manager = value
-        self._setup_shortcuts()
+        def on_mosaic_detection_model(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection_model_name(self._config.mosaic_detection_model)
+        self._config.connect("notify::mosaic-detection-model", on_mosaic_detection_model)
 
-    def on_fullscreen_activity(self, fullscreen_activity: bool):
-        if fullscreen_activity:
-            self.box_playback_controls.set_visible(True)
-            self.button_play_pause.grab_focus()
-        else:
-            self.box_playback_controls.set_visible(False)
+        self._config.connect("notify::preview-buffer-duration", lambda object, spec: self.set_property('buffer-queue-min-thresh-time', object.get_property(spec.name)))
 
-    def on_fullscreened(self, fullscreened: bool):
-        if fullscreened:
-            self.box_playback_controls.set_visible(False)
-            self.box_video_preview.set_css_classes(["fullscreen-preview"])
-        else:
-            self.box_playback_controls.set_visible(True)
-            self.button_play_pause.grab_focus()
-            self.box_video_preview.remove_css_class("fullscreen-preview")
-
-    @GObject.Signal(name="video-preview-reinit")
-    def video_preview_init_start_signal(self):
-        pass
-
-    @GObject.Signal(name="video-preview-init-done")
-    def video_preview_init_done_signal(self):
-        pass
-
-    @GObject.Signal(name="video-preview-close-done")
-    def video_preview_close_done_signal(self):
-        pass
-
-    @Gtk.Template.Callback()
-    def button_play_pause_callback(self, button_clicked):
-        if not self._video_preview_init_done or self.seek_in_progress:
-            return
-        if self.eos:
-            self.seek_video(0)
-        pipe_state = self.pipeline.get_state(20 * Gst.MSECOND)
-        if pipe_state.state == Gst.State.PLAYING:
-            self.should_be_paused = True
-            self.pipeline.set_state(Gst.State.PAUSED)
-        elif pipe_state.state == Gst.State.PAUSED:
-            self.should_be_paused = False
-            self.pipeline.set_state(Gst.State.PLAYING)
-        else:
-            logger.warning(f"unhandled pipeline state in button_play_pause_callback: {pipe_state.nick_value}")
-
-    @Gtk.Template.Callback()
-    def button_mute_unmute_callback(self, button_clicked):
-        if not (self.has_audio and self._video_preview_init_done):
-            return
-        muted = self.audio_volume.get_property("mute")
-        self.set_mute_audio(self.audio_volume, not muted)
+        def on_max_clip_duration(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(self._config.max_clip_duration)
+        self._config.connect("notify::max-clip-duration", on_max_clip_duration)
 
     def set_mute_audio(self, audio_volume, mute: bool):
         audio_volume.set_property("mute", mute)
@@ -191,7 +251,7 @@ class VideoPreview(Gtk.Widget):
         def seek():
             self.eos = False
             self.seek_in_progress = True
-            self.spinner_video_preview.set_visible(True)
+            self.spinner_overlay.set_visible(True)
             self.label_current_time.set_text(self.get_time_label_text(seek_position_ns))
             self.widget_timeline.set_property("playhead-position", seek_position_ns)
             # Pausing before seek seems to fix an issue where calling seek_simple() never returns.
@@ -203,7 +263,7 @@ class VideoPreview(Gtk.Widget):
             self.pipeline.set_state(Gst.State.PLAYING)
             self.seek_in_progress = False
             if not self.waiting_for_data:
-                self.spinner_video_preview.set_visible(False)
+                self.spinner_overlay.set_visible(False)
 
         seek_thread = threading.Thread(target=seek, daemon=True)
         seek_thread.start()
@@ -219,17 +279,31 @@ class VideoPreview(Gtk.Widget):
     def close_video_file(self):
         if not self.pipeline:
             return
-        def stop_pipeline():
-            if self.audio_volume:
-                self.audio_volume.set_property("mute", True)
-            self.pipeline.set_state(Gst.State.NULL)
-            self.lada_appsrc.stop()
-            self._video_preview_init_done = False
-            self.emit('video-preview-close-done')
-        threading.Thread(target=stop_pipeline).start()
+        if self.audio_volume:
+            self.audio_volume.set_property("mute", True)
+        self.pipeline.set_state(Gst.State.NULL)
+        self.lada_appsrc.stop()
+        self._video_preview_init_done = False
+        self.emit('video-preview-close-done')
 
-    def open_video_file(self, file: Gio.File, mute_audio: bool):
+    def open_file(self, file: Gio.File):
+        self._show_spinner()
+        self.button_export_video.set_sensitive(True)
+        file_changed = self.opened_file is not None
+
+        def run():
+            if file_changed:
+                self.close_video_file()
+            GLib.idle_add(lambda: self._open_file(file))
+
+        threading.Thread(target=run).start()
+
+
+    def _open_file(self, file: Gio.File):
+        self.opened_file = file
+        self.frame_restorer_options = FrameRestorerOptions(self.config.mosaic_restoration_model, self.config.mosaic_detection_model, video_utils.get_video_meta_data(self.opened_file.get_path()), self.config.device, self.config.max_clip_duration, self.config.preview_mode == 'mosaic-detection', False)
         file_path = file.get_path()
+        mute_audio = self.config.mute_audio
 
         self.video_metadata = video_utils.get_video_meta_data(file_path)
         self._frame_restorer_options = self._frame_restorer_options.with_video_metadata(self.video_metadata)
@@ -280,13 +354,13 @@ class VideoPreview(Gtk.Widget):
 
     def autoplay_if_enough_data_buffered(self):
         self.waiting_for_data = False
-        self.spinner_video_preview.set_visible(False)
+        self.spinner_overlay.set_visible(False)
         if not self.should_be_paused:
             self.pipeline.set_state(Gst.State.PLAYING)
 
     def autopause_if_not_enough_data_buffered(self):
         self.waiting_for_data = True
-        self.spinner_video_preview.set_visible(True)
+        self.spinner_overlay.set_visible(True)
         self.pipeline.set_state(Gst.State.PAUSED)
         if self._buffer_queue_min_thresh_time == 0 and self._video_preview_init_done:
             self.buffer_queue_min_thresh_time_auto *= 1.5
@@ -399,7 +473,7 @@ class VideoPreview(Gtk.Widget):
     def init_pipeline(self, mute_audio: bool):
         pipeline = Gst.Pipeline.new()
 
-        def on_bus_msg(_, msg):
+        def on_bus_msg(_, msg: Gst.Message):
             match msg.type:
                 case Gst.MessageType.EOS:
                     self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
@@ -416,7 +490,7 @@ class VideoPreview(Gtk.Widget):
                             self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
                         if not self._video_preview_init_done and new_state == Gst.State.PLAYING:
                             self._video_preview_init_done = True
-                            self.emit('video-preview-init-done')
+                            self._show_video_preview()
 
                 case Gst.MessageType.STREAM_STATUS:
                     pass
@@ -436,7 +510,7 @@ class VideoPreview(Gtk.Widget):
         GLib.timeout_add(20, self.update_current_position) # todo: remove when timeline is not visible (export view)
 
     def reset_appsource_worker(self):
-        self.emit('video-preview-reinit')
+        self._show_spinner()
 
         def reinit():
             self._video_preview_init_done = False
@@ -451,8 +525,8 @@ class VideoPreview(Gtk.Widget):
 
             self.pipeline.set_state(Gst.State.PLAYING)
 
-        exporter_thread = threading.Thread(target=reinit)
-        exporter_thread.start()
+        reinit_thread = threading.Thread(target=reinit)
+        reinit_thread.start()
 
     def update_current_position(self):
         res, position = self.pipeline.query_position(Gst.Format.TIME)
@@ -475,10 +549,72 @@ class VideoPreview(Gtk.Widget):
             time = f"{minutes}:{seconds:02d}" if hours == 0 else f"{hours}:{minutes:02d}:{seconds:02d}"
             return time
 
+    def on_fullscreen_activity(self, fullscreen_activity: bool):
+        if fullscreen_activity:
+            self.header_bar.set_visible(True)
+            self.set_cursor_from_name("default")
+            self.box_playback_controls.set_visible(True)
+            self.button_play_pause.grab_focus()
+        else:
+            self.header_bar.set_visible(False)
+            self.set_cursor_from_name("none")
+            self.box_playback_controls.set_visible(False)
+
+    def on_fullscreened(self, fullscreened: bool):
+        if fullscreened:
+            self.fullscreen_mouse_activity_controller = FullscreenMouseActivityController(self)
+            self.banner_no_gpu.set_revealed(False)
+            self.button_toggle_fullscreen.set_property("icon-name", "view-restore-symbolic")
+            self.box_video_preview.set_css_classes(["fullscreen-preview"])
+        else:
+            self.header_bar.set_visible(True)
+            self.set_cursor_from_name("default")
+            self.button_toggle_fullscreen.set_property("icon-name", "view-fullscreen-symbolic")
+            self.box_playback_controls.set_visible(True)
+            self.button_play_pause.grab_focus()
+            self.box_video_preview.remove_css_class("fullscreen-preview")
+            if self._config.get_property('device') == 'cpu':
+                self.banner_no_gpu.set_revealed(True)
+        self.fullscreen_mouse_activity_controller.on_fullscreened(fullscreened)
+        self.fullscreen_mouse_activity_controller.connect("notify::fullscreen-activity", lambda object, spec: self.on_fullscreen_activity(object.get_property(spec.name)))
+
+    def _show_spinner(self, *args):
+        self.config_sidebar.set_property("disabled", True)
+        self.toggle_button_preview_video.set_property("sensitive", False)
+        self.stack_video_preview.set_visible_child_name("spinner")
+
+    def _show_video_preview(self, *args):
+        self.config_sidebar.set_property("disabled", False)
+        self.toggle_button_preview_video.set_property("sensitive", True)
+        self.stack_video_preview.set_visible_child_name("video-player")
+        self.grab_focus()
+
     def _setup_shortcuts(self):
+        def on_shortcut_preview_toggle(*args):
+            if self.stack_video_preview.get_visible_child_name() == "video-player":
+                self.toggle_button_preview_video_callback(self.toggle_button_preview_video)
+
+        self._shortcuts_manager.register_group("files", "Files")
+        self._shortcuts_manager.add("files", "export-file", "e", lambda *args: self.show_export_dialog(), "Export recovered video")
+
         self._shortcuts_manager.register_group("preview", "Preview")
         self._shortcuts_manager.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
         self._shortcuts_manager.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
+        self._shortcuts_manager.add("preview", "toggle-preview", "p", on_shortcut_preview_toggle, "Enable/Disable preview mode")
+        self._shortcuts_manager.add("preview", "toggle-fullscreen", "<Ctrl>f", lambda *args: self.emit("toggle-fullscreen-requested"), "Enable/Disable fullscreen")
+
+    def show_export_dialog(self):
+        if not self.opened_file:
+            return
+        self.pause_if_currently_playing()
+        file_dialog = Gtk.FileDialog()
+        video_file_filter = Gtk.FileFilter()
+        video_file_filter.add_mime_type("video/*")
+        file_dialog.set_default_filter(video_file_filter)
+        file_dialog.set_title("Save restored video file")
+        file_dialog.set_initial_folder(self.opened_file.get_parent())
+        file_dialog.set_initial_name(f"{os.path.splitext(self.opened_file.get_basename())[0]}.restored.mp4")
+        file_dialog.save(callback=lambda dialog, result: self.emit("video-export-requested", dialog.save_finish(result)))
 
     def close(self, block=False):
         def shutdown():

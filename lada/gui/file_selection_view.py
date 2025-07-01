@@ -1,6 +1,6 @@
 import pathlib
 
-from gi.repository import Adw, Gtk, Gio, Gdk, GObject
+from gi.repository import Adw, Gtk, Gio, GObject
 from lada.gui.frame_restorer_provider import FrameRestorerOptions
 from lada.gui.shortcuts import ShortcutsManager
 
@@ -17,12 +17,6 @@ class FileSelectionView(Gtk.Widget):
         super().__init__(**kwargs)
 
         self._frame_restorer_options: FrameRestorerOptions | None = None
-
-        # init drag-drop files
-        drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
-        drop_target.connect("drop", lambda _drop_target, file, x, y: self.emit("file-selected", file))
-        self.add_controller(drop_target)
-
         self._shortcuts_manager: ShortcutsManager | None = None
         self._window_title: str | None = None
 

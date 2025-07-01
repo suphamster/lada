@@ -15,158 +15,39 @@
         <child>
         </child>
         <child>
-            <object class="AdwToastOverlay" id="toast_overlay">
+            <object class="GtkStack" id="stack">
+                <property name="transition-type">crossfade</property>
                 <child>
-                    <object class="GtkStack" id="stack">
-                        <property name="transition-type">crossfade</property>
-                        <child>
-                            <object class="GtkStackPage">
-                                <property name="name">file-selection</property>
-                                <property name="child">
-                                    <object class="FileSelectionView" id="file_selection_view">
-                                        <property name="window-title" bind-source="MainWindow" bind-property="title"/>
-                                    </object>
-                                </property>
+                    <object class="GtkStackPage">
+                        <property name="name">file-selection</property>
+                        <property name="child">
+                            <object class="FileSelectionView" id="file_selection_view">
+                                <property name="window-title" bind-source="MainWindow" bind-property="title"/>
                             </object>
-                        </child>
-                        <child>
-                            <object class="GtkStackPage" id="stack_page_main">
-                                <property name="name">page_main</property>
-                                <property name="child">
-                                    <object class="AdwToolbarView">
-                                        <child type="top">
-                                            <object class="AdwHeaderBar" id="header_bar">
-                                                <property name="title-widget">
-                                                    <object class="AdwWindowTitle">
-                                                        <property name="title" bind-source="MainWindow" bind-property="title"/>
-                                                    </object>
-                                                </property>
-                                                <child type="start">
-                                                    <object class="GtkToggleButton" id="toggle_button_pane">
-                                                        <property name="icon-name">sidebar-show-symbolic</property>
-                                                        <property name="active">False</property>
-                                                    </object>
-                                                </child>
-                                                <child type="start">
-                                                    <object class="GtkButton" id="button_export_video">
-                                                        <property name="label">Export</property>
-                                                        <property name="sensitive">False</property>
-                                                        <property name="tooltip-text">Export restored video to a file
-                                                        </property>
-                                                        <signal name="clicked" handler="button_export_video_callback"/>
-                                                        <style>
-                                                            <class name="suggested-action"/>
-                                                        </style>
-                                                    </object>
-                                                </child>
-                                                <child type="start">
-                                                    <object class="GtkToggleButton" id="toggle_button_preview_video">
-                                                        <property name="label">Preview</property>
-                                                        <property name="sensitive">True</property>
-                                                        <property name="tooltip-text">Preview mosaic video restoration</property>
-                                                        <property name="active">True</property>
-                                                        <signal name="clicked" handler="toggle_button_preview_video_callback"/>
-                                                        <style>
-                                                            <class name="flat"/>
-                                                        </style>
-                                                    </object>
-                                                </child>
-                                                <child type="end">
-                                                    <object class="GtkMenuButton">
-                                                        <property name="primary">True</property>
-                                                        <property name="icon-name">open-menu-symbolic</property>
-                                                        <property name="tooltip-text">Main Menu</property>
-                                                        <property name="menu-model">primary_menu</property>
-                                                    </object>
-                                                </child>
-                                                <child type="end">
-                                                    <object class="GtkButton" id="button_toggle_fullscreen">
-                                                        <property name="icon-name">view-fullscreen-symbolic</property>
-                                                        <property name="tooltip-text">Show Restoration Preview in fullscreen mode</property>
-                                                        <property name="sensitive">True</property>
-                                                        <signal name="clicked" handler="button_toggle_fullscreen_callback"/>
-                                                    </object>
-                                                </child>
-                                            </object>
-                                        </child>
-                                        <property name="content">
-
-                                            <object class="AdwOverlaySplitView">
-                                                <property name="show-sidebar"
-                                                          bind-source="toggle_button_pane"
-                                                          bind-property="active"
-                                                          bind-flags="sync-create|bidirectional"/>
-                                                <property name="sidebar-width-fraction">0.5</property>
-                                                <property name="max-sidebar-width">500.0</property>
-                                                <property name="sidebar">
-                                                    <object class="ConfigSidebar" id="config_sidebar"></object>
-                                                </property>
-                                                <property name="content">
-                                                    <object class="GtkBox">
-                                                        <property name="orientation">vertical</property>
-                                                        <child>
-                                                            <object class="AdwBanner" id="banner_no_gpu">
-                                                                <property name="title">No GPU detected! Running the app on CPU will be painfully slow</property>
-                                                                <property name="revealed">False</property>
-                                                            </object>
-                                                        </child>
-                                                        <child>
-                                                            <object class="GtkStack" id="stack_video_preview">
-                                                                <property name="vexpand">true</property>
-                                                                <property name="visible-child">spinner_video_preview</property>
-                                                                <child>
-                                                                    <object class="VideoPreview" id="widget_video_preview">
-                                                                    </object>
-                                                                </child>
-                                                                <child>
-                                                                    <object class="AdwSpinner" id="spinner_video_preview">
-                                                                        <property name="width-request">64</property>
-                                                                        <property name="height-request">64</property>
-                                                                        <property name="halign">center</property>
-                                                                        <property name="valign">center</property>
-                                                                        <style>
-                                                                            <class name="dim-label"/>
-                                                                        </style>
-                                                                    </object>
-                                                                </child>
-                                                            </object>
-                                                        </child>
-                                                    </object>
-                                                </property>
-                                            </object>
-
-                                        </property>
-                                    </object>
-                                </property>
+                        </property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkStackPage">
+                        <property name="name">video-preview</property>
+                        <property name="child">
+                            <object class="VideoPreviewView" id="video_preview_view">
+                                <property name="window-title" bind-source="MainWindow" bind-property="title"/>
                             </object>
-                        </child>
-                        <child>
-                            <object class="GtkStackPage">
-                                <property name="name">file-export</property>
-                                <property name="child">
-                                    <object class="VideoExportView" id="video_export_view">
-                                        <property name="window-title" bind-source="MainWindow" bind-property="title"/>
-                                        <property name="opened-file" bind-source="MainWindow" bind-property="opened-file"/>
-                                    </object>
-                                </property>
+                        </property>
+                    </object>
+                </child>
+                <child>
+                    <object class="GtkStackPage">
+                        <property name="name">file-export</property>
+                        <property name="child">
+                            <object class="VideoExportView" id="video_export_view">
+                                <property name="window-title" bind-source="MainWindow" bind-property="title"/>
                             </object>
-                        </child>
+                        </property>
                     </object>
                 </child>
             </object>
         </child>
     </template>
-
-    <menu id="primary_menu">
-        <section>
-            <item>
-                <attribute name="label">Keyboard Shortcuts</attribute>
-                <attribute name="action">app.shortcuts</attribute>
-            </item>
-            <item>
-                <attribute name="label">About Lada</attribute>
-                <attribute name="action">app.about</attribute>
-            </item>
-        </section>
-    </menu>
 </interface>
