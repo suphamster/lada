@@ -3,6 +3,7 @@ import sys
 import gi
 
 from lada import VERSION
+from lada.gui.config import Config
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
@@ -33,6 +34,8 @@ class LadaApplication(Adw.Application):
         Gio.resources_register(resource)
 
         self._shortcuts_manager: ShortcutsManager = ShortcutsManager()
+        self._config: Config = Config()
+        self._config.load_config()
         self.window: MainWindow | None = None
 
         Gst.init(None)
@@ -45,12 +48,23 @@ class LadaApplication(Adw.Application):
     def shortcuts_manager(self, value):
         self._shortcuts_manager = value
 
+    @GObject.Property(type=Config)
+    def config(self):
+        return self._config
+
+    @config.setter
+    def config(self, value):
+        self._config = value
+
     def do_activate(self):
         win = self.props.active_window
         if not win:
             win = MainWindow(application=self)
             self.bind_property("style-manager", win.widget_video_preview.widget_timeline, "style-manager", flags=GObject.BindingFlags.SYNC_CREATE)
             self.bind_property("shortcuts-manager", win.widget_video_preview, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("config", win.config_sidebar, "config", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("config", win.video_export_view, "config", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("config", win, "config", flags=GObject.BindingFlags.SYNC_CREATE)
             self.bind_property("shortcuts-manager", win.video_export_view, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
             self.bind_property("shortcuts-manager", win.file_selection_view, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
             self.window = win

@@ -25,3 +25,10 @@ def get_available_gpus():
             gpu_name = gpu_name.replace("NVIDIA GeForce RTX", "RTX")
         gpus.append((id, gpu_name))
     return gpus
+
+def skip_if_uninitialized(f):
+    def noop(*args):
+        return
+    def wrapper(*args):
+        return f(*args) if args[0].init_done else noop
+    return wrapper

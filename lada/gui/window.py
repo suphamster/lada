@@ -2,7 +2,7 @@ import os.path
 import pathlib
 
 from gi.repository import Adw, Gtk, Gio, GObject
-from lada.gui.config import CONFIG
+from lada.gui.config import Config
 from lada.gui.config_sidebar import ConfigSidebar
 from lada.gui.file_selection_view import FileSelectionView
 from lada.gui.frame_restorer_provider import FrameRestorerOptions
@@ -37,40 +37,10 @@ class MainWindow(Adw.ApplicationWindow):
 
         self._frame_restorer_options: FrameRestorerOptions | None = None
 
-        if self.config_sidebar.get_property('device') == 'cpu':
-            self.banner_no_gpu.set_revealed(True)
-
-        def on_preview_mode(*args):
-            if self._frame_restorer_options:
-                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection(CONFIG.preview_mode == 'mosaic-detection')
-        self.config_sidebar.connect("notify::preview-mode", on_preview_mode)
-
         def on_passthrough(object, spec):
             if self._frame_restorer_options:
                 self.frame_restorer_options = self._frame_restorer_options.with_passthrough(object.get_property(spec.name))
         self.widget_video_preview.connect("notify::passthrough",on_passthrough)
-
-        def on_device(object, spec):
-            if self._frame_restorer_options:
-                self.frame_restorer_options = self._frame_restorer_options.with_device(CONFIG.device)
-        self.config_sidebar.connect("notify::device", on_device)
-
-        def on_mosaic_restoration_model(object, spec):
-            if self._frame_restorer_options:
-                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_restoration_model_name(CONFIG.mosaic_restoration_model)
-        self.config_sidebar.connect("notify::mosaic-restoration-model", on_mosaic_restoration_model)
-
-        def on_mosaic_detection_model(object, spec):
-            if self._frame_restorer_options:
-                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection_model_name(CONFIG.mosaic_detection_model)
-        self.config_sidebar.connect("notify::mosaic-detection-model", on_mosaic_detection_model)
-
-        self.config_sidebar.connect("notify::preview-buffer-duration", lambda object, spec: self.widget_video_preview.set_property('buffer-queue-min-thresh-time', object.get_property(spec.name)))
-
-        def on_max_clip_duration(object, spec):
-            if self._frame_restorer_options:
-                self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(CONFIG.max_clip_duration)
-        self.config_sidebar.connect("notify::max-clip-duration", on_max_clip_duration)
 
         self._opened_file: Gio.File | None = None
         self.preview_close_handler_id = None
@@ -92,6 +62,19 @@ class MainWindow(Adw.ApplicationWindow):
         self.file_selection_view.connect("file-selected", lambda obj, file: self.open_file(file))
         self.video_export_view.connect("video-export-requested", lambda obj, file: self.on_video_export_requested(file))
         self.video_export_view.connect("video-export-dialog-opened", lambda *args: self.widget_video_preview.pause_if_currently_playing())
+        
+        self._config: Config | None = None
+
+    @GObject.Property(type=Config)
+    def config(self):
+        return self._config
+
+    @config.setter
+    def config(self, value):
+        self._config = value
+        if self._config.get_property('device') == 'cpu':
+            self.banner_no_gpu.set_revealed(True)
+        self.setup_config_signal_handlers()
 
     @GObject.Property(type=Gio.File)
     def opened_file(self):
@@ -123,6 +106,34 @@ class MainWindow(Adw.ApplicationWindow):
         self._frame_restorer_options = value
         if self.widget_video_preview:
             self.widget_video_preview.set_property('frame-restorer-options', self._frame_restorer_options)
+
+    def setup_config_signal_handlers(self):
+        def on_preview_mode(*args):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection(self._config.preview_mode == 'mosaic-detection')
+        self._config.connect("notify::preview-mode", on_preview_mode)
+        
+        def on_device(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_device(self._config.device)
+        self._config.connect("notify::device", on_device)
+
+        def on_mosaic_restoration_model(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_restoration_model_name(self._config.mosaic_restoration_model)
+        self._config.connect("notify::mosaic-restoration-model", on_mosaic_restoration_model)
+
+        def on_mosaic_detection_model(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection_model_name(self._config.mosaic_detection_model)
+        self._config.connect("notify::mosaic-detection-model", on_mosaic_detection_model)
+
+        self._config.connect("notify::preview-buffer-duration", lambda object, spec: self.widget_video_preview.set_property('buffer-queue-min-thresh-time', object.get_property(spec.name)))
+
+        def on_max_clip_duration(object, spec):
+            if self._frame_restorer_options:
+                self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(self._config.max_clip_duration)
+        self._config.connect("notify::max-clip-duration", on_max_clip_duration)
 
     def toggle_fullscreen(self, *args):
         if self.is_fullscreen():
@@ -195,10 +206,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_title(os.path.basename(file.get_path()))
         self.config_sidebar.set_property("disabled", True)
         self.toggle_button_preview_video.set_property("sensitive", False)
-        if not CONFIG.loaded: CONFIG.load_config()
         try:
-            self.frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, CONFIG.preview_mode == 'mosaic-detection', False)
-            self.widget_video_preview.open_video_file(self._opened_file, CONFIG.mute_audio)
+            self.frame_restorer_options = FrameRestorerOptions(self.config.mosaic_restoration_model, self.config.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), self.config.device, self.config.max_clip_duration, self.config.preview_mode == 'mosaic-detection', False)
+            self.widget_video_preview.open_video_file(self.opened_file, self.config.mute_audio)
         except Exception as e:
             self.toast_overlay.add_toast(Adw.Toast.new(f"Error opening file: {e}"))
             raise e

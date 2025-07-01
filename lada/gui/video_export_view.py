@@ -6,7 +6,7 @@ import threading
 
 from gi.repository import Gtk, GObject, Gio
 
-from lada.gui.config import CONFIG
+from lada.gui.config import Config
 from lada.gui.shortcuts import ShortcutsManager
 from lada.lib import audio_utils, video_utils
 from lada import LOG_LEVEL
@@ -30,6 +30,7 @@ class VideoExportView(Gtk.Widget):
         self._shortcuts_manager: ShortcutsManager | None = None
         self._window_title: str | None = None
         self._opened_file: Gio.File | None = None
+        self._config: Config | None = None
 
         self.connect("video-export-finished", self.show_video_export_success)
         self.connect("video-export-progress", self.on_video_export_progress)
@@ -42,6 +43,14 @@ class VideoExportView(Gtk.Widget):
     def shortcuts_manager(self, value):
         self._shortcuts_manager = value
         self._setup_shortcuts()
+        
+    @GObject.Property(type=Config)
+    def config(self):
+        return self._config
+
+    @config.setter
+    def config(self, value):
+        self._config = value
 
     @GObject.Property(type=str)
     def window_title(self):
@@ -143,6 +152,5 @@ class VideoExportView(Gtk.Widget):
         exporter_thread.start()
 
     def start_export(self, file: Gio.File):
-        if not CONFIG.loaded: CONFIG.load_config()
-        frame_restorer_options = FrameRestorerOptions(CONFIG.mosaic_restoration_model, CONFIG.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), CONFIG.device, CONFIG.max_clip_duration, False, False)
-        self.export_video(file.get_path(), CONFIG.export_codec, CONFIG.export_crf, frame_restorer_options)
+        frame_restorer_options = FrameRestorerOptions(self._config.mosaic_restoration_model, self._config.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), self._config.device, self._config.max_clip_duration, False, False)
+        self.export_video(file.get_path(), self._config.export_codec, self._config.export_crf, frame_restorer_options)
