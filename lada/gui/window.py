@@ -1,7 +1,8 @@
 import os
 import pathlib
+import threading
 
-from gi.repository import Adw, Gtk, Gio, Gdk
+from gi.repository import Adw, Gtk, Gio, Gdk, GLib
 from lada.gui.file_selection_view import FileSelectionView
 from lada.gui.video_export_view import VideoExportView
 from lada.gui.video_preview_view import VideoPreviewView
@@ -33,8 +34,10 @@ class MainWindow(Adw.ApplicationWindow):
 
     def on_video_export_requested(self, source_file: Gio.File, save_file: Gio.File):
         self.stack.set_visible_child_name("file-export")
-        self.video_preview_view.close(block=True)
-        self.video_export_view.start_export(source_file, save_file)
+        def run():
+            self.video_preview_view.close(block=True)
+            GLib.idle_add(lambda: self.video_export_view.start_export(source_file, save_file))
+        threading.Thread(target=run).start()
 
     def on_file_selected(self, file: Gio.File):
         self.stack.set_visible_child_name("video-preview")

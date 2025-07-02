@@ -72,8 +72,11 @@ class VideoExportView(Gtk.Widget):
     def on_video_export_progress(self, obj, progress):
         self.progress_bar_file_export.set_fraction(progress)
 
-    def export_video(self, output_file_path: str, video_codec, crf, frame_restorer_options: FrameRestorerOptions):
+    def start_export(self, source_file: Gio.File, save_file: Gio.File):
+        self.show_video_export_started()
+
         def run_export():
+            frame_restorer_options = FrameRestorerOptions(self._config.mosaic_restoration_model, self._config.mosaic_detection_model, video_utils.get_video_meta_data(source_file.get_path()), self._config.device, self._config.max_clip_duration, False, False)
             video_metadata = frame_restorer_options.video_metadata
             frame_restorer_provider = FRAME_RESTORER_PROVIDER
             frame_restorer_provider.init(frame_restorer_options)
@@ -87,8 +90,8 @@ class VideoExportView(Gtk.Widget):
 
                 with video_utils.VideoWriter(video_tmp_file_output_path, video_metadata.video_width,
                                              video_metadata.video_height, video_metadata.video_fps_exact,
-                                             video_codec, time_base=video_metadata.time_base,
-                                             crf=crf) as video_writer:
+                                             self._config.export_codec, time_base=video_metadata.time_base,
+                                             crf=self._config.export_crf) as video_writer:
                     for frame_num, elem in enumerate(frame_restorer):
                         if elem is None:
                             success = False
@@ -106,7 +109,7 @@ class VideoExportView(Gtk.Widget):
                 frame_restorer.stop()
 
             if success:
-                audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, output_file_path)
+                audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, save_file.get_path())
                 self.emit('video-export-progress', 1.0)
                 self.emit('video-export-finished')
             else:
@@ -115,8 +118,3 @@ class VideoExportView(Gtk.Widget):
 
         exporter_thread = threading.Thread(target=run_export)
         exporter_thread.start()
-
-    def start_export(self, source_file: Gio.File, save_file: Gio.File):
-        self.show_video_export_started()
-        frame_restorer_options = FrameRestorerOptions(self._config.mosaic_restoration_model, self._config.mosaic_detection_model, video_utils.get_video_meta_data(source_file.get_path()), self._config.device, self._config.max_clip_duration, False, False)
-        self.export_video(save_file.get_path(), self._config.export_codec, self._config.export_crf, frame_restorer_options)
