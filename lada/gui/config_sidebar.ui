@@ -21,7 +21,7 @@
                         <child>
                             <object class="AdwComboRow" id="combo_row_mosaic_detection_models">
                                 <property name="title">Detection model</property>
-                                <property name="tooltip-text">Model to be used for identifying mosaic areas</property>
+                                <property name="subtitle">Model used for detecting mosaic areas.</property>
                                 <signal name="notify::selected"
                                         handler="combo_row_mosaic_detection_models_selected_callback"/>
                                 <property name="model">
@@ -32,7 +32,7 @@
                         <child>
                             <object class="AdwComboRow" id="combo_row_mosaic_removal_models">
                                 <property name="title">Restoration model</property>
-                                <property name="tooltip-text">Model used for restoring mosaic areas. Recommended model is 'basicvsrpp-generic'</property>
+                                <property name="subtitle">Model used for restoring mosaic areas.</property>
                                 <signal name="notify::selected"
                                         handler="combo_row_mosaic_removal_models_selected_callback"/>
                                 <property name="model">
@@ -42,9 +42,9 @@
                         </child>
                         <child>
                             <object class="AdwSpinRow" id="spin_row_clip_max_duration">
-                                <property name="title">Max. clip duration (frames)
+                                <property name="title">Maximum clip duration
                                 </property>
-                                <property name="tooltip-text">A clip is a cropped scene of mosaic material that needs to be restored.&#xA;The longer the clip the more reference frames are available for the model to use for restoration.&#xA;If clip length is too short it will result in unstable restoration and flickering.&#xA;Too long of a clip length can produce artifacts.&#xA;The longer the clip duration the more RAM and VRAM will be used.</property>
+                                <property name="subtitle">Maximum number of frames for restoration. Higher values improve temporal stability. Lower values reduce memory footprint.</property>
                                 <signal name="notify::value"
                                         handler="spin_row_clip_max_duration_selected_callback"/>
                                 <property name="adjustment">
@@ -70,12 +70,12 @@
                         <child>
                             <object class="AdwActionRow">
                                 <property name="title">Preview Mode</property>
+                                <property name="subtitle">"Detection" will show detected mosaic areas, "Mosaic" will restore them.</property>
                                 <child>
                                     <object class="GtkToggleButton"
                                             id="toggle_button_mosaic_detection">
                                         <property name="label">Mosaic&#xA;Detection</property>
                                         <property name="sensitive">True</property>
-                                        <property name="tooltip-text">Preview mosaic detection. Will draw detection outlines around detected mosaic areas.&#xA;Useful for debugging the mosaic detection model</property>
                                         <signal name="clicked"
                                                 handler="toggle_button_mosaic_detection_callback"/>
                                         <style>
@@ -88,7 +88,6 @@
                                             id="toggle_button_mosaic_removal">
                                         <property name="label">Mosaic&#xA;Removal</property>
                                         <property name="sensitive">True</property>
-                                        <property name="tooltip-text">Preview mosaic removal/restoration</property>
                                         <property name="active">True</property>
                                         <signal name="clicked"
                                                 handler="toggle_button_mosaic_removal_callback"/>
@@ -101,9 +100,8 @@
                         </child>
                         <child>
                             <object class="AdwSpinRow" id="spin_row_preview_buffer_duration">
-                                <property name="title">Buffer duration (seconds)
-                                </property>
-                                <property name="tooltip-text">Preview buffer duration in seconds. If set to 0 then buffer length will be adjusted automatically.</property>
+                                <property name="title">Buffer duration</property>
+                                <property name="subtitle">How much video is pre-loaded for playback, measured in seconds. If set to 0 this value will be chosen automatically.</property>
                                 <signal name="notify::value"
                                         handler="spin_row_preview_buffer_duration_selected_callback"/>
                                 <property name="adjustment">
@@ -117,8 +115,8 @@
                         </child>
                         <child>
                             <object class="AdwSwitchRow" id="switch_row_mute_audio">
-                                <property name="title">Mute audio default</property>
-                                <property name="tooltip-text">If enabled audio will be muted after opening a video file</property>
+                                <property name="title">Mute audio by default</property>
+                                <property name="subtitle">When enabled, audio will be muted automatically when a new file is opened.</property>
                                 <signal name="notify::active"
                                         handler="switch_row_mute_audio_active_callback"/>
                             </object>
@@ -136,7 +134,7 @@
                         <child>
                             <object class="AdwComboRow" id="combo_row_export_codec">
                                 <property name="title">Codec</property>
-                                <property name="tooltip-text">Name of FFMpeg video decoder</property>
+                                <property name="subtitle">Video Codec used for encoding the restored video.</property>
                                 <signal name="notify::selected"
                                         handler="combo_row_mosaic_export_codec_selected_callback"/>
                                 <property name="model">
@@ -151,8 +149,8 @@
                         </child>
                         <child>
                             <object class="AdwSpinRow" id="spin_row_export_crf">
-                                <property name="title">CRF</property>
-                                <property name="tooltip-text">Constant Rate Factor. Quality setting of codec encoder. Lower values will result in higher quality but larger file size, encoding effort.</property>
+                                <property name="title">CRF (Constant Rate Factor)</property>
+                                <property name="subtitle">Quality setting of the video encoder. Lower values will result in higher quality but larger file sizes.</property>
                                 <property name="adjustment">
                                     <object class="GtkAdjustment">
                                         <property name="lower">0</property>
@@ -167,20 +165,34 @@
                     </object>
                 </child>
                 <child>
-                    <object class="AdwComboRow" id="combo_row_gpu">
-                        <property name="title">GPU</property>
-                        <property name="model">
-                            <object class="GtkStringList">
-                                <items>
-                                </items>
+                    <object class="AdwPreferencesGroup">
+                        <property name="title">Device</property>
+                        <property name="margin-top">6</property>
+                        <property name="margin-bottom">6</property>
+                        <property name="margin-start">6</property>
+                        <property name="margin-end">6</property>
+                        <child>
+                            <object class="AdwComboRow" id="combo_row_gpu">
+                                <property name="title">GPU</property>
+                                <property name="subtitle">Selected GPU for model processing.</property>
+                                <property name="model">
+                                    <object class="GtkStringList">
+                                        <items>
+                                        </items>
+                                    </object>
+                                </property>
+                                <signal name="notify::selected"
+                                        handler="combo_row_gpu_selected_callback"/>
                             </object>
-                        </property>
-                        <signal name="notify::selected"
-                                handler="combo_row_gpu_selected_callback"/>
+                        </child>
                     </object>
                 </child>
                 <child>
                     <object class="GtkButton">
+                        <property name="margin-top">6</property>
+                        <property name="margin-bottom">6</property>
+                        <property name="margin-start">6</property>
+                        <property name="margin-end">6</property>
                         <property name="label">Reset to factory settings</property>
                         <property name="sensitive">True</property>
                         <signal name="clicked" handler="button_config_reset_callback"/>
