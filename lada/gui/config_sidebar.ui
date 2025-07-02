@@ -188,6 +188,55 @@
                     </object>
                 </child>
                 <child>
+                    <object class="AdwPreferencesGroup">
+                        <property name="title">UI</property>
+                        <property name="margin-top">6</property>
+                        <property name="margin-bottom">6</property>
+                        <property name="margin-start">6</property>
+                        <property name="margin-end">6</property>
+                        <child>
+                            <object class="AdwComboRow">
+                                <property name="title">Color Scheme</property>
+                                <child>
+                                    <object class="GtkToggleButton" id="system_color_scheme_button">
+                                        <property name="sensitive">True</property>
+                                        <property name="tooltip-text">Follow System style</property>
+                                        <property name="icon-name">color-scheme-system</property>
+                                        <signal name="clicked" handler="toggle_button_system_color_scheme_callback"/>
+                                        <style>
+                                            <class name="flat"/>
+                                        </style>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkToggleButton" id="light_color_scheme_button">
+                                        <property name="sensitive">True</property>
+                                        <property name="group">system_color_scheme_button</property>
+                                        <property name="tooltip-text">Light style</property>
+                                        <property name="icon-name">color-scheme-light</property>
+                                        <signal name="clicked" handler="toggle_button_light_color_scheme_callback"/>
+                                        <style>
+                                            <class name="flat"/>
+                                        </style>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkToggleButton" id="dark_color_scheme_button">
+                                        <property name="sensitive">True</property>
+                                        <property name="group">system_color_scheme_button</property>
+                                        <property name="tooltip-text">Dark style</property>
+                                        <property name="icon-name">color-scheme-dark</property>
+                                        <signal name="clicked" handler="toggle_button_dark_color_scheme_callback"/>
+                                        <style>
+                                            <class name="flat"/>
+                                        </style>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+                <child>
                     <object class="GtkButton">
                         <property name="margin-top">6</property>
                         <property name="margin-bottom">6</property>

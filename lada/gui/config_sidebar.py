@@ -2,7 +2,7 @@ import pathlib
 
 from gi.repository import Gtk, GObject
 
-from lada.gui.config import Config
+from lada.gui.config import Config, ColorScheme
 from lada.gui import utils
 from lada.gui.utils import skip_if_uninitialized
 from lada import get_available_restoration_models, get_available_detection_models
@@ -25,6 +25,9 @@ class ConfigSidebar(Gtk.ScrolledWindow):
     spin_row_clip_max_duration = Gtk.Template.Child()
     switch_row_mute_audio = Gtk.Template.Child()
     list_box = Gtk.Template.Child()
+    light_color_scheme_button = Gtk.Template.Child()
+    dark_color_scheme_button = Gtk.Template.Child()
+    system_color_scheme_button = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -76,6 +79,11 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         self.spin_row_preview_buffer_duration.set_value(config.preview_buffer_duration)
         self.spin_row_clip_max_duration.set_value(config.max_clip_duration)
         self.switch_row_mute_audio.set_active(config.mute_audio)
+
+        # init color scheme
+        if config.color_scheme == ColorScheme.LIGHT: self.light_color_scheme_button.set_property("active", True)
+        elif config.color_scheme == ColorScheme.DARK: self.dark_color_scheme_button.set_property("active", True)
+        else: self.system_color_scheme_button.set_property("active", True)
 
         self.init_done = True
 
@@ -168,3 +176,18 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         self.init_done = False
         self._config.reset_to_default_values()
         self.init_sidebar_from_config(self._config)
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def toggle_button_system_color_scheme_callback(self, button_clicked):
+        self._config.color_scheme = ColorScheme.SYSTEM
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def toggle_button_light_color_scheme_callback(self, button_clicked):
+        self._config.color_scheme = ColorScheme.LIGHT
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def toggle_button_dark_color_scheme_callback(self, button_clicked):
+        self._config.color_scheme = ColorScheme.DARK

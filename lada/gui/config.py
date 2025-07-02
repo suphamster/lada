@@ -1,7 +1,8 @@
 import logging
 import threading
+from enum import Enum
 
-from gi.repository import GLib, GObject
+from gi.repository import GLib, GObject, Adw
 from pathlib import Path
 import json
 from lada import LOG_LEVEL
@@ -11,6 +12,10 @@ from lada import get_available_restoration_models, get_available_detection_model
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
+class ColorScheme(Enum):
+    SYSTEM = 'system'
+    LIGHT = 'light'
+    DARK = 'dark'
 
 class Config(GObject.Object):
     _defaults = {
@@ -22,11 +27,12 @@ class Config(GObject.Object):
         'preview_buffer_duration': 0,
         'max_clip_duration': 180,
         'device': 'cuda:0',
-        'mute_audio': False
+        'mute_audio': False,
+        'color_scheme': ColorScheme.SYSTEM
     }
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, style_manager: Adw.StyleManager):
+        super().__init__()
         self._preview_mode = self._defaults['preview_mode']
         self._mosaic_restoration_model = self._defaults['mosaic_restoration_model']
         self._mosaic_detection_model = self._defaults['mosaic_detection_model']
@@ -36,7 +42,10 @@ class Config(GObject.Object):
         self._max_clip_duration = self._defaults['max_clip_duration']
         self._device = self._defaults['device']
         self._mute_audio = self._defaults['mute_audio']
+        self._color_scheme = self._defaults['color_scheme']
+
         self.save_lock = threading.Lock()
+        self._style_manager = style_manager
 
     @GObject.Property()
     def preview_mode(self):
@@ -137,6 +146,18 @@ class Config(GObject.Object):
         self._export_codec = value
         self.save()
 
+    @GObject.Property()
+    def color_scheme(self):
+        return self._color_scheme
+
+    @color_scheme.setter
+    def color_scheme(self, value):
+        if value == self._color_scheme:
+            return
+        self._update_style(value)
+        self._color_scheme = value
+        self.save()
+
     def save(self):
         self.save_lock.acquire_lock()
         config_file_path = self.get_config_file_path()
@@ -164,18 +185,26 @@ class Config(GObject.Object):
                 logger.info(f"Loaded config file {config_file_path}: {config_dict}")
         except Exception as e:
             logger.error(f"Error loading config file {config_file_path}, falling back to defaults: {e}")
+        self._update_style(self._color_scheme)
 
     def reset_to_default_values(self):
-        default_config = Config()
-        self.preview_mode = default_config._preview_mode
-        self.mosaic_restoration_model = default_config._mosaic_restoration_model
-        self.device = default_config._device
-        self.preview_buffer_duration = default_config._preview_buffer_duration
-        self.max_clip_duration = default_config._max_clip_duration
-        self.export_crf = default_config._export_crf
-        self.export_codec = default_config._export_codec
-        self.mute_audio = default_config._mute_audio
+        self.preview_mode = self._defaults['preview_mode']
+        self.mosaic_restoration_model = self._defaults['mosaic_restoration_model']
+        self.device = self._defaults['device']
+        self.preview_buffer_duration = self._defaults['preview_buffer_duration']
+        self.max_clip_duration = self._defaults['max_clip_duration']
+        self.export_crf = self._defaults['export_crf']
+        self.export_codec = self._defaults['export_codec']
+        self.mute_audio = self._defaults['mute_audio']
+        self.color_scheme = self._defaults['color_scheme']
         self.save()
+
+    def _update_style(self, color_scheme: ColorScheme):
+        if color_scheme == ColorScheme.LIGHT: self._style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        elif color_scheme == ColorScheme.DARK: self._style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        elif color_scheme == ColorScheme.SYSTEM or color_scheme is None: self._style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+        else:
+            raise ValueError(f"unknown color scheme: {color_scheme}")
 
     def _as_dict(self) -> dict:
         return {
@@ -187,7 +216,8 @@ class Config(GObject.Object):
             'preview_buffer_duration': self._preview_buffer_duration,
             'max_clip_duration': self._max_clip_duration,
             'device': self._device,
-            'mute_audio': self._mute_audio
+            'mute_audio': self._mute_audio,
+            'color_scheme': self._color_scheme.value
         }
 
     def get_default_value(self, key):
@@ -202,6 +232,8 @@ class Config(GObject.Object):
                     self.validate_and_set_restoration_model(dict[key])
                 elif key == 'mosaic_detection_model':
                     self.validate_and_set_detection_model(dict[key])
+                elif key == 'color_scheme':
+                    self._color_scheme = ColorScheme(dict[key])
                 else:
                     setattr(self, f"_{key}", dict[key])
 

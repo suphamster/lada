@@ -3,7 +3,6 @@ import sys
 import gi
 
 from lada import VERSION
-from lada.gui.config import Config
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
@@ -16,6 +15,7 @@ here = pathlib.Path(__file__).parent.resolve()
 
 from lada.gui.window import MainWindow
 from lada.gui.shortcuts import ShortcutsWindow, ShortcutsManager
+from lada.gui.config import Config
 
 class LadaApplication(Adw.Application):
 
@@ -34,7 +34,7 @@ class LadaApplication(Adw.Application):
         Gio.resources_register(resource)
 
         self._shortcuts_manager: ShortcutsManager = ShortcutsManager()
-        self._config: Config = Config()
+        self._config: Config = Config(self.get_style_manager())
         self._config.load_config()
         self.window: MainWindow | None = None
 

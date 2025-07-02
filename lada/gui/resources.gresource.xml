@@ -5,5 +5,8 @@
     <file alias="check-round-outline2-symbolic.svg">icons/check-round-outline2-symbolic.svg</file>
     <file alias="speaker-0-symbolic.svg">icons/speaker-0-symbolic.svg</file>
     <file alias="speaker-4-symbolic.svg">icons/speaker-4-symbolic.svg</file>
+    <file alias="color-scheme-dark.svg">icons/color-scheme-dark.svg</file>
+    <file alias="color-scheme-light.svg">icons/color-scheme-light.svg</file>
+    <file alias="color-scheme-system.svg">icons/color-scheme-system.svg</file>
   </gresource>
 </gresources>
