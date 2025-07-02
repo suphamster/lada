@@ -215,14 +215,17 @@ class Config(GObject.Object):
         is_no_gpu_available = len(available_gpus) == 0
         if is_no_gpu_available:
             self._device = "cpu"
-        elif is_configured_device_available:
+            logger.warning(f"No GPU available, falling back to device cpu.")
+        elif is_configured_device_available and configured_device != "cpu":
             self._device = configured_device
+            logger.warning(
+                f"configured device {configured_device} is not available, falling back to device {self._device}. Available gpus: {available_gpus}")
         else:
             self._device = f"cuda:{available_gpus[0][0]}"
+            if configured_device == "cpu":
+                logger.info(
+                    f"Configured device is CPU but as GPU(s) are available will choose {self._device} instead. Available gpus: {available_gpus}")
 
-        if is_no_gpu_available:
-            logger.warning(
-                f"configured device {configured_device} is not available, falling back to device {self._device}")
 
     def validate_and_set_restoration_model(self, restoration_model_name: str):
         available_models = get_available_restoration_models()

@@ -90,7 +90,6 @@
                                 <child>
                                     <object class="GtkStack" id="stack_video_preview">
                                         <property name="vexpand">true</property>
-                                        <property name="visible-child-name">spinner</property>
                                         <property name="transition-type">none</property>
                                         <child>
                                             <object class="GtkStackPage">

@@ -11,7 +11,7 @@ from lada.gui.frame_restorer_provider import FrameRestorerProvider
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-class LadaAppSrc:
+class FrameRestorerAppSrc:
     def __init__(self, video_metadata: VideoMetadata, frame_restorer_provider: FrameRestorerProvider, eos_callback):
         self.video_metadata: VideoMetadata = video_metadata
         self.eos_callback = eos_callback
