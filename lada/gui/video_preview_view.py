@@ -123,7 +123,7 @@ class VideoPreviewView(Gtk.Widget):
         pass
 
     @GObject.Signal(name="video-export-requested")
-    def video_export_requested_signal(self, file: Gio.File):
+    def video_export_requested_signal(self, source_file: Gio.File, save_file: Gio.File):
         pass
 
     @Gtk.Template.Callback()
@@ -447,7 +447,7 @@ class VideoPreviewView(Gtk.Widget):
         file_dialog.set_title("Save restored video file")
         file_dialog.set_initial_folder(self.opened_file.get_parent())
         file_dialog.set_initial_name(f"{os.path.splitext(self.opened_file.get_basename())[0]}.restored.mp4")
-        file_dialog.save(callback=lambda dialog, result: self.emit("video-export-requested", dialog.save_finish(result)))
+        file_dialog.save(callback=lambda dialog, result: self.emit("video-export-requested", self.opened_file, dialog.save_finish(result)))
 
     def close(self, block=False):
         if not self.pipeline_manager:

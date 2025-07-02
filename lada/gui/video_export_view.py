@@ -27,8 +27,8 @@ class VideoExportView(Gtk.Widget):
         super().__init__(**kwargs)
 
         self._window_title: str | None = None
-        self._opened_file: Gio.File | None = None
         self._config: Config | None = None
+        self.export_in_progress = False
 
         self.connect("video-export-finished", self.show_video_export_success)
         self.connect("video-export-progress", self.on_video_export_progress)
@@ -49,14 +49,6 @@ class VideoExportView(Gtk.Widget):
     def window_title(self, value):
         self._window_title = value
 
-    @GObject.Property(type=Gio.File)
-    def opened_file(self):
-        return self._opened_file
-
-    @opened_file.setter
-    def opened_file(self, value):
-        self._opened_file = value
-
     @GObject.Signal(name="video-export-finished")
     def video_export_finished_signal(self):
         pass
@@ -69,6 +61,13 @@ class VideoExportView(Gtk.Widget):
         self.status_page.set_title("Finished video restoration!")
         self.status_page.set_icon_name("check-round-outline2-symbolic")
         self.progress_bar_file_export.set_fraction(1.0)
+        self.export_in_progress = False
+
+    def show_video_export_started(self):
+        self.status_page.set_title("Exporting restored video...")
+        self.status_page.set_icon_name("cafe-symbolic")
+        self.progress_bar_file_export.set_fraction(0.)
+        self.export_in_progress = True
 
     def on_video_export_progress(self, obj, progress):
         self.progress_bar_file_export.set_fraction(progress)
@@ -117,7 +116,7 @@ class VideoExportView(Gtk.Widget):
         exporter_thread = threading.Thread(target=run_export)
         exporter_thread.start()
 
-    def start_export(self, file: Gio.File):
-        self._opened_file = file
-        frame_restorer_options = FrameRestorerOptions(self._config.mosaic_restoration_model, self._config.mosaic_detection_model, video_utils.get_video_meta_data(self._opened_file.get_path()), self._config.device, self._config.max_clip_duration, False, False)
-        self.export_video(file.get_path(), self._config.export_codec, self._config.export_crf, frame_restorer_options)
+    def start_export(self, source_file: Gio.File, save_file: Gio.File):
+        self.show_video_export_started()
+        frame_restorer_options = FrameRestorerOptions(self._config.mosaic_restoration_model, self._config.mosaic_detection_model, video_utils.get_video_meta_data(source_file.get_path()), self._config.device, self._config.max_clip_duration, False, False)
+        self.export_video(save_file.get_path(), self._config.export_codec, self._config.export_crf, frame_restorer_options)

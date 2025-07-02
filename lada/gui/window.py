@@ -27,14 +27,14 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.connect("close-request", self.close)
         self.file_selection_view.connect("file-selected", lambda obj, file: self.on_file_selected(file))
-        self.video_preview_view.connect("video-export-requested", lambda obj, file: self.on_video_export_requested(file))
+        self.video_preview_view.connect("video-export-requested", lambda obj, source_file, save_file: self.on_video_export_requested(source_file, save_file))
         self.video_preview_view.connect("toggle-fullscreen-requested", lambda *args: self.on_toggle_fullscreen())
         self.connect("notify::fullscreened", lambda object, spec: self.on_fullscreened(object.get_property(spec.name)))
 
-    def on_video_export_requested(self, file: Gio.File):
+    def on_video_export_requested(self, source_file: Gio.File, save_file: Gio.File):
         self.stack.set_visible_child_name("file-export")
         self.video_preview_view.close(block=True)
-        self.video_export_view.start_export(file)
+        self.video_export_view.start_export(source_file, save_file)
 
     def on_file_selected(self, file: Gio.File):
         self.stack.set_visible_child_name("video-preview")
@@ -42,7 +42,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.video_preview_view.open_file(file)
 
     def on_file_drop(self, _drop_target, file, x, y):
-        if self.stack.get_visible_child_name() in ("file-selection", "video-preview"):
+        name = self.stack.get_visible_child_name()
+        if name in ("file-selection", "video-preview") or name == 'file-export' and not self.video_export_view.export_in_progress:
             self.on_file_selected(file)
 
     def on_fullscreened(self, fullscreened: bool):
