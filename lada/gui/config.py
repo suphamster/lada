@@ -20,8 +20,8 @@ class ColorScheme(Enum):
 class Config(GObject.Object):
     _defaults = {
         'preview_mode': 'mosaic-removal',
-        'mosaic_restoration_model': 'basicvsrpp-1.2',
-        'mosaic_detection_model': 'v3.1-accurate',
+        'mosaic_restoration_model': 'basicvsrpp-v1.2',
+        'mosaic_detection_model': 'v3.1-fast',
         'export_codec': 'h264',
         'export_crf': 20,
         'preview_buffer_duration': 0,
@@ -185,6 +185,8 @@ class Config(GObject.Object):
                 logger.info(f"Loaded config file {config_file_path}: {config_dict}")
         except Exception as e:
             logger.error(f"Error loading config file {config_file_path}, falling back to defaults: {e}")
+        # The config might have changed in case of new or invalid values. Let's save it.
+        self.save()
         self._update_style(self._color_scheme)
 
     def reset_to_default_values(self):
@@ -248,7 +250,7 @@ class Config(GObject.Object):
         if is_no_gpu_available:
             self._device = "cpu"
             logger.warning(f"No GPU available, falling back to device cpu.")
-        elif is_configured_device_available and configured_device != "cpu":
+        elif is_configured_device_available and configured_device == "cpu":
             self._device = configured_device
             logger.warning(
                 f"configured device {configured_device} is not available, falling back to device {self._device}. Available gpus: {available_gpus}")

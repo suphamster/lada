@@ -13,9 +13,9 @@ VERSION = '0.7.1-dev'
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING")
 
 RESTORATION_MODEL_FILES_TO_NAMES = {
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'): 'basicvsrpp-1.0',
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'): 'basicvsrpp-1.1',
-    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'): 'basicvsrpp-1.2',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic.pth'): 'basicvsrpp-v1.0',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.1.pth'): 'basicvsrpp-v1.1',
+    os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'): 'basicvsrpp-v1.2',
     os.path.join(MODEL_WEIGHTS_DIR, '3rd_party', 'clean_youknow_video.pth'): 'deepmosaics',
 }
 RESTORATION_MODEL_NAMES_TO_FILES = {v: k for k, v in RESTORATION_MODEL_FILES_TO_NAMES.items()}
