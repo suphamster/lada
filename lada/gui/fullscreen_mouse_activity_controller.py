@@ -1,3 +1,4 @@
+import sys
 import threading
 import time
 from gi.repository import Gtk, GObject
@@ -31,6 +32,9 @@ class FullscreenMouseActivityController(GObject.Object):
             self.fullscreen_motion_controller = Gtk.EventControllerMotion.new()
             self.fullscreen_motion_controller.connect("motion", self._on_motion)
             self.fullscreen_widget.add_controller(self.fullscreen_motion_controller)
+            self.last_motion_y = sys.maxsize
+            self.last_motion_y = sys.maxsize
+            self._start_timer()
         else:
             self.fullscreen_widget.remove_controller(self.fullscreen_motion_controller)
             if self.activity_timer:
@@ -52,13 +56,15 @@ class FullscreenMouseActivityController(GObject.Object):
         if not self._fullscreen_activity:
             self.fullscreen_activity = True
 
-        if self.activity_timer:
-            self.activity_timer.cancel()
-
-        self.activity_timer = threading.Timer(self.idle_time_seconds, self.on_activity_timer_run)
-        self.activity_timer.start()
+        self._start_timer()
         self.last_motion_y = y
         self.last_motion_x = x
+
+    def _start_timer(self):
+        if self.activity_timer:
+            self.activity_timer.cancel()
+        self.activity_timer = threading.Timer(self.idle_time_seconds, self.on_activity_timer_run)
+        self.activity_timer.start()
 
     def _is_considerable_mouse_motion(self, x, y, min_distance_px=3.):
         return abs(x - self.last_motion_x) >= min_distance_px or abs(y - self.last_motion_y) >= min_distance_px
