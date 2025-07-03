@@ -301,3 +301,15 @@ def is_video_file(file_path):
 
     file_ext = os.path.splitext(file_path)[1]
     return file_ext.lower() in SUPPORTED_VIDEO_FILE_EXTENSIONS
+
+def get_available_video_encoder_codecs():
+    codecs = set()
+    for name in av.codec.codecs_available:
+        try:
+            e_codec = av.codec.Codec(name, "w")
+        except ValueError:
+            continue
+        if e_codec.type != 'video':
+            continue
+        codecs.add((e_codec.name, e_codec.long_name))
+    return sorted(list(codecs))

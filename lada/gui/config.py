@@ -22,7 +22,7 @@ class Config(GObject.Object):
         'preview_mode': 'mosaic-removal',
         'mosaic_restoration_model': 'basicvsrpp-v1.2',
         'mosaic_detection_model': 'v3.1-fast',
-        'export_codec': 'h264',
+        'export_codec': 'libx264',
         'export_crf': 20,
         'preview_buffer_duration': 0,
         'max_clip_duration': 180,
@@ -236,6 +236,8 @@ class Config(GObject.Object):
                     self.validate_and_set_detection_model(dict[key])
                 elif key == 'color_scheme':
                     self._color_scheme = ColorScheme(dict[key])
+                elif key == 'export_codec':
+                    self.validate_and_set_export_codec(dict[key])
                 else:
                     setattr(self, f"_{key}", dict[key])
 
@@ -286,3 +288,14 @@ class Config(GObject.Object):
             logger.warning(
                 f"configured detection model {detection_model_name} is not available on the filesystem, falling back to model {default_model}")
             self._mosaic_detection_model = default_model
+
+    def validate_and_set_export_codec(self, export_codec: str):
+        if export_codec == 'h264':
+            self._export_codec = 'libx264'
+        elif export_codec == 'h265' or export_codec == 'hevc':
+            self._export_codec = 'libx265'
+        elif export_codec not in utils.get_available_video_codecs():
+            self._export_codec = self.get_default_value('export_codec')
+            logger.warning(f"Configured codec {export_codec} not the list of available/recommended list of codecs, falling back to '{self._export_codec}'")
+        else:
+            self._export_codec = export_codec

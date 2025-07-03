@@ -1,10 +1,11 @@
+import logging
 import pathlib
 
 from gi.repository import Gtk, GObject
 
 from lada.gui.config import Config, ColorScheme
 from lada.gui import utils
-from lada.gui.utils import skip_if_uninitialized
+from lada.gui.utils import skip_if_uninitialized, get_available_video_codecs
 from lada import get_available_restoration_models, get_available_detection_models
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -68,13 +69,16 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         idx = available_detection_models.index(config.mosaic_detection_model)
         self.combo_row_mosaic_detection_models.set_selected(idx)
 
-        self.spin_row_export_crf.set_property('value', config.export_crf)
-
         # init codec
-        codecs_string_list = self.combo_row_export_codec.get_model()
-        for i in range(len(codecs_string_list)):
-            if codecs_string_list.get_string(i) == config.export_codec:
-                self.combo_row_export_codec.set_selected(i)
+        combo_row_export_codec_models_list = Gtk.StringList.new([])
+        codecs = get_available_video_codecs()
+        for codec_name in codecs:
+            combo_row_export_codec_models_list.append(codec_name)
+        self.combo_row_export_codec.set_model(combo_row_export_codec_models_list)
+        idx = codecs.index(config.export_codec)
+        self.combo_row_export_codec.set_selected(idx)
+
+        self.spin_row_export_crf.set_property('value', config.export_crf)
 
         self.spin_row_preview_buffer_duration.set_value(config.preview_buffer_duration)
         self.spin_row_clip_max_duration.set_value(config.max_clip_duration)

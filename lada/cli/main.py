@@ -42,16 +42,19 @@ def parse_args():
     return parser.parse_args()
 
 def dump_pyav_codecs():
-    print(f"PyAV version: {av.__version__}")
+    print("PyAV version:")
+    print(f"\t{av.__version__}")
 
-    from av.codec.codec import dump_codecs
-    dump_codecs()
+    from lada.lib.video_utils import get_available_video_encoder_codecs
+    print("Video encoder codecs:")
+    for short_name, long_name in get_available_video_encoder_codecs():
+        print("\t%-18s %s" % (short_name, long_name))
 
     try:
         from av.codec.hwaccel import hwdevices_available
         print("Hardware device types:")
         for x in hwdevices_available():
-            print("   ", x)
+            print(f"\t{x}")
     except ImportError:
         print("Unable to list available hwdevices, ImportError")
 

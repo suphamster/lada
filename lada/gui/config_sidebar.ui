@@ -139,10 +139,7 @@
                                         handler="combo_row_mosaic_export_codec_selected_callback"/>
                                 <property name="model">
                                     <object class="GtkStringList">
-                                        <items>
-                                            <item>h264</item>
-                                            <item>hevc</item>
-                                        </items>
+                                        <items></items>
                                     </object>
                                 </property>
                             </object>
