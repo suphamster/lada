@@ -25,7 +25,7 @@
                         <child type="start">
                             <object class="GtkButton" id="button_toggle_fullscreen">
                                 <property name="icon-name">view-fullscreen-symbolic</property>
-                                <property name="tooltip-text">Show Restoration Preview in fullscreen mode</property>
+                                <property name="tooltip-text">Toggle Fullscreen</property>
                                 <property name="sensitive">True</property>
                                 <signal name="clicked" handler="button_toggle_fullscreen_callback"/>
                             </object>
@@ -34,8 +34,7 @@
                             <object class="GtkButton" id="button_export_video">
                                 <property name="label">Export</property>
                                 <property name="sensitive">False</property>
-                                <property name="tooltip-text">Export restored video to a file
-                                </property>
+                                <property name="tooltip-text">Export restored video to a file</property>
                                 <signal name="clicked" handler="button_export_video_callback"/>
                                 <style>
                                     <class name="suggested-action"/>
@@ -46,7 +45,7 @@
                             <object class="GtkToggleButton" id="toggle_button_preview_video">
                                 <property name="label">Preview</property>
                                 <property name="sensitive">True</property>
-                                <property name="tooltip-text">Preview mosaic video restoration</property>
+                                <property name="tooltip-text">Preview mosaic restoration</property>
                                 <property name="active">True</property>
                                 <signal name="clicked" handler="toggle_button_preview_video_callback"/>
                                 <style>
