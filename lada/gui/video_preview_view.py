@@ -128,7 +128,7 @@ class VideoPreviewView(Gtk.Widget):
 
     @Gtk.Template.Callback()
     def toggle_button_preview_video_callback(self, button_clicked):
-        if not self._video_preview_init_done:
+        if self._video_preview_init_done:
             self.frame_restorer_options = self._frame_restorer_options.with_passthrough(not self._frame_restorer_options.passthrough)
 
     @Gtk.Template.Callback()
