@@ -107,11 +107,6 @@ This section describes how to install the app (CLI and GUI) from source.
     pip install --force-reinstall (Resolve-Path ($project + "\build\gtk\x64\release\python\pygobject*.whl))
     pip install --force-reinstall (Resolve-Path ($project + "\build\gtk\x64\release\python\pycairo*.whl))
     ````
-   
-> [!NOTE]
-> This will install PyAV (used for video encoding and decoding) v13.1.0 which properly supports libx265 codec.
-> You may want to upgrade to latest version v14.4.0 which comes with support for Nvidia GPU-accelerated nvenc (h264,hevc) codecs. This version does not ship with libx265 though.
-> If you need both you have to build your own PyAV package for now until upstream releases a new binary that fixes libx265 missing codec.
 
 8) Apply patches
    

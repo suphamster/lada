@@ -264,16 +264,24 @@ class VideoWriter:
             encoder_options.update(self.parse_custom_options(custom_encoder_options))
 
         output_container = av.open(output_path, "w", options=container_options)
-        video_stream_out = output_container.add_stream(codec, fps)
+        video_stream_out: av.VideoStream = output_container.add_stream(codec, fps)
+
         video_stream_out.width = width
         video_stream_out.height = height
         video_stream_out.thread_count = 0
         video_stream_out.thread_type = 3
         video_stream_out.time_base = time_base
+
+        # up until PyAV 15.5.0 it was enough to set these settings on the stream only.
+        video_stream_out.codec_context.width = width
+        video_stream_out.codec_context.height = height
+        video_stream_out.codec_context.thread_count = 0
+        video_stream_out.codec_context.thread_type = 3
+        video_stream_out.codec_context.time_base = time_base
+
         video_stream_out.options = encoder_options
         self.output_container = output_container
         self.video_stream = video_stream_out
-        self.time_base = time_base
 
     def __enter__(self):
         return self

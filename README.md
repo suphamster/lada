@@ -110,7 +110,7 @@ If your GPU is not fast enough to watch the video in real-time you'll have to ex
 
 Technically running the app on your CPU is also supported where *supported* is defined as: It will not crash but processing will be so slow you wish you haven't given it a try.
 
-Here are some speed performance numbers using Lada v0.7.0 on my available hardware to give you an idea what to expect (used h264 codec with default settings; RTX 3090 results are limited by CPU encoding and could be faster with other settings):
+Here are some speed performance numbers using Lada v0.7.0 on my available hardware to give you an idea what to expect (used libx264 codec with default settings; RTX 3090 results are limited by CPU encoding and could be faster with other settings):
 
 | Video name | Video description                                                                                    | Video<br>duration / resolution / FPS | Lada<br>runtime / FPS<br>Nvidia RTX 3050<br>(*Laptop GPU*) | Lada<br>runtime / FPS<br>Nvidia RTX 3090<br>(Desktop GPU) |
 |------------|------------------------------------------------------------------------------------------------------|--------------------------------------|------------------------------------------------------------|-----------------------------------------------------------|
@@ -186,11 +186,6 @@ This section describes how to install the app from source.
     ```bash
     python -m pip install -e '.[basicvsrpp]'
     ````
-
-> [!NOTE]
-> This will install PyAV (used for video encoding and decoding) v13.1.0 which properly supports libx265 codec.
-> You may want to upgrade to latest version v14.4.0 which comes with support for Nvidia GPU-accelerated nvenc (h264,hevc) codecs. This version does not ship with libx265 though.
-> If you need both you have to build your own PyAV package for now until upstream releases a new binary that fixes libx265 missing codec.
 
 6) Apply patches
    
