@@ -50,7 +50,7 @@ class VideoPreviewView(Gtk.Widget):
         self._video_preview_init_done = False
         self._buffer_queue_min_thresh_time = 0
         self._buffer_queue_min_thresh_time_auto_min = 2.
-        self._buffer_queue_min_thresh_time_auto_max = 10.
+        self._buffer_queue_min_thresh_time_auto_max = 8.
         self._buffer_queue_min_thresh_time_auto = self._buffer_queue_min_thresh_time_auto_min
         self._shortcuts_manager: ShortcutsManager | None = None
         self._window_title: str | None = None
