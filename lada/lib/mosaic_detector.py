@@ -213,6 +213,9 @@ class MosaicDetector:
         self.queue_stats["inference_queue_max_size"] = 0
 
     def start(self, start_ns):
+        assert self.frame_feeder_queue.empty()
+        assert self.inference_queue.empty()
+
         self.start_ns = start_ns
         self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
         self.stop_requested = False
@@ -267,6 +270,10 @@ class MosaicDetector:
 
         # garbage collection
         threading_utils.empty_out_queue(self.frame_feeder_queue, "frame_feeder_queue")
+        threading_utils.empty_out_queue(self.inference_queue, "inference_queue")
+
+        assert self.frame_feeder_queue.empty()
+        assert self.inference_queue.empty()
 
         logger.debug(f"MosaicDetector: stopped, took: {time.time() - start}")
 

@@ -100,6 +100,10 @@ class FrameRestorer:
 
     def start(self, start_ns=0):
         assert self.frame_restoration_thread is None and self.clip_restoration_thread is None, "Illegal State: Tried to start FrameRestorer when it's already running. You need to stop it first"
+        assert self.mosaic_clip_queue.empty()
+        assert self.restored_clip_queue.empty()
+        assert self.frame_detection_queue.empty()
+        assert self.frame_restoration_queue.empty()
 
         self.start_ns = start_ns
         self.start_frame = video_utils.offset_ns_to_frame_num(self.start_ns, self.video_meta_data.video_fps_exact)
@@ -149,6 +153,11 @@ class FrameRestorer:
         threading_utils.empty_out_queue(self.restored_clip_queue, "restored_clip_queue")
         threading_utils.empty_out_queue(self.frame_detection_queue, "frame_detection_queue")
         threading_utils.empty_out_queue(self.frame_restoration_queue, "frame_restoration_queue")
+
+        assert self.mosaic_clip_queue.empty()
+        assert self.restored_clip_queue.empty()
+        assert self.frame_detection_queue.empty()
+        assert self.frame_restoration_queue.empty()
 
         logger.debug(f"FrameRestorer: stopped, took {time.time() - start}")
 
