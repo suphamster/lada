@@ -50,6 +50,16 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2025-07-04" version="0.7.2">
+            <description>
+                <ul>
+                    <li>Turns out the new "accurate" model introduced in v0.7.1 wasn't as accurate as I hoped. The "fast" model is now the default model, if you need something more accurate try detection model v2 or v3.1-accurate. V2 probably works better in most scenarios.</li>
+                    <li>GUI: Added fullscreen option for Restoration Preview</li>
+                    <li>GUI: Added option to switch color scheme. System ist default (as it has been) but you can also explicitly set dark or light mode if you want or the system detection doesn't work</li>
+                    <li>Packaging:You can now use Nvidia hardware-accelerated video encoders also in Docker and Flatpak builds</li>
+                </ul>
+            </description>
+        </release>
         <release date="2025-06-24" version="0.7.1">
             <description>
                 <ul>

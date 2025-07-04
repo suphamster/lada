@@ -2,10 +2,10 @@ FROM python:3.12-bookworm
 RUN useradd --create-home lada
 WORKDIR /home/lada
 ENV PIP_ROOT_USER_ACTION=ignore
-RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.7.1/packaging/requirements-cli.txt
-RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git@v0.7.1'
-RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.7.1/patches/increase_mms_time_limit.patch | patch -u -p4 -d /usr/local/lib/python3.12
-RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.7.1/patches/remove_ultralytics_telemetry.patch | patch -u -p4 -d /usr/local/lib/python3.12
+RUN pip install --no-deps --no-cache-dir --requirement https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.7.2/packaging/requirements-cli.txt
+RUN pip install --no-deps --no-cache-dir 'lada[basicvsrpp]@git+https://github.com/ladaapp/lada.git@v0.7.2'
+RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.7.2/patches/increase_mms_time_limit.patch | patch -u -p4 -d /usr/local/lib/python3.12
+RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/tags/v0.7.2/patches/remove_ultralytics_telemetry.patch | patch -u -p4 -d /usr/local/lib/python3.12
 RUN curl -Ls https://raw.githubusercontent.com/ladaapp/lada/refs/heads/main/patches/fix_loading_mmengine_weights_on_torch26_and_higher.diff | patch -u -p4 -d /usr/local/lib/python3.12
 RUN mkdir ffmpeg && curl -L 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' | tar xJf - -C ffmpeg  --strip-components 2 ffmpeg-master-latest-linux64-gpl/bin/ffprobe ffmpeg-master-latest-linux64-gpl/bin/ffmpeg && chmod -R 555 ffmpeg
 ENV PATH="/home/lada/ffmpeg:$PATH"
@@ -17,6 +17,8 @@ ADD --checksum=sha256:2b6e5d6cd5a795a4dcc1205b817a7323a4bd3725cef1a7de3a172cb568
     https://github.com/ladaapp/lada/releases/download/v0.7.1/lada_mosaic_detection_model_v3.1_accurate.pt model_weights/lada_mosaic_detection_model_v3.1_accurate.pt
 ADD --checksum=sha256:25d62894c16bba00468f3bcc160360bb84726b2f92751b5e235578bf2f9b0820 \
     https://github.com/ladaapp/lada/releases/download/v0.7.1/lada_mosaic_detection_model_v3.1_fast.pt model_weights/lada_mosaic_detection_model_v3.1_fast.pt
+ADD --checksum=sha256:056756fcab250bcdf0833e75aac33e2197b8809b0ab8c16e14722dcec94269b5 \
+    https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt
 ADD --checksum=sha256:d404152576ce64fb5b2f315c03062709dac4f5f8548934866cd01c823c8104ee \
     https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth model_weights/lada_mosaic_restoration_model_generic_v1.2.pth
 ADD --checksum=sha256:5643ca297c13920b8ffd39a0d85296e494683a69e5e8204d662653d24c582766 \
