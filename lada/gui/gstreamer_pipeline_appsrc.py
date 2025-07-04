@@ -161,7 +161,7 @@ class FrameRestorerAppSrc:
 
         if self.frame_restorer:
             # garbage collection
-            threading_utils.put_closing_queue_marker(frame_restorer_thread_queue, "frame_restorer_thread_queue")
+            threading_utils.empty_out_queue(frame_restorer_thread_queue, "frame_restorer_thread_queue")
             self.frame_restorer = None
 
         logger.debug(f"appsource worker: stopped, took {time.time() - start}")
