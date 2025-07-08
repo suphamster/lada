@@ -285,6 +285,10 @@ class VideoPreviewView(Gtk.Widget):
         self.button_mute_unmute.set_sensitive(self.has_audio)
         self.set_speaker_icon(mute=not self.has_audio)
 
+        self.should_be_paused = False
+        self.seek_in_progress = False
+        self.waiting_for_data = False
+
         self.frame_duration_ns = (1 / self.video_metadata.video_fps) * Gst.SECOND
         self.file_duration_ns = int((self.video_metadata.frames_count * self.frame_duration_ns))
         self._buffer_queue_min_thresh_time_auto_min = float(self._frame_restorer_options.max_clip_length / self.video_metadata.video_fps_exact)
@@ -304,7 +308,7 @@ class VideoPreviewView(Gtk.Widget):
             self.pipeline_manager.connect("eos", self.on_eos)
             self.pipeline_manager.connect("waiting-for-data", lambda obj, waiting_for_data: self.on_waiting_for_data(waiting_for_data))
             self.pipeline_manager.connect("notify::state", lambda object, spec: self.on_pipeline_state(object.get_property(spec.name)))
-            GLib.timeout_add(20, self.update_current_position)  # todo: remove when timeline is not visible (export view)
+            GLib.timeout_add(100, self.update_current_position)
 
         threading.Thread(target=self.pipeline_manager.play).start()
 
