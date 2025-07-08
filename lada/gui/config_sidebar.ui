@@ -5,19 +5,11 @@
 
     <template class="ConfigSidebar" parent="GtkScrolledWindow">
         <child>
-            <object class="GtkListBox" id="list_box">
+            <object class="AdwPreferencesPage" id="preferences_page">
                 <property name="sensitive">true</property>
-                <property name="selection-mode">none</property>
-                <style>
-                    <class name="boxed-list"/>
-                </style>
                 <child>
                     <object class="AdwPreferencesGroup">
                         <property name="title">Mosaic Removal</property>
-                        <property name="margin-top">6</property>
-                        <property name="margin-bottom">6</property>
-                        <property name="margin-start">6</property>
-                        <property name="margin-end">6</property>
                         <child>
                             <object class="AdwComboRow" id="combo_row_mosaic_detection_models">
                                 <property name="title">Detection model</property>
@@ -63,10 +55,6 @@
                     <object class="AdwPreferencesGroup">
                         <property name="title">Preview</property>
                         <property name="description">Only affecting Preview Mode</property>
-                        <property name="margin-top">6</property>
-                        <property name="margin-bottom">6</property>
-                        <property name="margin-start">6</property>
-                        <property name="margin-end">6</property>
                         <child>
                             <object class="AdwActionRow">
                                 <property name="title">Preview Mode</property>
@@ -127,10 +115,6 @@
                     <object class="AdwPreferencesGroup">
                         <property name="title">Export</property>
                         <property name="description">Only affecting video export</property>
-                        <property name="margin-top">6</property>
-                        <property name="margin-bottom">6</property>
-                        <property name="margin-start">6</property>
-                        <property name="margin-end">6</property>
                         <child>
                             <object class="AdwComboRow" id="combo_row_export_codec">
                                 <property name="title">Codec</property>
@@ -164,10 +148,6 @@
                 <child>
                     <object class="AdwPreferencesGroup">
                         <property name="title">Device</property>
-                        <property name="margin-top">6</property>
-                        <property name="margin-bottom">6</property>
-                        <property name="margin-start">6</property>
-                        <property name="margin-end">6</property>
                         <child>
                             <object class="AdwComboRow" id="combo_row_gpu">
                                 <property name="title">GPU</property>
@@ -187,10 +167,6 @@
                 <child>
                     <object class="AdwPreferencesGroup">
                         <property name="title">UI</property>
-                        <property name="margin-top">6</property>
-                        <property name="margin-bottom">6</property>
-                        <property name="margin-start">6</property>
-                        <property name="margin-end">6</property>
                         <child>
                             <object class="AdwComboRow">
                                 <property name="title">Color Scheme</property>
@@ -235,10 +211,6 @@
                 </child>
                 <child>
                     <object class="GtkButton">
-                        <property name="margin-top">6</property>
-                        <property name="margin-bottom">6</property>
-                        <property name="margin-start">6</property>
-                        <property name="margin-end">6</property>
                         <property name="label">Reset to factory settings</property>
                         <property name="sensitive">True</property>
                         <signal name="clicked" handler="button_config_reset_callback"/>

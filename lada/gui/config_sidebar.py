@@ -25,7 +25,7 @@ class ConfigSidebar(Gtk.ScrolledWindow):
     spin_row_preview_buffer_duration = Gtk.Template.Child()
     spin_row_clip_max_duration = Gtk.Template.Child()
     switch_row_mute_audio = Gtk.Template.Child()
-    list_box = Gtk.Template.Child()
+    preferences_page = Gtk.Template.Child()
     light_color_scheme_button = Gtk.Template.Child()
     dark_color_scheme_button = Gtk.Template.Child()
     system_color_scheme_button = Gtk.Template.Child()
@@ -102,11 +102,11 @@ class ConfigSidebar(Gtk.ScrolledWindow):
 
     @GObject.Property()
     def disabled(self):
-        return self.list_box.get_property("sensitive")
+        return self.preferences_page.get_property("sensitive")
 
     @disabled.setter
     def disabled(self, value):
-        self.list_box.set_property("sensitive", not value)
+        self.preferences_page.set_property("sensitive", not value)
 
     @Gtk.Template.Callback()
     @skip_if_uninitialized
