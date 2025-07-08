@@ -117,6 +117,7 @@ class PipelineManager(GObject.Object):
         if self.audio_volume:
             self.audio_volume.set_property("mute", True)
         self.pipeline.set_state(Gst.State.NULL)
+        self.pipeline.get_bus().remove_watch()
         self.frame_restorer_app_src.stop()
 
     def seek(self, seek_position_ns):

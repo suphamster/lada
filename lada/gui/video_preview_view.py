@@ -459,5 +459,4 @@ class VideoPreviewView(Gtk.Widget):
         if block:
             self.pipeline_manager.close_video_file()
         else:
-            shutdown_thread = threading.Thread(target=self.pipeline_manager.close_video_file)
-            shutdown_thread.start()
+            GLib.idle_add(self.pipeline_manager.close_video_file)
