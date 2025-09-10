@@ -251,7 +251,7 @@ class VideoWriter:
         encoder_defaults = self.get_default_encoder_options()
         encoder_options = encoder_defaults.get(codec, {})
 
-        if crf:
+        if crf is not None:
             if codec in ('hevc_nvenc', 'h264_nvenc'):
                 encoder_options['rc'] = 'constqp'
                 encoder_options['qp'] = str(crf)
