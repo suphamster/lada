@@ -4,7 +4,7 @@ import torch
 from ultralytics.utils.checks import check_imgsz
 import numpy as np
 from ultralytics.data.augment import LetterBox
-from ultralytics.utils import ops
+from ultralytics.utils import nms, ops
 from ultralytics.engine.results import Results
 from ultralytics.nn.autobackend import AutoBackend
 from ultralytics.cfg import get_cfg
@@ -29,12 +29,11 @@ class MosaicDetectionModel:
         self.args = get_cfg(DEFAULT_CFG, args)
 
         self.model = AutoBackend(
-            weights=yolo_model.model,
+            model=yolo_model.model,
             device=torch.device(device),
             dnn=self.args.dnn,
             data=self.args.data,
             fp16=self.args.half,
-            batch=self.args.batch,
             fuse=True,
             verbose=False,
         )
@@ -62,7 +61,7 @@ class MosaicDetectionModel:
 
     def postprocess(self, preds, img, orig_imgs):
         protos = preds[1][-1]
-        preds = ops.non_max_suppression(
+        preds = nms.non_max_suppression(
             preds,
             self.args.conf,
             self.args.iou,

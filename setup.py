@@ -9,7 +9,7 @@ setup(
     packages=find_packages(where='.',include=['lada','lada.*']),
     # ultralytics: pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch
     # av: Binary wheels before 15.0.0 had either no nvidia encoders or libx265 was broken/missing.
-    install_requires=['torch', 'ultralytics==8.3.157', 'numpy', 'opencv-python', 'tqdm', 'av>=15.0.0'],
+    install_requires=['torch', 'ultralytics==8.3.197', 'numpy', 'opencv-python', 'tqdm', 'av>=15.0.0'],
     extras_require={
         'deepmosaics': ['scikit-image'],
         'basicvsrpp': ['mmengine==0.10.7', 'torchvision'], # mmengine pinned as we apply a custom patch. When upstream releases a new version, check if we can remove the patch

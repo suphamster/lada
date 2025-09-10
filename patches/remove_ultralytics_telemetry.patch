@@ -1,34 +1,27 @@
 --- old/.venv/lib/python3.13/site-packages/ultralytics/utils/__init__.py	2025-06-19 00:00:00.0.0
 +++ new/.venv/lib/python3.13/site-packages/ultralytics/utils/__init__.py	2025-06-19 00:00:00.0.0
-@@ -867,22 +867,7 @@
-
-
- def is_online() -> bool:
--    """
--    Check internet connectivity by attempting to connect to a known online host.
--
--    Returns:
--        (bool): True if connection is successful, False otherwise.
--    """
--    try:
--        assert str(os.getenv("YOLO_OFFLINE", "")).lower() != "true"  # check if ENV var YOLO_OFFLINE="True"
--        import socket
--
--        for dns in ("1.1.1.1", "8.8.8.8"):  # check Cloudflare and Google DNS
--            socket.create_connection(address=(dns, 80), timeout=2.0).close()
--            return True
--    except Exception:
+@@ -762,16 +762,7 @@
+     Returns:
+         (bool): True if connection is successful, False otherwise.
+     """
+-    if str(os.getenv("YOLO_OFFLINE", "")).lower() == "true":
 -        return False
 -
+-    for host in ("one.one.one.one", "dns.google"):
+-        try:
+-            socket.getaddrinfo(host, 0, socket.AF_UNSPEC, 0, 0, socket.AI_ADDRCONFIG)
+-            return True
+-        except OSError:
+-            continue
+-    return False
 +    return True
-
+ 
+ 
  def is_pip_package(filepath: str = __name__) -> bool:
-     """
-@@ -1259,77 +1244,6 @@
-
+@@ -1108,76 +1099,6 @@
      return wrapper
-
--
+ 
+ 
 -def set_sentry():
 -    """
 -    Initialize the Sentry SDK for error tracking and reporting.
@@ -53,7 +46,7 @@
 -        or TESTS_RUNNING
 -        or not ONLINE
 -        or not IS_PIP_PACKAGE
--        or IS_GIT_DIR
+-        or GIT.is_repo
 -    ):
 -        return
 -    # If sentry_sdk package is not installed then return and do not use Sentry
@@ -81,7 +74,7 @@
 -        event["tags"] = {
 -            "sys_argv": ARGV[0],
 -            "sys_argv_name": Path(ARGV[0]).name,
--            "install": "git" if IS_GIT_DIR else "pip" if IS_PIP_PACKAGE else "other",
+-            "install": "git" if GIT.is_repo else "pip" if IS_PIP_PACKAGE else "other",
 -            "os": ENVIRONMENT,
 -        }
 -        return event
@@ -102,7 +95,7 @@
  class JSONDict(dict):
      """
      A dictionary-like class that provides JSON persistence for its contents.
-@@ -1468,7 +1382,7 @@
+@@ -1316,7 +1237,7 @@
              "weights_dir": str(root / "weights"),  # Model weights directory
              "runs_dir": str(root / "runs"),  # Experiment runs directory
              "uuid": hashlib.sha256(str(uuid.getnode()).encode()).hexdigest(),  # SHA-256 anonymized UUID hash
@@ -111,11 +104,11 @@
              "api_key": "",  # Ultralytics API Key
              "openai_api_key": "",  # OpenAI API Key
              "clearml": True,  # ClearML integration
-@@ -1593,7 +1507,6 @@
+@@ -1441,7 +1362,6 @@
      else platform.system()
  )
  TESTS_RUNNING = is_pytest_running() or is_github_action_running()
 -set_sentry()
-
+ 
  # Apply monkey patches
- torch.load = torch_load
+ torch.save = torch_save
