@@ -159,6 +159,10 @@ class PipelineManager(GObject.Object):
         self.pipeline.add(audio_audioconvert)
         self.pipeline_audio_elements.append(audio_audioconvert)
 
+        audio_audioresample = Gst.ElementFactory.make('audioresample', None)
+        self.pipeline.add(audio_audioresample)
+        self.pipeline_audio_elements.append(audio_audioresample)
+
         audio_volume = Gst.ElementFactory.make('volume', None)
         audio_volume.set_property("mute", self._muted)
         self.pipeline.add(audio_volume)
@@ -171,7 +175,8 @@ class PipelineManager(GObject.Object):
         # note that we cannot link decodebin directly to audio_queue as pads are dynamically added and not available at this point
         # see on_pad_added()
         audio_queue.link(audio_audioconvert)
-        audio_audioconvert.link(audio_volume)
+        audio_audioconvert.link(audio_audioresample)
+        audio_audioresample.link(audio_volume)
         audio_volume.link(audio_sink)
 
         self.audio_uridecodebin = audio_uridecodebin
