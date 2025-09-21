@@ -182,7 +182,7 @@ def add_text_watermark(
     w, h = img.size
 
     txt: str = generate_random_japanese_string(np.random.randint(4, 16)) if lang == "ja" else generate_random_string(np.random.randint(8, 24))
-    size: int = np.random.randint(24, min(w, h) // 5)
+    size: int = np.random.randint(22, min(w, h) // 5)
     position: dict = _get_position(w, h, size)
     rotation: int = _get_rotation_from_position(position)
     color: tuple = _get_color()
@@ -307,7 +307,7 @@ def add_logo_watermark(img: Image.Image, logo: Image.Image, size=512) -> tuple:
     w, h = img.size
 
     # logo = remove_background(logo)
-    max_logo_size = np.random.uniform(0.3, 0.6)
+    max_logo_size = np.random.uniform(0.1, 0.6)
 
     scale_factor: int = (
         max_logo_size / max(logo.width, logo.height) * min(img.width, img.height)

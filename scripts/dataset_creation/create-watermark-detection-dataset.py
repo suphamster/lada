@@ -51,8 +51,11 @@ def create_dataset(
             # logger.warning("Empty bbox in image %s", image_properties["file_name"])
             continue
 
+        stem, suffix = os.path.splitext(os.path.basename(image_path))
+        file_name = f"{stem}_{idx}{suffix}"
+
         convert_to_yolo(
-            file_name=os.path.basename(image_path),
+            file_name=file_name,
             bbox=bbox,
             category_id=category,
             yolo_labels_path=yolo_labels_path,
@@ -78,7 +81,7 @@ def main():
         logo_directory=args.logos_dir,
         yolo_labels_path=os.path.join(args.yolo_dir, "train", "labels"),
         yolo_images_path=os.path.join(args.yolo_dir, "train", "images"),
-        dataset_min_size=16_000
+        dataset_min_size=50_000
     )
 
     create_dataset(
@@ -86,7 +89,7 @@ def main():
         logo_directory=args.logos_dir,
         yolo_labels_path=os.path.join(args.yolo_dir, "val", "labels"),
         yolo_images_path=os.path.join(args.yolo_dir, "val", "images"),
-        dataset_min_size=800
+        dataset_min_size=2_000
     )
 
 if __name__ == "__main__":
