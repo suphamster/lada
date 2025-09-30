@@ -391,12 +391,12 @@ class PreviewView(Gtk.Widget):
 
     def on_fullscreen_activity(self, fullscreen_activity: bool):
         if fullscreen_activity:
-            self.header_bar.set_visible(True)
+            GLib.idle_add(lambda: self.header_bar.set_visible(True))
             self.set_cursor_from_name("default")
             self.box_playback_controls.set_visible(True)
             self.button_play_pause.grab_focus()
         else:
-            self.header_bar.set_visible(False)
+            GLib.idle_add(lambda: self.header_bar.set_visible(False))
             self.set_cursor_from_name("none")
             self.box_playback_controls.set_visible(False)
 
