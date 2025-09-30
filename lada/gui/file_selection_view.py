@@ -20,6 +20,9 @@ class FileSelectionView(Gtk.Widget):
         self._shortcuts_manager: ShortcutsManager | None = None
         self._window_title: str | None = None
 
+        logo_image = Gtk.Image.new_from_resource("/io/github/ladaapp/lada/icons/128x128/lada-logo-gray.png")
+        self.status_page.set_paintable(logo_image.get_paintable())
+
     @GObject.Property(type=ShortcutsManager)
     def shortcuts_manager(self):
         return self._shortcuts_manager

@@ -41,9 +41,6 @@
                                 </style>
                             </object>
                         </child>
-                        <style>
-                            <class name="title-1"/>
-                        </style>
                     </object>
                 </property>
             </object>

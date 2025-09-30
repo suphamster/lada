@@ -9,4 +9,7 @@
     <file alias="color-scheme-light.svg">icons/color-scheme-light.svg</file>
     <file alias="color-scheme-system.svg">icons/color-scheme-system.svg</file>
   </gresource>
+  <gresource prefix="/io/github/ladaapp/lada/icons/128x128">
+    <file alias="lada-logo-gray.png">icons/lada-logo-gray.png</file>
+  </gresource>
 </gresources>
