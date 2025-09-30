@@ -1,3 +1,5 @@
+import os
+
 import torch
 from lada.lib import video_utils
 
@@ -37,3 +39,13 @@ def skip_if_uninitialized(f):
 def get_available_video_codecs():
     filter_list = ['libx264', 'h264_nvenc', 'libx265', 'hevc_nvenc', 'libsvtav1', 'librav1e', 'libaom-av1', 'av1_nvenc']
     return [codec_short_name for codec_short_name, codec_long_name in video_utils.get_available_video_encoder_codecs() if codec_short_name in filter_list]
+
+def validate_file_name_pattern(file_name_pattern: str) -> bool:
+    if not "{orig_file_name}" in file_name_pattern:
+        return False
+    if os.sep in file_name_pattern:
+        return False
+    file_extension = os.path.splitext(file_name_pattern)[1].lower()
+    if file_extension not in [".mp4", ".mkv", ".mov", ".m4v"]:
+        return False
+    return True

@@ -72,7 +72,6 @@
                         <child>
                             <object class="AdwPreferencesGroup">
                                 <property name="title">Preview</property>
-                                <property name="description">Only affecting Preview Mode</property>
                                 <property name="visible" bind-source="ConfigSidebar" bind-property="show-preview-section"/>
                                 <child>
                                     <object class="AdwActionRow">
@@ -133,7 +132,6 @@
                         <child>
                             <object class="AdwPreferencesGroup">
                                 <property name="title">Export</property>
-                                <property name="description">Only affecting video export</property>
                                 <property name="visible" bind-source="ConfigSidebar" bind-property="show-export-section"/>
                                 <child>
                                     <object class="AdwComboRow" id="combo_row_export_codec">
@@ -162,6 +160,59 @@
                                         <signal name="notify::value"
                                                 handler="spin_row_preview_export_crf_selected_callback"/>
                                     </object>
+                                </child>
+                                <child>
+                                  <object class="AdwEntryRow" id="entry_row_custom_ffmpeg_encoder_options">
+                                    <property name="title">Custom FFmpeg encoder options (Optional).&#xA;Example: &lt;span background=&quot;#D3D3D350&quot;&gt;&lt;tt&gt;-rc-lookahead 32 -rc vbr_hq&lt;/tt&gt;&lt;/span&gt;</property>
+                                    <property name="tooltip-text">FFmpeg Codecs Documentation:&#xA;https://ffmpeg.org/ffmpeg-codecs.html</property>
+                                    <signal name="changed" handler="entry_row_custom_ffmpeg_encoder_options_changed_callback"/>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwExpanderRow">
+                                    <property name="title">Output Directory</property>
+                                    <property name="show-enable-switch">false</property>
+                                    <property name="expanded">true</property>
+                                    <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title">Always ask</property>
+                                        <child type="prefix">
+                                          <object class="GtkCheckButton" id="check_button_export_directory_alwaysask">
+                                            <property name="active">true</property>
+                                            <signal name="toggled" handler="check_button_export_directory_alwaysask_callback"/>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="AdwActionRow" id="action_row_export_directory">
+                                        <property name="title">Use this folder</property>
+                                        <property name="subtitle">Click the folder button to choose a default</property>
+                                        <child type="prefix">
+                                          <object class="GtkCheckButton" id="check_button_export_directory_defaultdir">
+                                            <property name="group">check_button_export_directory_alwaysask</property>
+                                            <property name="active">false</property>
+                                            <signal name="toggled" handler="check_button_export_directory_defaultdir_callback"/>
+                                          </object>
+                                        </child>
+                                        <child type="suffix">
+                                          <object class="GtkButton">
+                                            <property name="icon-name">folder-open-symbolic</property>
+                                            <property name="valign">3</property>
+                                            <signal name="clicked" handler="toggle_button_export_directory_filepicker_callback"/>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="AdwEntryRow" id="entry_row_file_name_pattern">
+                                    <property name="title">File name pattern for restored files.&#xA;Must include placeholder &lt;span background=&quot;#D3D3D350&quot;&gt;&lt;tt&gt;{orig_file_name}&lt;/tt&gt;&lt;/span&gt;.</property>
+                                    <signal name="changed" handler="entry_row_file_name_pattern_changed_callback"/>
+                                    <!-- I could not find any other way to check if the row is focused except checking for focused css class. has-focus is never true -->
+                                    <signal name="notify::css-classes" handler="entry_row_file_name_pattern_focused_callback"/>
+                                  </object>
                                 </child>
                             </object>
                         </child>
@@ -201,6 +252,45 @@
                                                 <property name="tooltip-text">Dark style</property>
                                                 <property name="icon-name">color-scheme-dark</property>
                                                 <signal name="clicked" handler="toggle_button_dark_color_scheme_callback"/>
+                                                <style>
+                                                    <class name="flat"/>
+                                                </style>
+                                            </object>
+                                        </child>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="AdwActionRow">
+                                        <property name="title">Initial View</property>
+                                        <property name="subtitle">View shown after opening files</property>
+                                        <child>
+                                            <object class="GtkToggleButton" id="toggle_button_initial_view_preview">
+                                                <property name="sensitive">True</property>
+                                                 <property name="child">
+                                                    <object class="AdwButtonContent">
+                                                      <property name="icon-name">playback-symbolic</property>
+                                                      <property name="label">Preview</property>
+                                                    </object>
+                                                  </property>
+                                                <signal name="clicked" handler="toggle_button_initial_view_preview_callback"/>
+                                                <style>
+                                                    <class name="flat"/>
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkToggleButton" id="toggle_button_initial_view_export">
+                                                <property name="label">Export</property>
+                                                <property name="group">toggle_button_initial_view_preview</property>
+                                                 <property name="child">
+                                                    <object class="AdwButtonContent">
+                                                      <property name="icon-name">arrow-pointing-away-from-line-right-symbolic</property>
+                                                      <property name="label">Export</property>
+                                                    </object>
+                                                  </property>
+                                                <property name="sensitive">True</property>
+                                                <property name="active">True</property>
+                                                <signal name="clicked" handler="toggle_button_initial_view_export_callback"/>
                                                 <style>
                                                     <class name="flat"/>
                                                 </style>

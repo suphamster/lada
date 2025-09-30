@@ -28,7 +28,11 @@ class Config(GObject.Object):
         'max_clip_duration': 180,
         'device': 'cuda:0',
         'mute_audio': False,
-        'color_scheme': ColorScheme.SYSTEM
+        'color_scheme': ColorScheme.SYSTEM,
+        'export_directory': None,
+        'file_name_pattern': "{orig_file_name}.restored.mp4",
+        'initial_view': 'preview',
+        'custom_ffmpeg_encoder_options': '',
     }
 
     def __init__(self, style_manager: Adw.StyleManager):
@@ -43,6 +47,10 @@ class Config(GObject.Object):
         self._device = self._defaults['device']
         self._mute_audio = self._defaults['mute_audio']
         self._color_scheme = self._defaults['color_scheme']
+        self._export_directory = self._defaults['export_directory']
+        self._file_name_pattern = self._defaults['file_name_pattern']
+        self._initial_view = self._defaults['initial_view']
+        self._custom_ffmpeg_encoder_options = self._defaults['custom_ffmpeg_encoder_options']
 
         self.save_lock = threading.Lock()
         self._style_manager = style_manager
@@ -158,6 +166,50 @@ class Config(GObject.Object):
         self._color_scheme = value
         self.save()
 
+    @GObject.Property()
+    def export_directory(self):
+        return self._export_directory
+
+    @export_directory.setter
+    def export_directory(self, value):
+        if value == self._export_directory:
+            return
+        self._export_directory = value
+        self.save()
+
+    @GObject.Property()
+    def file_name_pattern(self):
+        return self._file_name_pattern
+
+    @file_name_pattern.setter
+    def file_name_pattern(self, value):
+        if value == self._file_name_pattern:
+            return
+        self._file_name_pattern = value
+        self.save()
+
+    @GObject.Property()
+    def initial_view(self):
+        return self._initial_view
+
+    @initial_view.setter
+    def initial_view(self, value):
+        if value == self._initial_view:
+            return
+        self._initial_view = value
+        self.save()
+
+    @GObject.Property()
+    def custom_ffmpeg_encoder_options(self):
+        return self._custom_ffmpeg_encoder_options
+
+    @custom_ffmpeg_encoder_options.setter
+    def custom_ffmpeg_encoder_options(self, value):
+        if value == self._custom_ffmpeg_encoder_options:
+            return
+        self._custom_ffmpeg_encoder_options = value
+        self.save()
+
     def save(self):
         self.save_lock.acquire_lock()
         config_file_path = self.get_config_file_path()
@@ -199,6 +251,9 @@ class Config(GObject.Object):
         self.export_codec = self._defaults['export_codec']
         self.mute_audio = self._defaults['mute_audio']
         self.color_scheme = self._defaults['color_scheme']
+        self.export_directory = self._defaults['export_directory']
+        self.initial_view = self._defaults['initial_view']
+        self.custom_ffmpeg_encoder_options = self._defaults['custom_ffmpeg_encoder_options']
         self.save()
 
     def _update_style(self, color_scheme: ColorScheme):
@@ -219,7 +274,11 @@ class Config(GObject.Object):
             'max_clip_duration': self._max_clip_duration,
             'device': self._device,
             'mute_audio': self._mute_audio,
-            'color_scheme': self._color_scheme.value
+            'color_scheme': self._color_scheme.value,
+            'export_directory': self._export_directory,
+            'file_name_pattern': self._file_name_pattern,
+            'initial_view': self._initial_view,
+            'custom_ffmpeg_encoder_options': self._custom_ffmpeg_encoder_options,
         }
 
     def get_default_value(self, key):
@@ -238,6 +297,12 @@ class Config(GObject.Object):
                     self._color_scheme = ColorScheme(dict[key])
                 elif key == 'export_codec':
                     self.validate_and_set_export_codec(dict[key])
+                elif key == 'export_directory':
+                    self.validate_and_set_export_directory(dict[key])
+                elif key == 'file_name_pattern':
+                    self.validate_and_set_file_name_pattern(dict[key])
+                elif key == 'initial_view':
+                    self.validate_and_set_initial_view(dict[key])
                 else:
                     setattr(self, f"_{key}", dict[key])
 
@@ -299,3 +364,28 @@ class Config(GObject.Object):
             logger.warning(f"Configured codec {export_codec} not the list of available/recommended list of codecs, falling back to '{self._export_codec}'")
         else:
             self._export_codec = export_codec
+
+    def validate_and_set_export_directory(self, export_directory: str | None):
+        if export_directory is None:
+            self._export_directory = None
+        else:
+            path = Path(export_directory)
+            if path.is_dir():
+                self._export_directory = export_directory
+            else:
+                self._export_directory = None
+                logger.warning(f"Configured export directory '{export_directory}' does not exist or is not a directory on the filesystem, falling back to '{self._export_directory}'")
+
+    def validate_and_set_file_name_pattern(self, file_name_pattern: str):
+        if utils.validate_file_name_pattern(file_name_pattern):
+            self._file_name_pattern = file_name_pattern
+        else:
+            self._file_name_pattern = self.get_default_value('file_name_pattern')
+            logger.warning(f"Configured file name pattern '{file_name_pattern}' is invalid, falling back to '{self._file_name_pattern}'")
+
+    def validate_and_set_initial_view(self, initial_view: str):
+        if initial_view in ["preview", "export"]:
+            self._initial_view = initial_view
+        else:
+            self._initial_view = self.get_default_value('initial_view')
+            logger.warning(f"Configured initial view '{initial_view}' is invalid, falling back to '{self._initial_view}'")

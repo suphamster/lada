@@ -1,15 +1,17 @@
 import logging
 import pathlib
 
-from gi.repository import Gtk, GObject
+from gi.repository import Gtk, GObject, Adw, Gio, GLib
 
 from lada.gui.config import Config, ColorScheme
 from lada.gui import utils
-from lada.gui.utils import skip_if_uninitialized, get_available_video_codecs
-from lada import get_available_restoration_models, get_available_detection_models
+from lada.gui.utils import skip_if_uninitialized, get_available_video_codecs, validate_file_name_pattern
+from lada import get_available_restoration_models, get_available_detection_models, LOG_LEVEL
 
 here = pathlib.Path(__file__).parent.resolve()
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=LOG_LEVEL)
 
 @Gtk.Template(filename=here / 'config_sidebar.ui')
 class ConfigSidebar(Gtk.Box):
@@ -29,6 +31,13 @@ class ConfigSidebar(Gtk.Box):
     light_color_scheme_button = Gtk.Template.Child()
     dark_color_scheme_button = Gtk.Template.Child()
     system_color_scheme_button = Gtk.Template.Child()
+    action_row_export_directory: Adw.ActionRow = Gtk.Template.Child()
+    check_button_export_directory_alwaysask: Gtk.CheckButton = Gtk.Template.Child()
+    check_button_export_directory_defaultdir: Gtk.CheckButton = Gtk.Template.Child()
+    entry_row_file_name_pattern: Adw.EntryRow = Gtk.Template.Child()
+    toggle_button_initial_view_preview: Gtk.ToggleButton = Gtk.Template.Child()
+    toggle_button_initial_view_export: Gtk.ToggleButton = Gtk.Template.Child()
+    entry_row_custom_ffmpeg_encoder_options: Adw.EntryRow = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -91,6 +100,21 @@ class ConfigSidebar(Gtk.Box):
         elif config.color_scheme == ColorScheme.DARK: self.dark_color_scheme_button.set_property("active", True)
         else: self.system_color_scheme_button.set_property("active", True)
 
+        # init export directory
+        if config.export_directory:
+            self.action_row_export_directory.set_subtitle(config.export_directory)
+            self.check_button_export_directory_defaultdir.set_active(True)
+        else:
+            self.action_row_export_directory.set_subtitle("Click the folder button to choose a default")
+            self.check_button_export_directory_alwaysask.set_active(True)
+
+        self.entry_row_file_name_pattern.set_text(config.file_name_pattern)
+
+        self.toggle_button_initial_view_preview.set_active(config.initial_view == "preview")
+        self.toggle_button_initial_view_export.set_active(config.initial_view == "export")
+
+        self.entry_row_custom_ffmpeg_encoder_options.set_text(config.custom_ffmpeg_encoder_options)
+
         self.init_done = True
 
     @GObject.Property(type=Config)
@@ -116,7 +140,6 @@ class ConfigSidebar(Gtk.Box):
 
     @show_preview_section.setter
     def show_preview_section(self, value):
-        print("updated show-preview-section", value)
         self._show_preview_section = value
 
     @GObject.Property(type=bool, default=True)
@@ -125,7 +148,6 @@ class ConfigSidebar(Gtk.Box):
 
     @show_export_section.setter
     def show_export_section(self, value):
-        print("updated show-export-section", value)
         self._show_export_section = value
 
     @Gtk.Template.Callback()
@@ -215,3 +237,88 @@ class ConfigSidebar(Gtk.Box):
     @skip_if_uninitialized
     def toggle_button_dark_color_scheme_callback(self, button_clicked):
         self._config.color_scheme = ColorScheme.DARK
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def check_button_export_directory_alwaysask_callback(self, button_clicked):
+        if self.check_button_export_directory_alwaysask.get_active():
+            self._config.export_directory = None
+            self.action_row_export_directory.set_subtitle("Click the folder button to choose a default")
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def check_button_export_directory_defaultdir_callback(self, button_clicked):
+        if self.check_button_export_directory_defaultdir.get_active() and not self._config.export_directory:
+            self.show_select_folder()
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def toggle_button_export_directory_filepicker_callback(self, button_clicked):
+        self.show_select_folder()
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def entry_row_file_name_pattern_changed_callback(self, entry_row):
+        self.set_file_name_pattern_row_styles()
+        if validate_file_name_pattern(self.entry_row_file_name_pattern.get_text()):
+            self._config.file_name_pattern = self.entry_row_file_name_pattern.get_text()
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def entry_row_file_name_pattern_focused_callback(self, row_entry, param_spec):
+        self.set_file_name_pattern_row_styles()
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def toggle_button_initial_view_preview_callback(self, button_clicked):
+        self._config.initial_view = "preview"
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def toggle_button_initial_view_export_callback(self, button_clicked):
+        self._config.initial_view = "export"
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def entry_row_custom_ffmpeg_encoder_options_changed_callback(self, entry_row):
+        self._config.custom_ffmpeg_encoder_options = self.entry_row_custom_ffmpeg_encoder_options.get_text()
+
+    def set_file_name_pattern_row_styles(self):
+        is_valid = validate_file_name_pattern(self.entry_row_file_name_pattern.get_text())
+        focused = "focused" in self.entry_row_file_name_pattern.get_css_classes()
+        all_classes = {"success", "warning", "error"}
+        def add_if_not_present(class_name):
+            if class_name not in self.entry_row_file_name_pattern.get_css_classes():
+                for other_class_names in all_classes.difference({class_name}):
+                    self.entry_row_file_name_pattern.remove_css_class(other_class_names)
+                if class_name:
+                    self.entry_row_file_name_pattern.add_css_class(class_name)
+        if is_valid:
+            if focused:
+                add_if_not_present("success")
+            else:
+                add_if_not_present(None)
+        else:
+            if focused:
+                add_if_not_present("warning")
+            else:
+                add_if_not_present("error")
+
+    def show_select_folder(self):
+        file_dialog = Gtk.FileDialog()
+        file_dialog.set_title("Select a folder where restored videos should be saved")
+        def on_select_folder(_file_dialog, result):
+            try:
+                selected_folder: Gio.File = _file_dialog.select_folder_finish(result)
+                selected_folder_path = selected_folder.get_path()
+                self._config.export_directory = selected_folder_path
+                self.action_row_export_directory.set_subtitle(selected_folder_path)
+                if not self.check_button_export_directory_defaultdir.get_active(): self.check_button_export_directory_defaultdir.set_active(True)
+            except GLib.Error as error:
+                if error.message == "Dismissed by user":
+                    logger.debug("FileDialog cancelled: Dismissed by user")
+                else:
+                    logger.error(f"Error selecting folder: {error.message}")
+                if self.check_button_export_directory_defaultdir and not self._config.export_directory:
+                    self.check_button_export_directory_alwaysask.set_active(True)
+        file_dialog.select_folder(callback=on_select_folder)
