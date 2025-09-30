@@ -3,7 +3,7 @@
     <requires lib="gtk" version="4.0"/>
     <requires lib="Adw" version="1.0"/>
 
-    <template class="VideoPreviewView" parent="GtkWidget">
+    <template class="PreviewView" parent="GtkWidget">
         <property name="layout-manager">
             <object class="GtkBinLayout"/>
         </property>
@@ -12,13 +12,14 @@
                 <child type="top">
                     <object class="AdwHeaderBar" id="header_bar">
                         <property name="title-widget">
-                            <object class="AdwWindowTitle">
-                                <property name="title" bind-source="VideoPreviewView" bind-property="window-title"/>
-                            </object>
+                          <object class="AdwViewSwitcher" id="view_switcher">
+                            <property name="policy">1</property>
+                              <property name="stack" bind-source="PreviewView" bind-property="view-stack"/>
+                          </object>
                         </property>
                         <child type="start">
                             <object class="GtkToggleButton" id="toggle_button_pane">
-                                <property name="icon-name">sidebar-show-symbolic</property>
+                                <property name="icon-name">sliders-horizontal-symbolic</property>
                                 <property name="active">False</property>
                             </object>
                         </child>
@@ -31,27 +32,7 @@
                             </object>
                         </child>
                         <child type="start">
-                            <object class="GtkButton" id="button_export_video">
-                                <property name="label">Export</property>
-                                <property name="sensitive">False</property>
-                                <property name="tooltip-text">Export restored video to a file</property>
-                                <signal name="clicked" handler="button_export_video_callback"/>
-                                <style>
-                                    <class name="suggested-action"/>
-                                </style>
-                            </object>
-                        </child>
-                        <child type="start">
-                            <object class="GtkToggleButton" id="toggle_button_preview_video">
-                                <property name="label">Preview</property>
-                                <property name="sensitive">True</property>
-                                <property name="tooltip-text">Preview mosaic restoration</property>
-                                <property name="active">True</property>
-                                <signal name="clicked" handler="toggle_button_preview_video_callback"/>
-                                <style>
-                                    <class name="flat"/>
-                                </style>
-                            </object>
+                          <object class="HeaderbarFilesDropDown" id="drop_down_files"/>
                         </child>
                         <child type="end">
                             <object class="GtkMenuButton">
@@ -74,7 +55,8 @@
                         <property name="max-sidebar-width">500.0</property>
                         <property name="sidebar">
                             <object class="ConfigSidebar" id="config_sidebar">
-                                <property name="config" bind-source="VideoPreviewView" bind-property="config"/>
+                                <property name="config" bind-source="PreviewView" bind-property="config"/>
+                                <property name="show-export-section">False</property>
                             </object>
                         </property>
                         <property name="content">

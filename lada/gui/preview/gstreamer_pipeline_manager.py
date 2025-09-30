@@ -1,5 +1,6 @@
 import pathlib
 import sys
+from time import sleep
 
 from lada import LOG_LEVEL
 import logging
@@ -7,7 +8,7 @@ from enum import Enum
 from gi.repository import GObject, GLib, Gst, GstApp, Gdk
 
 from lada.gui.frame_restorer_provider import FrameRestorerProvider
-from lada.gui.gstreamer_pipeline_appsrc import FrameRestorerAppSrc
+from lada.gui.preview.gstreamer_pipeline_appsrc import FrameRestorerAppSrc
 from lada.lib import VideoMetadata, audio_utils
 
 logger = logging.getLogger(__name__)
@@ -18,16 +19,16 @@ class PipelineState(Enum):
     PAUSED = 2
 
 class PipelineManager(GObject.Object):
-    def __init__(self, video_metadata: VideoMetadata, frame_restorer_provider: FrameRestorerProvider, buffer_queue_min_thresh_time, buffer_queue_max_thresh_time, muted: bool):
+    def __init__(self, frame_restorer_provider: FrameRestorerProvider, buffer_queue_min_thresh_time, buffer_queue_max_thresh_time, muted: bool):
         super().__init__()
         self.frame_restorer_app_src: FrameRestorerAppSrc | None = None
-        self.video_metadata: VideoMetadata = video_metadata
+        self.video_metadata: VideoMetadata | None = None
         self.frame_restorer_provider: FrameRestorerProvider = frame_restorer_provider
         self.buffer_queue_min_thresh_time = buffer_queue_min_thresh_time
         self.buffer_queue_max_thresh_time = buffer_queue_max_thresh_time
         self._paintable: Gdk.Paintable | None
         self._state: PipelineState = PipelineState.PAUSED
-        self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
+        self.has_audio: bool = False
         self._muted: bool = muted
 
         self.audio_uridecodebin: Gst.UriDecodeBin | None = None
@@ -97,7 +98,6 @@ class PipelineManager(GObject.Object):
                         self.state = PipelineState.PLAYING
                     elif old_state == Gst.State.PLAYING and new_state == Gst.State.PAUSED:
                         self.state = PipelineState.PAUSED
-
             case Gst.MessageType.STREAM_STATUS:
                 pass
             case _:
@@ -105,20 +105,28 @@ class PipelineManager(GObject.Object):
                 pass
         return True
 
-    def init_pipeline(self):
-        bus = self.pipeline.get_bus()
-        bus.add_watch(GLib.PRIORITY_DEFAULT, self.on_bus_msg)
+    def init_pipeline(self, video_metadata: VideoMetadata):
+        if self.video_metadata:
+            self.adjust_pipeline_with_new_source_file(video_metadata)
+        else:
+            self.video_metadata = video_metadata
+            self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
 
-        self.pipeline_add_video()
-        if self.has_audio:
-            self.pipeline_add_audio()
+            bus = self.pipeline.get_bus()
+            bus.add_watch(GLib.PRIORITY_DEFAULT, self.on_bus_msg)
+
+            self.pipeline_add_video()
+            if self.has_audio:
+                self.pipeline_add_audio()
 
     def close_video_file(self):
         if self.audio_volume:
             self.audio_volume.set_property("mute", True)
         self.pipeline.set_state(Gst.State.NULL)
-        self.pipeline.get_bus().remove_watch()
+        while not self.pipeline.get_state(Gst.CLOCK_TIME_NONE)[1] == Gst.State.NULL:
+            sleep(0.05)
         self.frame_restorer_app_src.stop()
+        # self.pipeline.get_bus().remove_watch()
 
     def seek(self, seek_position_ns):
         # Pausing before seek seems to fix an issue where calling seek_simple() never returns.

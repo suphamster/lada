@@ -14,8 +14,9 @@ from lada.lib import audio_utils
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--input', type=str, help='Path to pixelated video file')
-    parser.add_argument('--output', type=str, help='Path to save restored video. If not specified will store it at input location with filename suffix ".restored"')
+    parser.add_argument('--input', type=str, help='Path to pixelated video file or directory containing video files')
+    parser.add_argument('--output', type=str, help='Path to save restored video. If path is a directory then file name will be chosen automatically (see --output-file-pattern). If no output path was given then the directory of the input file will be used')
+    parser.add_argument('--output-file-pattern', type=str, default="{orig_file_name}.restored.mp4", help="Pattern used to determine outputt file name when --output was set to a directory or wasn't specified")
     parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on. Use "cpu" or "cuda". If you have multiple GPUs you can select a specific one via index e.g. "cuda:0" (default: %(default)s)')
     parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering (default: %(default)s)')
     parser.add_argument('--version', action='store_true', help="Shows version")

@@ -29,20 +29,29 @@
                 </child>
                 <child>
                     <object class="GtkStackPage">
-                        <property name="name">video-preview</property>
+                        <property name="name">main</property>
                         <property name="child">
-                            <object class="VideoPreviewView" id="video_preview_view">
-                                <property name="window-title" bind-source="MainWindow" bind-property="title"/>
-                            </object>
-                        </property>
-                    </object>
-                </child>
-                <child>
-                    <object class="GtkStackPage">
-                        <property name="name">file-export</property>
-                        <property name="child">
-                            <object class="VideoExportView" id="video_export_view">
-                                <property name="window-title" bind-source="MainWindow" bind-property="title"/>
+                            <object class="AdwViewStack" id="view_stack">
+                                <child>
+                                    <object class="AdwViewStackPage">
+                                        <property name="name">preview</property>
+                                        <property name="title">Preview</property>
+                                        <property name="icon-name">playback-symbolic</property>
+                                        <property name="child">
+                                            <object class="PreviewView" id="preview_view"/>
+                                        </property>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="AdwViewStackPage">
+                                        <property name="name">export</property>
+                                        <property name="title">Export</property>
+                                        <property name="icon-name">arrow-pointing-away-from-line-right-symbolic</property>
+                                        <property name="child">
+                                            <object class="ExportView" id="export_view"/>
+                                        </property>
+                                    </object>
+                                </child>
                             </object>
                         </property>
                     </object>

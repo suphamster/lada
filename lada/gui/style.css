@@ -2,6 +2,15 @@
 	background-color: color-mix(in srgb, var(--dialog-bg-color) 70%, transparent);
 }
 
+#drop_down_files > button:not(:checked):not(:hover) {
+  background: transparent;
+  box-shadow: none;
+}
+
+progressbar.finished > trough > progress {
+  background-color: var(--success-color);
+}
+
 .fullscreen-preview {
 	background-color: black;
 }

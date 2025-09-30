@@ -3,6 +3,7 @@ import os
 import torch
 from lada.lib import video_utils
 
+from gi.repository import Gio
 def is_device_available(device: str) -> bool:
     device = device.lower()
     if device == 'cpu':
@@ -36,7 +37,7 @@ def skip_if_uninitialized(f):
         return f(*args) if args[0].init_done else noop
     return wrapper
 
-def get_available_video_codecs():
+def get_available_video_codecs() -> list[str]:
     filter_list = ['libx264', 'h264_nvenc', 'libx265', 'hevc_nvenc', 'libsvtav1', 'librav1e', 'libaom-av1', 'av1_nvenc']
     return [codec_short_name for codec_short_name, codec_long_name in video_utils.get_available_video_encoder_codecs() if codec_short_name in filter_list]
 
@@ -49,3 +50,10 @@ def validate_file_name_pattern(file_name_pattern: str) -> bool:
     if file_extension not in [".mp4", ".mkv", ".mov", ".m4v"]:
         return False
     return True
+
+def filter_video_files(files: list[Gio.File]) -> list[Gio.File]:
+    def is_video_file(file: Gio.File):
+        file_info: Gio.FileInfo = file.query_info("standard::content-type", Gio.FileQueryInfoFlags.NONE)
+        return file_info.get_content_type().startswith("video/")
+    filtered_files = [file for file in files if is_video_file(file)]
+    return filtered_files
