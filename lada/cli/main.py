@@ -1,4 +1,5 @@
 import argparse
+import mimetypes
 import pathlib
 
 import av
@@ -27,7 +28,7 @@ def parse_args():
     export.add_argument('--preset', type=str, default=None, help='Encoder preset. Mostly affects file-size and speed. (default: %(default)s)')
     export.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written (default: %(default)s)")
     export.add_argument('--list-codecs', action='store_true', help="List available Codecs and hardware devices / GPUs for hardware-accelerated video encoding. Uses FFmpeg wrapper library PyAV which is used for encoding the restored video.")
-    export.add_argument('--custom-encoder-options', type=str, help="Pass arbitrary encoder options. Pass it like you'd specify them using ffmpeg cli. e.g --custom-encoder-options \"-rc-lookahead 32 -rc vbr_hq\".")
+    export.add_argument('--custom-encoder-options', type=str, help="Pass arbitrary encoder options. Pass it like you'd specify them using ffmpeg cli. e.g --custom-encoder-options \"-rc-lookahead 32 -rc vbr_hq\". FFmpeg Codecs Documentation: https://ffmpeg.org/ffmpeg-codecs.html")
 
     group_restoration = parser.add_argument_group('Mosaic restoration')
     group_restoration.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp", help="Model used to restore mosaic clips (default: %(default)s)")
@@ -40,6 +41,18 @@ def parse_args():
     group_detection.add_argument('--list-mosaic-detection-models', action='store_true', help="List available detection models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')")
 
     return parser.parse_args()
+
+def filter_video_files(directory_path: str):
+    video_files = []
+    for name in os.listdir(directory_path):
+        path = os.path.join(directory_path, name)
+        if os.path.isfile(path) and mimetypes.guess_file_type(path)[0].lower().startswith("video/"):
+            video_files.append(path)
+    return video_files
+
+def get_output_file_path(input_file_path: str, output_directory: str, output_file_pattern: str):
+    output_file_name = output_file_pattern.replace("{orig_file_name}", pathlib.Path(input_file_path).stem)
+    return os.path.join(output_directory, output_file_name)
 
 def dump_pyav_codecs():
     print("PyAV version:")
@@ -84,41 +97,11 @@ def dump_available_restoration_models():
             s += f"\n\tname: {name} -> path: {RESTORATION_MODEL_NAMES_TO_FILES[name]}"
     print(s)
 
-def main():
-    args = parse_args()
-    if args.version:
-        print("Lada: ", VERSION)
-        exit(0)
-    if args.list_codecs:
-        dump_pyav_codecs()
-        exit(0)
-    if args.list_mosaic_detection_models:
-        dump_available_detection_models()
-        exit(0)
-    if args.list_mosaic_restoration_models:
-        dump_available_restoration_models()
-        exit(0)
-    if not args.input:
-        print("Arguments --input required. Use --help to find out more.")
-        exit(1)
-    if args.device.startswith("cuda") and not torch.cuda.is_available():
-        print(f"GPU {args.device} selected but CUDA is not available")
-        exit(1)
-    if args.output:
-        output_path = args.output
-    else:
-        ip = pathlib.Path(args.input)
-        output_path = str(ip.parent.joinpath(ip.stem + ".restored" + ip.suffix))
-        print(f"Restored video will be written to {output_path}")
+def process_video_file(input_path: str, output_path: str, device, mosaic_restoration_model, mosaic_detection_model,
+                       mosaic_restoration_model_name, preferred_pad_mode, max_clip_length, codec, crf, moov_front, preset, custom_encoder_options):
+    video_metadata = get_video_meta_data(input_path)
 
-    mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(
-        args.device, args.mosaic_restoration_model, args.mosaic_restoration_model_path, args.mosaic_restoration_config_path,
-        args.mosaic_detection_model_path
-    )
-
-    video_metadata = get_video_meta_data(args.input)
-
-    frame_restorer = FrameRestorer(args.device, args.input, args.max_clip_length, args.mosaic_restoration_model,
+    frame_restorer = FrameRestorer(device, input_path, max_clip_length, mosaic_restoration_model_name,
                  mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode)
     success = True
     video_tmp_file_output_path = os.path.join(tempfile.gettempdir(), f"{os.path.basename(os.path.splitext(output_path)[0])}.tmp{os.path.splitext(output_path)[1]}")
@@ -127,9 +110,9 @@ def main():
         frame_restorer.start()
 
         with VideoWriter(video_tmp_file_output_path, video_metadata.video_width, video_metadata.video_height,
-                         video_metadata.video_fps_exact, codec=args.codec, crf=args.crf, moov_front=args.moov_front,
-                         time_base=video_metadata.time_base, preset=args.preset,
-                         custom_encoder_options=args.custom_encoder_options) as video_writer:
+                         video_metadata.video_fps_exact, codec=codec, crf=crf, moov_front=moov_front,
+                         time_base=video_metadata.time_base, preset=preset,
+                         custom_encoder_options=custom_encoder_options) as video_writer:
             for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
                 if elem is None:
                     success = False
@@ -153,6 +136,74 @@ def main():
         if os.path.exists(video_tmp_file_output_path):
             os.remove(video_tmp_file_output_path)
 
+def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
+    single_file_input = os.path.isfile(input_arg)
+
+    if single_file_input:
+        input_files = [os.path.abspath(input_arg)]
+    else:
+        input_files = filter_video_files(input_arg)
+
+    assert len(input_files) > 0
+
+    if single_file_input:
+        if not output_arg:
+            input_file_path = input_files[0]
+            output_dir_path = str(pathlib.Path(input_file_path).parent)
+            output_files = [get_output_file_path(input_file_path, output_dir_path, output_file_pattern)]
+        else:
+            output_files = [output_arg]
+    else:
+        if output_arg:
+            if not os.path.exists(output_arg):
+                os.makedirs(output_arg)
+            output_dir_path = output_arg
+        else:
+            output_dir_path = str(pathlib.Path(input_files[0]).parent)
+        output_files = [get_output_file_path(input_file_path, output_dir_path, output_file_pattern) for input_file_path in input_files]
+
+    assert len(input_files) == len(output_files)
+
+    return input_files, output_files
+
+def main():
+    args = parse_args()
+    if args.version:
+        print("Lada: ", VERSION)
+        exit(0)
+    if args.list_codecs:
+        dump_pyav_codecs()
+        exit(0)
+    if args.list_mosaic_detection_models:
+        dump_available_detection_models()
+        exit(0)
+    if args.list_mosaic_restoration_models:
+        dump_available_restoration_models()
+        exit(0)
+    if not args.input:
+        print("Arguments --input required. Use --help to find out more.")
+        exit(1)
+    if args.device.startswith("cuda") and not torch.cuda.is_available():
+        print(f"GPU {args.device} selected but CUDA is not available")
+        exit(1)
+    if "{orig_file_name}" not in args.output_file_pattern or "." not in args.output_file_pattern:
+        print("Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension")
+        exit(1)
+    if os.path.isdir(args.input) and args.output is not None and os.path.isfile(args.output):
+        print("Invalid output directory. If input is a directory then --output must also be set to a directory")
+        exit(1)
+
+    mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(
+        args.device, args.mosaic_restoration_model, args.mosaic_restoration_model_path, args.mosaic_restoration_config_path,
+        args.mosaic_detection_model_path
+    )
+
+    input_files, output_files = setup_input_and_output_paths(args.input, args.output, args.output_file_pattern)
+
+    for input_path, output_path in zip(input_files, output_files):
+        process_video_file(input_path=input_path, output_path=output_path, device=args.device, mosaic_restoration_model=mosaic_restoration_model, mosaic_detection_model=mosaic_detection_model,
+                           mosaic_restoration_model_name=args.mosaic_restoration_model, preferred_pad_mode=preferred_pad_mode, max_clip_length=args.max_clip_length,
+                           codec=args.codec, crf=args.crf, moov_front=args.moov_front, preset=args.preset, custom_encoder_options=args.custom_encoder_options)
 
 if __name__ == '__main__':
     main()
