@@ -3,10 +3,13 @@ import mimetypes
 import pathlib
 
 import av
+import locale
+import gettext
 import torch
 from tqdm import tqdm
 import os
 import tempfile
+from gettext import gettext as _
 from lada import MODEL_WEIGHTS_DIR, VERSION, DETECTION_MODEL_NAMES_TO_FILES, RESTORATION_MODEL_NAMES_TO_FILES, get_available_restoration_models, get_available_detection_models
 from lada.lib.frame_restorer import load_models, FrameRestorer
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
@@ -15,30 +18,30 @@ from lada.lib import audio_utils
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--input', type=str, help='Path to pixelated video file or directory containing video files')
-    parser.add_argument('--output', type=str, help='Path to save restored video. If path is a directory then file name will be chosen automatically (see --output-file-pattern). If no output path was given then the directory of the input file will be used')
-    parser.add_argument('--output-file-pattern', type=str, default="{orig_file_name}.restored.mp4", help="Pattern used to determine outputt file name when --output was set to a directory or wasn't specified")
-    parser.add_argument('--device', type=str, default="cuda:0", help='torch device to run the models on. Use "cpu" or "cuda". If you have multiple GPUs you can select a specific one via index e.g. "cuda:0" (default: %(default)s)')
-    parser.add_argument('--max-clip-length', type=int, default=180, help='number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering (default: %(default)s)')
-    parser.add_argument('--version', action='store_true', help="Shows version")
+    parser.add_argument('--input', type=str, help=_('Path to pixelated video file or directory containing video files'))
+    parser.add_argument('--output', type=str, help=_('Path to save restored video. If path is a directory then file name will be chosen automatically (see --output-file-pattern). If no output path was given then the directory of the input file will be used'))
+    parser.add_argument('--output-file-pattern', type=str, default="{orig_file_name}.restored.mp4", help=_("Pattern used to determine outputt file name when --output was set to a directory or wasn't specified"))
+    parser.add_argument('--device', type=str, default="cuda:0", help=_('torch device to run the models on. Use "cpu" or "cuda". If you have multiple GPUs you can select a specific one via index e.g. "cuda:0" (default: %(default)s)'))
+    parser.add_argument('--max-clip-length', type=int, default=180, help=_('number of consecutive frames that will be fed to mosaic restoration model. Lower values reduce RAM and VRAM usage. If set too low quality will reduce / flickering (default: %(default)s)'))
+    parser.add_argument('--version', action='store_true', help=_("Shows version"))
 
-    export = parser.add_argument_group('Video export (Encoder settings)')
-    export.add_argument('--codec', type=str, default="h264", help='FFmpeg video codec. E.g. "h264, "hevc" or "hevc_nvenc". Use "--list-codecs" to see whats available. (default: %(default)s)')
-    export.add_argument('--crf', type=int, default=None, help='Constant rate factor (quality setting for video encoder). The lower the better with the caveat of producing larger files size and increased compute resources. Note: If you have selected GPU codecs "h264_nvenc" or "hevc_nvenc" then the option "qp" will be used instead as those encoders do not support the option "crf". (default: %(default)s)')
-    export.add_argument('--preset', type=str, default=None, help='Encoder preset. Mostly affects file-size and speed. (default: %(default)s)')
-    export.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help="sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written (default: %(default)s)")
-    export.add_argument('--list-codecs', action='store_true', help="List available Codecs and hardware devices / GPUs for hardware-accelerated video encoding. Uses FFmpeg wrapper library PyAV which is used for encoding the restored video.")
-    export.add_argument('--custom-encoder-options', type=str, help="Pass arbitrary encoder options. Pass it like you'd specify them using ffmpeg cli. e.g --custom-encoder-options \"-rc-lookahead 32 -rc vbr_hq\". FFmpeg Codecs Documentation: https://ffmpeg.org/ffmpeg-codecs.html")
+    export = parser.add_argument_group(_('Video export (Encoder settings)'))
+    export.add_argument('--codec', type=str, default="h264", help=_('FFmpeg video codec. E.g. "h264, "hevc" or "hevc_nvenc". Use "--list-codecs" to see whats available. (default: %(default)s)'))
+    export.add_argument('--crf', type=int, default=None, help=_('Constant rate factor (quality setting for video encoder). The lower the better with the caveat of producing larger files size and increased compute resources. Note: If you have selected GPU codecs "h264_nvenc" or "hevc_nvenc" then the option "qp" will be used instead as those encoders do not support the option "crf". (default: %(default)s)'))
+    export.add_argument('--preset', type=str, default=None, help=_('Encoder preset. Mostly affects file-size and speed. (default: %(default)s)'))
+    export.add_argument('--moov-front',  default=False, action=argparse.BooleanOptionalAction, help=_("sets ffmpeg mov flags 'frag_keyframe+empty_moov+faststart'. Enables playing the output video while it's being written (default: %(default)s)"))
+    export.add_argument('--list-codecs', action='store_true', help=_("List available Codecs and hardware devices / GPUs for hardware-accelerated video encoding. Uses FFmpeg wrapper library PyAV which is used for encoding the restored video."))
+    export.add_argument('--custom-encoder-options', type=str, help=_("Pass arbitrary encoder options. Pass it like you'd specify them using ffmpeg cli. e.g --custom-encoder-options \"-rc-lookahead 32 -rc vbr_hq\". FFmpeg Codecs Documentation: https://ffmpeg.org/ffmpeg-codecs.html"))
 
-    group_restoration = parser.add_argument_group('Mosaic restoration')
-    group_restoration.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp", help="Model used to restore mosaic clips (default: %(default)s)")
-    group_restoration.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'), help="(default: %(default)s)")
+    group_restoration = parser.add_argument_group(_('Mosaic restoration'))
+    group_restoration.add_argument('--mosaic-restoration-model', type=str, default="basicvsrpp", help=_("Model used to restore mosaic clips (default: %(default)s)"))
+    group_restoration.add_argument('--mosaic-restoration-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_restoration_model_generic_v1.2.pth'), help=_("(default: %(default)s)"))
     group_restoration.add_argument('--mosaic-restoration-config-path', type=str)
-    group_restoration.add_argument('--list-mosaic-restoration-models', action='store_true', help="List available restoration models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')")
+    group_restoration.add_argument('--list-mosaic-restoration-models', action='store_true', help=_("List available restoration models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')"))
 
     group_detection = parser.add_argument_group('Mosaic detection')
-    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.1_fast.pt'), help="(default: %(default)s)")
-    group_detection.add_argument('--list-mosaic-detection-models', action='store_true', help="List available detection models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')")
+    group_detection.add_argument('--mosaic-detection-model-path', type=str, default=os.path.join(MODEL_WEIGHTS_DIR, 'lada_mosaic_detection_model_v3.1_fast.pt'), help=_("(default: %(default)s)"))
+    group_detection.add_argument('--list-mosaic-detection-models', action='store_true', help=_("List available detection models found in MODEL_WEIGHTS_DIR (if not overwritten this will be './model_weights')"))
 
     return parser.parse_args()
 
@@ -78,7 +81,7 @@ def dump_pyav_codecs():
         print("Unable to list hwdevice configs, ImportError")
 
 def dump_available_detection_models():
-    s = "Available detection models:"
+    s = _("Available detection models:")
     detection_model_names = get_available_detection_models()
     if len(detection_model_names) == 0:
         s += "\n\tNone!"
@@ -88,7 +91,7 @@ def dump_available_detection_models():
     print(s)
 
 def dump_available_restoration_models():
-    s = "Available restoration models:"
+    s = _("Available restoration models:")
     restoration_model_names = get_available_restoration_models()
     if len(restoration_model_names) == 0:
         s += "\n\tNone!"
@@ -113,7 +116,7 @@ def process_video_file(input_path: str, output_path: str, device, mosaic_restora
                          video_metadata.video_fps_exact, codec=codec, crf=crf, moov_front=moov_front,
                          time_base=video_metadata.time_base, preset=preset,
                          custom_encoder_options=custom_encoder_options) as video_writer:
-            for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc="Processing frames"):
+            for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc=_("Processing frames")):
                 if elem is None:
                     success = False
                     print("Error on export: frame restorer stopped prematurely")
@@ -123,14 +126,14 @@ def process_video_file(input_path: str, output_path: str, device, mosaic_restora
     except (Exception, KeyboardInterrupt) as e:
         success = False
         if isinstance(e, KeyboardInterrupt):
-            print("Ctrl-C, stop currently running restore")
+            print(_("Received Ctrl-C, stop currently running restore"))
         else:
             print("Error on export", e)
     finally:
         frame_restorer.stop()
 
     if success:
-        print("Processing audio")
+        print(_("Processing audio"))
         audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, output_path)
     else:
         if os.path.exists(video_tmp_file_output_path):
@@ -166,7 +169,16 @@ def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
 
     return input_files, output_files
 
+def init_localization():
+    APP_NAME = 'lada'
+    LOCALE_DIR =  './translations'
+    locale.bindtextdomain(APP_NAME, LOCALE_DIR)
+    gettext.bindtextdomain(APP_NAME, LOCALE_DIR)
+    gettext.textdomain(APP_NAME)
+    locale.textdomain(APP_NAME)
+
 def main():
+    init_localization()
     args = parse_args()
     if args.version:
         print("Lada: ", VERSION)
@@ -181,16 +193,16 @@ def main():
         dump_available_restoration_models()
         exit(0)
     if not args.input:
-        print("Arguments --input required. Use --help to find out more.")
+        print(_("Arguments --input required. Use --help to find out more."))
         exit(1)
     if args.device.startswith("cuda") and not torch.cuda.is_available():
-        print(f"GPU {args.device} selected but CUDA is not available")
+        print(_(f"GPU {args.device} selected but CUDA is not available"))
         exit(1)
     if "{orig_file_name}" not in args.output_file_pattern or "." not in args.output_file_pattern:
-        print("Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension")
+        print(_("Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension"))
         exit(1)
     if os.path.isdir(args.input) and args.output is not None and os.path.isfile(args.output):
-        print("Invalid output directory. If input is a directory then --output must also be set to a directory")
+        print(_("Invalid output directory. If input is a directory then --output must also be set to a directory"))
         exit(1)
 
     mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(

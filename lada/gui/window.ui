@@ -35,7 +35,7 @@
                                 <child>
                                     <object class="AdwViewStackPage">
                                         <property name="name">preview</property>
-                                        <property name="title">Preview</property>
+                                        <property name="title" translatable="true">Preview</property>
                                         <property name="icon-name">playback-symbolic</property>
                                         <property name="child">
                                             <object class="PreviewView" id="preview_view"/>
@@ -45,7 +45,7 @@
                                 <child>
                                     <object class="AdwViewStackPage">
                                         <property name="name">export</property>
-                                        <property name="title">Export</property>
+                                        <property name="title" translatable="true">Export</property>
                                         <property name="icon-name">arrow-pointing-away-from-line-right-symbolic</property>
                                         <property name="child">
                                             <object class="ExportView" id="export_view"/>

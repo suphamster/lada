@@ -2,7 +2,7 @@ import logging
 import pathlib
 
 from gi.repository import Gtk, GObject, Adw, Gio, GLib
-
+from gettext import gettext as _
 from lada.gui.config.config import Config, ColorScheme
 from lada.gui import utils
 from lada.gui.utils import skip_if_uninitialized, get_available_video_codecs, validate_file_name_pattern
@@ -105,7 +105,7 @@ class ConfigSidebar(Gtk.Box):
             self.action_row_export_directory.set_subtitle(config.export_directory)
             self.check_button_export_directory_defaultdir.set_active(True)
         else:
-            self.action_row_export_directory.set_subtitle("Click the folder button to choose a default")
+            self.action_row_export_directory.set_subtitle(_("Click the folder button to choose a default"))
             self.check_button_export_directory_alwaysask.set_active(True)
 
         self.entry_row_file_name_pattern.set_text(config.file_name_pattern)
@@ -243,7 +243,7 @@ class ConfigSidebar(Gtk.Box):
     def check_button_export_directory_alwaysask_callback(self, button_clicked):
         if self.check_button_export_directory_alwaysask.get_active():
             self._config.export_directory = None
-            self.action_row_export_directory.set_subtitle("Click the folder button to choose a default")
+            self.action_row_export_directory.set_subtitle(_("Click the folder button to choose a default"))
 
     @Gtk.Template.Callback()
     @skip_if_uninitialized
@@ -306,7 +306,7 @@ class ConfigSidebar(Gtk.Box):
 
     def show_select_folder(self):
         file_dialog = Gtk.FileDialog()
-        file_dialog.set_title("Select a folder where restored videos should be saved")
+        file_dialog.set_title(_("Select a folder where restored videos should be saved"))
         def on_select_folder(_file_dialog, result):
             try:
                 selected_folder: Gio.File = _file_dialog.select_folder_finish(result)

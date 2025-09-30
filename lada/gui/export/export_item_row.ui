@@ -58,7 +58,7 @@
                                 <property name="valign">3</property>
                                 <property name="halign">2</property>
                                 <property name="icon-name">external-link-symbolic</property>
-                                <property name="tooltip-text">Open in External Program…</property>
+                                <property name="tooltip-text" translatable="true">Open in External Program…</property>
                                 <property name="visible">false</property>
                                 <style>
                                     <class name="flat"/>

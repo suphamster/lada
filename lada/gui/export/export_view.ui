@@ -27,13 +27,13 @@
                             <object class="GtkMenuButton">
                                 <property name="primary">True</property>
                                 <property name="icon-name">open-menu-symbolic</property>
-                                <property name="tooltip-text">Main Menu</property>
+                                <property name="tooltip-text" translatable="true">Settings</property>
                                 <property name="menu-model">primary_menu</property>
                             </object>
                         </child>
                         <child type="end">
                             <object class="GtkButton" id="button_start_export">
-                                <property name="label">Restore</property>
+                                <property name="label" translatable="true">Restore</property>
                                 <property name="visible">False</property>
                                 <signal name="clicked" handler="button_start_export_callback"/>
                                 <style>
@@ -97,7 +97,7 @@
                                         <property name="name">single-file</property>
                                         <property name="child">
                                             <object class="AdwStatusPage" id="status_page">
-                                                <property name="title">Export</property>
+                                                <property name="title" translatable="true">Export</property>
                                                 <property name="icon-name">arrow-pointing-away-from-line-right-symbolic</property>
                                                 <child>
                                                     <object class="GtkBox">
@@ -142,7 +142,7 @@
                                                         </child>
                                                         <child>
                                                             <object class="GtkButton" id="button_start_export_status_page">
-                                                                <property name="label">Restore Video</property>
+                                                                <property name="label" translatable="true">Restore Video</property>
                                                                 <property name="visible">False</property>
                                                                 <signal name="clicked" handler="button_start_export_callback"/>
                                                                 <property name="halign">center</property>
@@ -156,11 +156,11 @@
                                                             <object class="GtkButton" id="button_open_status_page">
                                                                 <property name="visible">false</property>
                                                                 <property name="halign">center</property>
-                                                                <property name="tooltip-text">Open in External Program…</property>
+                                                                <property name="tooltip-text" translatable="true">Open in External Program…</property>
                                                                   <property name="child">
                                                                     <object class="AdwButtonContent">
                                                                       <property name="icon-name">external-link-symbolic</property>
-                                                                      <property name="label">Show File</property>
+                                                                      <property name="label" translatable="true">Show File</property>
                                                                     </object>
                                                                   </property>
                                                                 <style>

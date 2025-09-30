@@ -26,7 +26,7 @@
                         <child type="start">
                             <object class="GtkButton" id="button_toggle_fullscreen">
                                 <property name="icon-name">view-fullscreen-symbolic</property>
-                                <property name="tooltip-text">Toggle Fullscreen</property>
+                                <property name="tooltip-text" translatable="true">Toggle Fullscreen</property>
                                 <property name="sensitive">True</property>
                                 <signal name="clicked" handler="button_toggle_fullscreen_callback"/>
                             </object>
@@ -38,7 +38,7 @@
                             <object class="GtkMenuButton">
                                 <property name="primary">True</property>
                                 <property name="icon-name">open-menu-symbolic</property>
-                                <property name="tooltip-text">Main Menu</property>
+                                <property name="tooltip-text" translatable="true">Settings</property>
                                 <property name="menu-model">primary_menu</property>
                             </object>
                         </child>
@@ -64,7 +64,7 @@
                                 <property name="orientation">vertical</property>
                                 <child>
                                     <object class="AdwBanner" id="banner_no_gpu">
-                                        <property name="title">No GPU detected! Running the app on CPU will be painfully slow</property>
+                                        <property name="title" translatable="true">No GPU detected! Running the app on CPU will be painfully slow</property>
                                         <property name="revealed">False</property>
                                     </object>
                                 </child>
@@ -86,8 +86,7 @@
                                                                         <property name="valign">center</property>
                                                                         <property name="vexpand">True</property>
                                                                         <child>
-                                                                            <object class="GtkPicture"
-                                                                                    id="picture_video_preview"></object>
+                                                                            <object class="GtkPicture" id="picture_video_preview"/>
                                                                         </child>
                                                                     </object>
                                                                 </child>

@@ -13,11 +13,11 @@
                         <property name="sensitive">true</property>
                         <child>
                             <object class="AdwPreferencesGroup">
-                                <property name="title">Mosaic Removal</property>
+                                <property name="title" translatable="true">Mosaic Removal</property>
                                 <child>
                                     <object class="AdwComboRow" id="combo_row_mosaic_detection_models">
-                                        <property name="title">Detection model</property>
-                                        <property name="subtitle">Model used for detecting mosaic areas.</property>
+                                        <property name="title" translatable="true">Detection model</property>
+                                        <property name="subtitle" translatable="true">Model used for detecting mosaic areas.</property>
                                         <signal name="notify::selected"
                                                 handler="combo_row_mosaic_detection_models_selected_callback"/>
                                         <property name="model">
@@ -27,8 +27,8 @@
                                 </child>
                                 <child>
                                     <object class="AdwComboRow" id="combo_row_mosaic_removal_models">
-                                        <property name="title">Restoration model</property>
-                                        <property name="subtitle">Model used for restoring mosaic areas.</property>
+                                        <property name="title" translatable="true">Restoration model</property>
+                                        <property name="subtitle" translatable="true">Model used for restoring mosaic areas.</property>
                                         <signal name="notify::selected"
                                                 handler="combo_row_mosaic_removal_models_selected_callback"/>
                                         <property name="model">
@@ -38,9 +38,8 @@
                                 </child>
                                 <child>
                                     <object class="AdwSpinRow" id="spin_row_clip_max_duration">
-                                        <property name="title">Maximum clip duration
-                                        </property>
-                                        <property name="subtitle">Maximum number of frames for restoration. Higher values improve temporal stability. Lower values reduce memory footprint.</property>
+                                        <property name="title" translatable="true">Maximum clip duration</property>
+                                        <property name="subtitle" translatable="true">Maximum number of frames for restoration. Higher values improve temporal stability. Lower values reduce memory footprint.</property>
                                         <signal name="notify::value"
                                                 handler="spin_row_clip_max_duration_selected_callback"/>
                                         <property name="adjustment">
@@ -55,8 +54,8 @@
                                 </child>
                                 <child>
                                     <object class="AdwComboRow" id="combo_row_gpu">
-                                        <property name="title">GPU</property>
-                                        <property name="subtitle">Selected GPU for model processing.</property>
+                                        <property name="title" translatable="true">GPU</property>
+                                        <property name="subtitle" translatable="true">Selected GPU for model processing.</property>
                                         <property name="model">
                                             <object class="GtkStringList">
                                                 <items>
@@ -71,16 +70,16 @@
                         </child>
                         <child>
                             <object class="AdwPreferencesGroup">
-                                <property name="title">Preview</property>
+                                <property name="title" translatable="true">Preview</property>
                                 <property name="visible" bind-source="ConfigSidebar" bind-property="show-preview-section"/>
                                 <child>
                                     <object class="AdwActionRow">
-                                        <property name="title">Preview Mode</property>
-                                        <property name="subtitle">"Detection" will show detected mosaic areas, "Mosaic" will restore them.</property>
+                                        <property name="title" translatable="true">Preview Mode</property>
+                                        <property name="subtitle" translatable="true">"Detection" will show detected mosaic areas, "Mosaic" will restore them.</property>
                                         <child>
                                             <object class="GtkToggleButton"
                                                     id="toggle_button_mosaic_detection">
-                                                <property name="label">Mosaic&#xA;Detection</property>
+                                                <property name="label" translatable="true">Mosaic&#xA;Detection</property>
                                                 <property name="sensitive">True</property>
                                                 <signal name="clicked"
                                                         handler="toggle_button_mosaic_detection_callback"/>
@@ -92,7 +91,7 @@
                                         <child>
                                             <object class="GtkToggleButton"
                                                     id="toggle_button_mosaic_removal">
-                                                <property name="label">Mosaic&#xA;Removal</property>
+                                                <property name="label" translatable="true">Mosaic&#xA;Removal</property>
                                                 <property name="sensitive">True</property>
                                                 <property name="active">True</property>
                                                 <signal name="clicked"
@@ -106,8 +105,8 @@
                                 </child>
                                 <child>
                                     <object class="AdwSpinRow" id="spin_row_preview_buffer_duration">
-                                        <property name="title">Buffer duration</property>
-                                        <property name="subtitle">How much video is pre-loaded for playback, measured in seconds. If set to 0 this value will be chosen automatically.</property>
+                                        <property name="title" translatable="true">Buffer duration</property>
+                                        <property name="subtitle" translatable="true">How much video is pre-loaded for playback, measured in seconds. If set to 0 this value will be chosen automatically.</property>
                                         <signal name="notify::value"
                                                 handler="spin_row_preview_buffer_duration_selected_callback"/>
                                         <property name="adjustment">
@@ -121,8 +120,8 @@
                                 </child>
                                 <child>
                                     <object class="AdwSwitchRow" id="switch_row_mute_audio">
-                                        <property name="title">Mute audio by default</property>
-                                        <property name="subtitle">When enabled, audio will be muted automatically when a new file is opened.</property>
+                                        <property name="title" translatable="true">Mute audio by default</property>
+                                        <property name="subtitle" translatable="true">When enabled, audio will be muted automatically when a new file is opened.</property>
                                         <signal name="notify::active"
                                                 handler="switch_row_mute_audio_active_callback"/>
                                     </object>
@@ -131,12 +130,12 @@
                         </child>
                         <child>
                             <object class="AdwPreferencesGroup">
-                                <property name="title">Export</property>
+                                <property name="title" translatable="true">Export</property>
                                 <property name="visible" bind-source="ConfigSidebar" bind-property="show-export-section"/>
                                 <child>
                                     <object class="AdwComboRow" id="combo_row_export_codec">
-                                        <property name="title">Codec</property>
-                                        <property name="subtitle">Video Codec used for encoding the restored video.</property>
+                                        <property name="title" translatable="true">Codec</property>
+                                        <property name="subtitle" translatable="true">Video Codec used for encoding the restored video.</property>
                                         <signal name="notify::selected"
                                                 handler="combo_row_mosaic_export_codec_selected_callback"/>
                                         <property name="model">
@@ -148,8 +147,8 @@
                                 </child>
                                 <child>
                                     <object class="AdwSpinRow" id="spin_row_export_crf">
-                                        <property name="title">CRF (Constant Rate Factor)</property>
-                                        <property name="subtitle">Quality setting of the video encoder. Lower values will result in higher quality but larger file sizes.</property>
+                                        <property name="title" translatable="true">CRF (Constant Rate Factor)</property>
+                                        <property name="subtitle" translatable="true">Quality setting of the video encoder. Lower values will result in higher quality but larger file sizes.</property>
                                         <property name="adjustment">
                                             <object class="GtkAdjustment">
                                                 <property name="lower">0</property>
@@ -163,19 +162,19 @@
                                 </child>
                                 <child>
                                   <object class="AdwEntryRow" id="entry_row_custom_ffmpeg_encoder_options">
-                                    <property name="title">Custom FFmpeg encoder options (Optional).&#xA;Example: &lt;span background=&quot;#D3D3D350&quot;&gt;&lt;tt&gt;-rc-lookahead 32 -rc vbr_hq&lt;/tt&gt;&lt;/span&gt;</property>
-                                    <property name="tooltip-text">FFmpeg Codecs Documentation:&#xA;https://ffmpeg.org/ffmpeg-codecs.html</property>
+                                    <property name="title" translatable="true">Custom FFmpeg encoder options (Optional).&#xA;Example: &lt;span background=&quot;#D3D3D350&quot;&gt;&lt;tt&gt;-rc-lookahead 32 -rc vbr_hq&lt;/tt&gt;&lt;/span&gt;</property>
+                                    <property name="tooltip-text" translatable="true">FFmpeg Codecs Documentation:&#xA;https://ffmpeg.org/ffmpeg-codecs.html</property>
                                     <signal name="changed" handler="entry_row_custom_ffmpeg_encoder_options_changed_callback"/>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="AdwExpanderRow">
-                                    <property name="title">Output Directory</property>
+                                    <property name="title" translatable="true">Output Directory</property>
                                     <property name="show-enable-switch">false</property>
                                     <property name="expanded">true</property>
                                     <child>
                                       <object class="AdwActionRow">
-                                        <property name="title">Always ask</property>
+                                        <property name="title" translatable="true">Always ask</property>
                                         <child type="prefix">
                                           <object class="GtkCheckButton" id="check_button_export_directory_alwaysask">
                                             <property name="active">true</property>
@@ -186,8 +185,8 @@
                                     </child>
                                     <child>
                                       <object class="AdwActionRow" id="action_row_export_directory">
-                                        <property name="title">Use this folder</property>
-                                        <property name="subtitle">Click the folder button to choose a default</property>
+                                        <property name="title" translatable="true">Use this folder</property>
+                                        <property name="subtitle" translatable="true">Click the folder button to choose a default</property>
                                         <child type="prefix">
                                           <object class="GtkCheckButton" id="check_button_export_directory_defaultdir">
                                             <property name="group">check_button_export_directory_alwaysask</property>
@@ -208,7 +207,7 @@
                                 </child>
                                 <child>
                                   <object class="AdwEntryRow" id="entry_row_file_name_pattern">
-                                    <property name="title">File name pattern for restored files.&#xA;Must include placeholder &lt;span background=&quot;#D3D3D350&quot;&gt;&lt;tt&gt;{orig_file_name}&lt;/tt&gt;&lt;/span&gt;.</property>
+                                    <property name="title" translatable="true">File name pattern for restored files.&#xA;Must include placeholder &lt;span background=&quot;#D3D3D350&quot;&gt;&lt;tt&gt;{orig_file_name}&lt;/tt&gt;&lt;/span&gt;.</property>
                                     <signal name="changed" handler="entry_row_file_name_pattern_changed_callback"/>
                                     <!-- I could not find any other way to check if the row is focused except checking for focused css class. has-focus is never true -->
                                     <signal name="notify::css-classes" handler="entry_row_file_name_pattern_focused_callback"/>
@@ -218,14 +217,14 @@
                         </child>
                         <child>
                             <object class="AdwPreferencesGroup">
-                                <property name="title">UI</property>
+                                <property name="title" translatable="true">UI</property>
                                 <child>
                                     <object class="AdwComboRow">
-                                        <property name="title">Color Scheme</property>
+                                        <property name="title" translatable="true">Color Scheme</property>
                                         <child>
                                             <object class="GtkToggleButton" id="system_color_scheme_button">
                                                 <property name="sensitive">True</property>
-                                                <property name="tooltip-text">Follow System style</property>
+                                                <property name="tooltip-text" translatable="true">Follow System style</property>
                                                 <property name="icon-name">color-scheme-system</property>
                                                 <signal name="clicked" handler="toggle_button_system_color_scheme_callback"/>
                                                 <style>
@@ -237,7 +236,7 @@
                                             <object class="GtkToggleButton" id="light_color_scheme_button">
                                                 <property name="sensitive">True</property>
                                                 <property name="group">system_color_scheme_button</property>
-                                                <property name="tooltip-text">Light style</property>
+                                                <property name="tooltip-text" translatable="true">Light style</property>
                                                 <property name="icon-name">color-scheme-light</property>
                                                 <signal name="clicked" handler="toggle_button_light_color_scheme_callback"/>
                                                 <style>
@@ -249,7 +248,7 @@
                                             <object class="GtkToggleButton" id="dark_color_scheme_button">
                                                 <property name="sensitive">True</property>
                                                 <property name="group">system_color_scheme_button</property>
-                                                <property name="tooltip-text">Dark style</property>
+                                                <property name="tooltip-text" translatable="true">Dark style</property>
                                                 <property name="icon-name">color-scheme-dark</property>
                                                 <signal name="clicked" handler="toggle_button_dark_color_scheme_callback"/>
                                                 <style>
@@ -261,15 +260,15 @@
                                 </child>
                                 <child>
                                     <object class="AdwActionRow">
-                                        <property name="title">Initial View</property>
-                                        <property name="subtitle">View shown after opening files</property>
+                                        <property name="title" translatable="true">Initial View</property>
+                                        <property name="subtitle" translatable="true">View shown after opening files</property>
                                         <child>
                                             <object class="GtkToggleButton" id="toggle_button_initial_view_preview">
                                                 <property name="sensitive">True</property>
                                                  <property name="child">
                                                     <object class="AdwButtonContent">
                                                       <property name="icon-name">playback-symbolic</property>
-                                                      <property name="label">Preview</property>
+                                                      <property name="label" translatable="true">Preview</property>
                                                     </object>
                                                   </property>
                                                 <signal name="clicked" handler="toggle_button_initial_view_preview_callback"/>
@@ -280,7 +279,7 @@
                                         </child>
                                         <child>
                                             <object class="GtkToggleButton" id="toggle_button_initial_view_export">
-                                                <property name="label">Export</property>
+                                                <property name="label" translatable="true">Export</property>
                                                 <property name="group">toggle_button_initial_view_preview</property>
                                                  <property name="child">
                                                     <object class="AdwButtonContent">
@@ -309,7 +308,7 @@
             <property name="revealed">true</property>
             <child type="center">
                 <object class="GtkButton">
-                    <property name="label">Reset to factory settings</property>
+                    <property name="label" translatable="true">Reset to factory settings</property>
                     <property name="sensitive">True</property>
                     <signal name="clicked" handler="button_config_reset_callback"/>
                 </object>

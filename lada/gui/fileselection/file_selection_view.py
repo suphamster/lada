@@ -2,7 +2,7 @@ import logging
 import pathlib
 
 from gi.repository import Adw, Gtk, Gio, GObject, GLib, Gdk
-
+from gettext import gettext as _
 from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.frame_restorer_provider import FrameRestorerOptions
@@ -75,7 +75,7 @@ class FileSelectionView(Gtk.Widget):
         video_file_filter = Gtk.FileFilter()
         video_file_filter.add_mime_type("video/*")
         file_dialog.set_default_filter(video_file_filter)
-        file_dialog.set_title("Select one or multiple video files")
+        file_dialog.set_title(_("Select one or multiple video files"))
         def on_open_multiple(_file_dialog, result):
             try:
                 selected_files = _file_dialog.open_multiple_finish(result)

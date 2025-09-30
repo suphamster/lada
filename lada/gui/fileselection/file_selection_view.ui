@@ -28,11 +28,11 @@
                 </child>
                 <property name="content">
                     <object class="AdwStatusPage" id="status_page">
-                        <property name="title">Restore pixelated Videos</property>
-                        <property name="description">Drop one or more Videos here</property>
+                        <property name="title" translatable="true">Restore pixelated Videos</property>
+                        <property name="description" translatable="true">Drop one or more Videos here</property>
                         <child>
                             <object class="GtkButton" id="button_open_file">
-                                <property name="label">Open Files...</property>
+                                <property name="label" translatable="true">Open Files…</property>
                                 <signal name="clicked" handler="button_open_file_callback"/>
                                 <property name="halign">center</property>
                                 <style>

@@ -6,6 +6,7 @@ import threading
 
 from gi.repository import Gtk, GObject, Gio, Adw, GLib
 
+from gettext import gettext as _
 from lada.gui.config.config import Config
 from lada.gui.export.export_item_data import ExportItemData
 from lada.gui.export.export_item_row import ExportItemRow, ExportItemState, get_video_metadata_string
@@ -135,7 +136,7 @@ class ExportView(Gtk.Widget):
     def show_video_export_success(self, obj):
         self.view_switcher.set_sensitive(True)
         if self.single_file:
-            self.status_page.set_title("Finished video restoration!")
+            self.status_page.set_title(_("Finished video restoration!"))
             self.status_page.set_icon_name("check-round-outline2-symbolic")
             self.progress_bar_file_export_status_page.set_visible(False)
             self.button_open_status_page.set_visible(True)
@@ -166,7 +167,7 @@ class ExportView(Gtk.Widget):
     def show_video_export_started(self, save_file: Gio.File):
         self.view_switcher.set_sensitive(False)
         if self.single_file:
-            self.status_page.set_title("Restoring video...")
+            self.status_page.set_title(_("Restoring video…"))
             self.status_page.set_icon_name("cafe-symbolic")
             self.progress_bar_file_export_status_page.set_visible(True)
             self.button_start_export_status_page.set_visible(False)
@@ -291,7 +292,7 @@ class ExportView(Gtk.Widget):
             video_file_filter = Gtk.FileFilter()
             video_file_filter.add_mime_type("video/*")
             file_dialog.set_default_filter(video_file_filter)
-            file_dialog.set_title("Save restored video file")
+            file_dialog.set_title(_("Save restored video file"))
             first_orig_file = self._files[0]
             initial_restored_file = self.get_restored_file_path(first_orig_file, first_orig_file.get_parent().get_path())
             file_dialog.set_initial_folder(initial_restored_file.get_parent())
@@ -299,7 +300,7 @@ class ExportView(Gtk.Widget):
             file_dialog.save(callback=lambda dialog, result: self.emit("video-export-requested", first_orig_file, dialog.save_finish(result)))
         else:
             file_dialog = Gtk.FileDialog()
-            file_dialog.set_title("Save restored video files")
+            file_dialog.set_title(_("Save restored video files"))
             first_orig_file = self._files[0]
             file_dialog.set_initial_folder(first_orig_file.get_parent())
             file_dialog.select_folder(callback=lambda dialog, result: self.emit("video-export-requested", first_orig_file, dialog.select_folder_finish(result)))
