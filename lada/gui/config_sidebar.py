@@ -12,7 +12,7 @@ here = pathlib.Path(__file__).parent.resolve()
 
 
 @Gtk.Template(filename=here / 'config_sidebar.ui')
-class ConfigSidebar(Gtk.ScrolledWindow):
+class ConfigSidebar(Gtk.Box):
     __gtype_name__ = 'ConfigSidebar'
 
     toggle_button_mosaic_detection = Gtk.Template.Child()
@@ -34,6 +34,8 @@ class ConfigSidebar(Gtk.ScrolledWindow):
         super().__init__(**kwargs)
         self._config: Config | None = None
         self.init_done = False
+        self._show_preview_section = True
+        self._show_export_section = True
 
     def init_sidebar_from_config(self, config: Config):
         self.toggle_button_mosaic_detection.set_property("active", config.preview_mode == 'mosaic-detection')
@@ -107,6 +109,24 @@ class ConfigSidebar(Gtk.ScrolledWindow):
     @disabled.setter
     def disabled(self, value):
         self.preferences_page.set_property("sensitive", not value)
+
+    @GObject.Property(type=bool, default=True)
+    def show_preview_section(self):
+        return self._show_preview_section
+
+    @show_preview_section.setter
+    def show_preview_section(self, value):
+        print("updated show-preview-section", value)
+        self._show_preview_section = value
+
+    @GObject.Property(type=bool, default=True)
+    def show_export_section(self):
+        return self._show_export_section
+
+    @show_export_section.setter
+    def show_export_section(self, value):
+        print("updated show-export-section", value)
+        self._show_export_section = value
 
     @Gtk.Template.Callback()
     @skip_if_uninitialized
