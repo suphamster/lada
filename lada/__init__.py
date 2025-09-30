@@ -28,6 +28,10 @@ DETECTION_MODEL_FILES_TO_NAMES = {
 }
 DETECTION_MODEL_NAMES_TO_FILES = {v: k for k, v in DETECTION_MODEL_FILES_TO_NAMES.items()}
 
+if "LOCALE_DIR" in os.environ:
+  LOCALE_DIR = os.environ["LOCALE_DIR"]
+else:
+  LOCALE_DIR = "translations"
 
 def get_available_restoration_models():
   available_models = []

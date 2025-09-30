@@ -5,7 +5,7 @@ import gettext
 import sys
 import gi
 
-from lada import VERSION, LOG_LEVEL
+from lada import VERSION, LOG_LEVEL, LOCALE_DIR
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
@@ -105,11 +105,10 @@ class LadaApplication(Adw.Application):
 
 def init_localization():
     APP_NAME = 'lada'
-    LOCALE_DIR =  './translations'
     locale.bindtextdomain(APP_NAME, LOCALE_DIR)
     gettext.bindtextdomain(APP_NAME, LOCALE_DIR)
-    gettext.textdomain(APP_NAME)
     locale.textdomain(APP_NAME)
+    gettext.textdomain(APP_NAME)
 
 def main():
     init_localization()
