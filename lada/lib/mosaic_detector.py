@@ -88,7 +88,7 @@ class Scene:
 
 
 class Clip:
-    def __init__(self, scene: Scene, size, pad_mode, id, preserve_relative_scale):
+    def __init__(self, scene: Scene, size, pad_mode, id):
         self.id = id
         self.file_path = scene.file_path
         self.frame_start = scene.frame_start
@@ -110,11 +110,8 @@ class Clip:
             self.data.append((cropped_img, cropped_mask, cropped_box, cropped_img.shape, pad_after_resize))
 
         # resize crops to out_size
-        if preserve_relative_scale:
-            max_width, max_height = self.get_max_width_height()
-            scale_width, scale_height = size/max_width, size/max_height
-        else:
-            scale_width, scale_height = 1, 1
+        max_width, max_height = self.get_max_width_height()
+        scale_width, scale_height = size/max_width, size/max_height
 
         for i, (cropped_img, cropped_mask, cropped_box, _, _) in enumerate(self.data):
             crop_shape = cropped_img.shape
@@ -173,15 +170,13 @@ class Clip:
         return self.data[item]
 
 class MosaicDetector:
-    def __init__(self, model: MosaicDetectionModel, video_file, frame_detection_queue: queue.Queue, mosaic_clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', preserve_relative_scale=False, dont_preserve_relative_scale=False, batch_size=4):
+    def __init__(self, model: MosaicDetectionModel, video_file, frame_detection_queue: queue.Queue, mosaic_clip_queue: queue.Queue, max_clip_length=30, clip_size=256, device=None, pad_mode='reflect', batch_size=4):
         self.model = model
         self.video_file = video_file
         self.device = torch.device(device) if device is not None else device
         self.max_clip_length = max_clip_length
         assert max_clip_length > 0
         self.clip_size = clip_size
-        self.preserve_relative_scale = preserve_relative_scale
-        self.dont_preserve_relative_scale = dont_preserve_relative_scale
         self.pad_mode = pad_mode
         self.clip_counter = 0
         self.start_ns = 0
@@ -288,25 +283,11 @@ class MosaicDetector:
                         completed_scenes.append(other_scene)
 
         for completed_scene in sorted(completed_scenes, key=lambda s: s.frame_start):
-            if self.preserve_relative_scale and self.dont_preserve_relative_scale:
-                clip_v1 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                clip_v2 = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
-                s = time.time()
-                self.mosaic_clip_queue.put((clip_v1, clip_v2))
-                self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
-            elif self.preserve_relative_scale:
-                clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, True)
-                self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
-                s = time.time()
-                self.mosaic_clip_queue.put(clip)
-                self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
-            elif self.dont_preserve_relative_scale:
-                clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter, False)
-                self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
-                s = time.time()
-                self.mosaic_clip_queue.put(clip)
-                self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
+            clip = Clip(completed_scene, self.clip_size, self.pad_mode, self.clip_counter)
+            self.queue_stats["mosaic_clip_queue_max_size"] = max(self.mosaic_clip_queue.qsize()+1, self.queue_stats["mosaic_clip_queue_max_size"])
+            s = time.time()
+            self.mosaic_clip_queue.put(clip)
+            self.queue_stats["mosaic_clip_queue_wait_time_put"] += time.time() - s
             if self.stop_requested:
                 logger.debug("frame detector worker: mosaic_clip_queue producer unblocked")
                 return

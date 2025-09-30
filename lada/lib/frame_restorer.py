@@ -38,13 +38,12 @@ def load_models(device, mosaic_restoration_model_name, mosaic_restoration_model_
 
 
 class FrameRestorer:
-    def __init__(self, device, video_file, preserve_relative_scale, max_clip_length, mosaic_restoration_model_name,
+    def __init__(self, device, video_file, max_clip_length, mosaic_restoration_model_name,
                  mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode,
                  mosaic_detection=False):
         self.device = device
         self.mosaic_restoration_model_name = mosaic_restoration_model_name
         self.max_clip_length = max_clip_length
-        self.preserve_relative_scale = preserve_relative_scale
         self.video_meta_data = video_utils.get_video_meta_data(video_file)
         self.mosaic_detection_model = mosaic_detection_model
         self.mosaic_restoration_model = mosaic_restoration_model
@@ -78,9 +77,7 @@ class FrameRestorer:
                                               mosaic_clip_queue=self.mosaic_clip_queue,
                                               device=self.device,
                                               max_clip_length=self.max_clip_length,
-                                              pad_mode=self.preferred_pad_mode,
-                                              preserve_relative_scale=self.preserve_relative_scale,
-                                              dont_preserve_relative_scale=(not self.preserve_relative_scale))
+                                              pad_mode=self.preferred_pad_mode)
 
         self.clip_restoration_thread: threading.Thread | None = None
         self.frame_restoration_thread: threading.Thread | None = None

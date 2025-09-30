@@ -88,7 +88,7 @@ class FrameRestorerProvider:
                                      mosaic_restoration_model=mosaic_restoration_model,
                                      mosaic_restoration_model_preferred_pad_mode=mosaic_restoration_model_preferred_pad_mode)
 
-        return FrameRestorer(self.options.device, self.options.video_metadata.video_file, True, self.options.max_clip_length,
+        return FrameRestorer(self.options.device, self.options.video_metadata.video_file, self.options.max_clip_length,
                              self.options.mosaic_restoration_model_name,
                              self.models_cache["mosaic_detection_model"], self.models_cache["mosaic_restoration_model"],
                              self.models_cache["mosaic_restoration_model_preferred_pad_mode"],
