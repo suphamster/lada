@@ -97,7 +97,7 @@
                                         <property name="name">single-file</property>
                                         <property name="child">
                                             <object class="AdwStatusPage" id="status_page">
-                                                <property name="title" translatable="true">Export</property>
+                                                <property name="title" translatable="true">Export video</property>
                                                 <property name="icon-name">arrow-pointing-away-from-line-right-symbolic</property>
                                                 <child>
                                                     <object class="GtkBox">
@@ -142,7 +142,7 @@
                                                         </child>
                                                         <child>
                                                             <object class="GtkButton" id="button_start_export_status_page">
-                                                                <property name="label" translatable="true">Restore Video</property>
+                                                                <property name="label" translatable="true">Restore</property>
                                                                 <property name="visible">False</property>
                                                                 <signal name="clicked" handler="button_start_export_callback"/>
                                                                 <property name="halign">center</property>

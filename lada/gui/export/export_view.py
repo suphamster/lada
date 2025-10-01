@@ -25,7 +25,7 @@ class ExportView(Gtk.Widget):
 
     status_page = Gtk.Template.Child()
     list_box: Gtk.ListBox = Gtk.Template.Child()
-    button_start_export = Gtk.Template.Child()
+    button_start_export: Gtk.Button = Gtk.Template.Child()
     button_start_export_status_page: Gtk.Button = Gtk.Template.Child()
     progress_bar_file_export_status_page: Gtk.ProgressBar = Gtk.Template.Child()
     label_meta_data_status_page: Gtk.Label = Gtk.Template.Child()
@@ -59,6 +59,7 @@ class ExportView(Gtk.Widget):
         self._config = value
         self._config.connect("notify::export-directory", self.on_config_changed)
         self._config.connect("notify::file-name-pattern", self.on_config_changed)
+        self.set_restore_button_label()
 
     @GObject.Property(type=Adw.ViewStack)
     def view_stack(self):
@@ -126,6 +127,12 @@ class ExportView(Gtk.Widget):
             for model_item, orig_file in zip(self.model, self._files):
                 restored_file = self.get_restored_file_path(orig_file, self._config.export_directory)
                 model_item.restored_file = restored_file
+        self.set_restore_button_label()
+
+    def set_restore_button_label(self):
+        label = "Restore" if self._config.export_directory else "Restore…"
+        self.button_start_export_status_page.set_label(label)
+        self.button_start_export.set_label(label)
 
     def get_next_queued_item_idx(self) -> int | None:
         for idx, item in enumerate(self.model):
