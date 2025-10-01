@@ -79,6 +79,13 @@ class PreviewView(Gtk.Widget):
 
         self._view_stack: Adw.ViewStack | None = None
 
+        click_gesture = Gtk.GestureClick()
+        def on_click(click_obj, n_press, x, y):
+            if n_press == 2:
+                # double-click
+                self.emit("toggle-fullscreen-requested")
+        click_gesture.connect( "pressed", on_click)
+        self.box_video_preview.add_controller(click_gesture)
 
     @GObject.Property(type=Config)
     def config(self):
