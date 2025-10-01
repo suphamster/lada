@@ -36,7 +36,8 @@ class HeaderbarFilesDropDown(Gtk.DropDown):
             None,
         )
 
-        self.props.model = Gtk.StringList()
+        model = Gtk.StringList()
+        self.props.model = model
         self.props.expression = expression
         self.props.factory = button_factory
         self.props.list_factory = popup_factory
