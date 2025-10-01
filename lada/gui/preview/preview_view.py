@@ -1,19 +1,20 @@
 import logging
 import pathlib
 import threading
+from gettext import gettext as _
 
 from gi.repository import Gtk, GObject, GLib, Gio, Gst, GstApp, Adw
 
+from lada import LOG_LEVEL
 from lada.gui.config.config import Config
 from lada.gui.config.config_sidebar import ConfigSidebar
+from lada.gui.frame_restorer_provider import FrameRestorerProvider, FrameRestorerOptions, FRAME_RESTORER_PROVIDER
 from lada.gui.preview.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
 from lada.gui.preview.gstreamer_pipeline_manager import PipelineManager, PipelineState
 from lada.gui.preview.headerbar_files_drop_down import HeaderbarFilesDropDown
-from lada.gui.shortcuts import ShortcutsManager
 from lada.gui.preview.timeline import Timeline
+from lada.gui.shortcuts import ShortcutsManager
 from lada.lib import audio_utils, video_utils
-from lada import LOG_LEVEL
-from lada.gui.frame_restorer_provider import FrameRestorerProvider, FrameRestorerOptions, FRAME_RESTORER_PROVIDER
 
 here = pathlib.Path(__file__).parent.resolve()
 
@@ -163,7 +164,9 @@ class PreviewView(Gtk.Widget):
     def button_mute_unmute_callback(self, button_clicked):
         if not (self.has_audio and self._video_preview_init_done):
             return
-        self.pipeline_manager.muted = not self.pipeline_manager.muted
+        new_mute_state = not self.pipeline_manager.muted
+        self.pipeline_manager.muted = new_mute_state
+        self.set_speaker_icon(new_mute_state)
 
     @property
     def frame_restorer_options(self):
@@ -220,10 +223,6 @@ class PreviewView(Gtk.Widget):
             if self._frame_restorer_options:
                 self.frame_restorer_options = self._frame_restorer_options.with_max_clip_length(self._config.max_clip_duration)
         self._config.connect("notify::max-clip-duration", on_max_clip_duration)
-
-    def set_mute_audio(self, audio_volume, mute: bool):
-        audio_volume.set_property("mute", mute)
-        self.set_speaker_icon(mute)
 
     def set_speaker_icon(self, mute: bool):
         icon_name = "speaker-0-symbolic" if mute else "speaker-4-symbolic"
@@ -288,7 +287,7 @@ class PreviewView(Gtk.Widget):
         self._frame_restorer_options = self._frame_restorer_options.with_video_metadata(self.video_metadata)
         self.has_audio = audio_utils.get_audio_codec(self.video_metadata.video_file) is not None
         self.button_mute_unmute.set_sensitive(self.has_audio)
-        self.set_speaker_icon(mute=not self.has_audio)
+        self.set_speaker_icon(mute=not self.has_audio or self.config.mute_audio)
 
         self.should_be_paused = False
         self.seek_in_progress = False
@@ -443,7 +442,7 @@ class PreviewView(Gtk.Widget):
         self._shortcuts_manager.add("ui", "show-export-view", "e", lambda *args: self._view_stack.set_visible_child_name('export'), "Switch to Export View")
         self._shortcuts_manager.add("ui", "show-preview-view", "p", lambda *args: self._view_stack.set_visible_child_name('preview'), "Switch to Preview View")
 
-        self._shortcuts_manager.register_group("preview", "Preview")
+        self._shortcuts_manager.register_group("preview", _("Watch"))
         self._shortcuts_manager.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
         self._shortcuts_manager.add("preview", "toggle-play-pause", "<Ctrl>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
         self._shortcuts_manager.add("preview", "toggle-fullscreen", "f", lambda *args: self.emit("toggle-fullscreen-requested"), "Enable/Disable fullscreen")
