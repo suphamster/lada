@@ -105,9 +105,14 @@ class LadaApplication(Adw.Application):
 
 def init_localization():
     APP_NAME = 'lada'
-    locale.bindtextdomain(APP_NAME, LOCALE_DIR)
+    try:
+        locale.bindtextdomain(APP_NAME, LOCALE_DIR)
+        locale.textdomain(APP_NAME)
+    except AttributeError as e:
+        pass
+        # TODO: Workaround for Windows as reported in #88
+        #  Translations of .ui files will probably not work then
     gettext.bindtextdomain(APP_NAME, LOCALE_DIR)
-    locale.textdomain(APP_NAME)
     gettext.textdomain(APP_NAME)
 
 def main():
