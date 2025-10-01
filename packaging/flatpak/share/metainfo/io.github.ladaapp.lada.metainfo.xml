@@ -162,7 +162,7 @@
         </release>
         <release date="2024-12-04" version="0.2.4">
             <description>
-                <p>Fix GUI crash when video width is not divisible by 4</p>'
+                <p>Fix GUI crash when video width is not divisible by 4</p>
                 <p>Remove unused python dependencies and update dependencies to latest versions</p>
             </description>
         </release>
