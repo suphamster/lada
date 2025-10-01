@@ -28,8 +28,8 @@
                 </child>
                 <property name="content">
                     <object class="AdwStatusPage" id="status_page">
-                        <property name="title" translatable="true">Restore pixelated Videos</property>
-                        <property name="description" translatable="true">Drop one or more Videos here</property>
+                        <property name="title" translatable="true">Restore pixelated adult videos</property>
+                        <property name="description" translatable="true">Drop one or more videos here</property>
                         <child>
                             <object class="GtkButton" id="button_open_file">
                                 <property name="label" translatable="true">Open Files…</property>
