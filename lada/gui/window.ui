@@ -35,7 +35,7 @@
                                 <child>
                                     <object class="AdwViewStackPage">
                                         <property name="name">preview</property>
-                                        <property name="title" translatable="true">Preview</property>
+                                        <property name="title" translatable="true">Watch</property>
                                         <property name="icon-name">playback-symbolic</property>
                                         <property name="child">
                                             <object class="PreviewView" id="preview_view"/>

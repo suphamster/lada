@@ -70,7 +70,7 @@
                         </child>
                         <child>
                             <object class="AdwPreferencesGroup">
-                                <property name="title" translatable="true">Preview</property>
+                                <property name="title" translatable="true">Playback</property>
                                 <property name="visible" bind-source="ConfigSidebar" bind-property="show-preview-section"/>
                                 <child>
                                     <object class="AdwActionRow">
@@ -260,7 +260,7 @@
                                 </child>
                                 <child>
                                     <object class="AdwActionRow">
-                                        <property name="title" translatable="true">Initial View</property>
+                                        <property name="title" translatable="true">Default View</property>
                                         <property name="subtitle" translatable="true">View shown after opening files</property>
                                         <child>
                                             <object class="GtkToggleButton" id="toggle_button_initial_view_preview">
@@ -268,7 +268,7 @@
                                                  <property name="child">
                                                     <object class="AdwButtonContent">
                                                       <property name="icon-name">playback-symbolic</property>
-                                                      <property name="label" translatable="true">Preview</property>
+                                                      <property name="label" translatable="true">Watch</property>
                                                     </object>
                                                   </property>
                                                 <signal name="clicked" handler="toggle_button_initial_view_preview_callback"/>
