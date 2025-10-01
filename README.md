@@ -104,7 +104,7 @@ The easiest way to install the app (CLI and GUI) on Linux is via Flathub:
 > After installation you should find Lada in your application launcher to start the GUI. You can also run it via `flatpak run io.github.ladaapp.lada`.
 
 > [!TIP]
-> When using the CLI via Flatpak we need to make the file/directory available by giving it permission to the file system
+> When using the CLI via Flatpak we need to make the file/directory available by giving it permission to the file system so it can access the input/output files
 >  ```shell
 >  flatpak run --filesystem=host --command=lada-cli io.github.ladaapp.lada --input <input video path>
 >  ```
@@ -123,32 +123,34 @@ The easiest way to install the app (CLI and GUI) on Linux is via Flathub:
 
 ### Using Docker
 
-The app is also available via Docker (CLI only). You can pull it from Docker Hub with the following command:
+The app is also available via Docker (CLI only). You can get the image `ladaapp/lada` from [Docker Hub](https://hub.docker.com/r/ladaapp/lada) with this command:
 
 ```shell
 docker pull ladaapp/lada:latest
 ````
 
+> [!NOTE]
+> The Docker version works only with x86_64 CPUs and Nvidia/CUDA GPUs. Ensure your system NVIDIA GPU drivers are upt-to-date.
+> It can also be used without a GPU but it will be very slow.
+
 > [!TIP]
-> When using the Docker you'll need to make the file/directory available to the Container as well as the GPU:
+> When using Docker you'll need to make the file/directory available to the container as well as the GPU:
 >  ```shell
 > docker run --rm --gpus all --mount type=bind,src=<input video path>,dst=/mnt ladaapp/lada:latest --input "/mnt/<input video file>"
 > ```
 
-> [!NOTE]
-> The Flatpak version works only with x86_64 CPUs and Nvidia/CUDA GPUs. Ensure your system NVIDIA GPU drivers are upt-to-date.
-> It can also be used without a GPU but it will be very slow.
-
 ### Alternative Installation Methods
 
-If the packages above don't work for you then you'll have to follow the [Build](#build) steps to set up the project. Note that these
-instructions are mostly intended for developers to set up their environment to start working on the source code.
+If the packages above don't work for you then you'll have to follow the [Build](#build) steps to set up the project.
+
+Note that these instructions are mostly intended for developers to set up their environment to start working on the source code. But you should hopefully be able
+to follow the instructions even if you aren't a developer.
 
 There have been successful reports of installing Lada on Windows with Nvidia and Intel GPUs. AMD GPUs should also work but probably not with Windows as PyTorch/ROCm builds are only available for Linux.
 
-Patches / reports welcome if you are able to make it run on other systems or have a suggestion how to improve the documentation.
+Reach out if you can support packaging the app for other operating systems or hardware.
 
-Reach out if you can support packaging the app for other OS or hardware.
+There is some work going on to package the app natively for Windows [here](https://github.com/ladaapp/lada/issues/77).
 
 ## Build
 If you want to start hacking on this project you'll need to install the app from source. Check out the detailed installation guides for [Linux](docs/linux_install.md) and [Windows](docs/windows_install.md).
@@ -156,10 +158,10 @@ If you want to start hacking on this project you'll need to install the app from
 ## Training and dataset creation
 For instructions on training your own models and datasets, refer to [Training and dataset creation](docs/training_and_dataset_creation.md).
 
-## Credits
+## Acknowledgement
 This project builds upon work done by these fantastic individuals and projects:
 
-* [DeepMosaics](https://github.com/HypoX64/DeepMosaics): Provided code for mosaic creation during dataset creation/training. Also inspired me to start this project.
+* [DeepMosaics](https://github.com/HypoX64/DeepMosaics): Provided code for mosaic dataset creation. Also inspired me to start this project.
 * [BasicVSR++](https://ckkelvinchan.github.io/projects/BasicVSR++) / [MMagic](https://github.com/open-mmlab/mmagic): Used as the base model for mosaic removal.
 * [YOLO/Ultralytics](https://github.com/ultralytics/ultralytics): Used for training mosaic and NSFW detection models.
 * [DOVER](https://github.com/VQAssessment/DOVER):  Used to assess video quality of created clips during the dataset creation process to filter out low-quality clips.
