@@ -209,10 +209,15 @@ def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
 def init_localization():
     APP_NAME = 'lada'
     LOCALE_DIR =  './translations'
-    locale.bindtextdomain(APP_NAME, LOCALE_DIR)
+    try:
+        locale.bindtextdomain(APP_NAME, LOCALE_DIR)
+        locale.textdomain(APP_NAME)
+    except AttributeError as e:
+        pass
+        # TODO: Workaround for Windows as reported in #88
+        #  Translations of .ui files will probably not work then
     gettext.bindtextdomain(APP_NAME, LOCALE_DIR)
     gettext.textdomain(APP_NAME)
-    locale.textdomain(APP_NAME)
 
 def main():
     init_localization()
