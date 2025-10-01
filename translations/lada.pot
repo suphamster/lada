@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lada\n"
 "Report-Msgid-Bugs-To: https://github.com/ladaapp/issues\n"
-"POT-Creation-Date: 2025-09-30 18:39+0000\n"
+"POT-Creation-Date: 2025-10-02 00:59+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,19 +21,19 @@ msgstr ""
 msgid "Open in External Program…"
 msgstr ""
 
-#: lada/gui/export/export_view.py:139
+#: lada/gui/export/export_view.py:146
 msgid "Finished video restoration!"
 msgstr ""
 
-#: lada/gui/export/export_view.py:170
+#: lada/gui/export/export_view.py:177
 msgid "Restoring video…"
 msgstr ""
 
-#: lada/gui/export/export_view.py:295
+#: lada/gui/export/export_view.py:302
 msgid "Save restored video file"
 msgstr ""
 
-#: lada/gui/export/export_view.py:303
+#: lada/gui/export/export_view.py:310
 msgid "Save restored video files"
 msgstr ""
 
@@ -41,29 +41,24 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: lada/gui/export/export_view.ui:36
+#: lada/gui/export/export_view.ui:36 lada/gui/export/export_view.ui:145
 msgid "Restore"
 msgstr ""
 
-#: lada/gui/export/export_view.ui:100 lada/gui/config/config_sidebar.ui:133
-#: lada/gui/config/config_sidebar.ui:282 lada/gui/window.ui:48
-msgid "Export"
-msgstr ""
-
-#: lada/gui/export/export_view.ui:145
-msgid "Restore Video"
+#: lada/gui/export/export_view.ui:100
+msgid "Export video"
 msgstr ""
 
 #: lada/gui/export/export_view.ui:163
-msgid "Show File"
+msgid "Open File"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.py:108 lada/gui/config/config_sidebar.py:246
-#: lada/gui/config/config_sidebar.ui:189
+#: lada/gui/config/config_sidebar.py:106 lada/gui/config/config_sidebar.py:222
+#: lada/gui/config/config_sidebar.ui:158
 msgid "Click the folder button to choose a default"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.py:309
+#: lada/gui/config/config_sidebar.py:290
 msgid "Select a folder where restored videos should be saved"
 msgstr ""
 
@@ -103,122 +98,123 @@ msgstr ""
 msgid "Selected GPU for model processing."
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:73 lada/gui/config/config_sidebar.ui:271
-#: lada/gui/window.ui:38
-msgid "Preview"
+#: lada/gui/config/config_sidebar.ui:73
+msgid "Playback"
 msgstr ""
 
 #: lada/gui/config/config_sidebar.ui:77
-msgid "Preview Mode"
-msgstr ""
-
-#: lada/gui/config/config_sidebar.ui:78
-msgid "\"Detection\" will show detected mosaic areas, \"Mosaic\" will restore them."
-msgstr ""
-
-#: lada/gui/config/config_sidebar.ui:82
-msgid ""
-"Mosaic\n"
-"Detection"
-msgstr ""
-
-#: lada/gui/config/config_sidebar.ui:94
-msgid ""
-"Mosaic\n"
-"Removal"
-msgstr ""
-
-#: lada/gui/config/config_sidebar.ui:108
 msgid "Buffer duration"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:109
+#: lada/gui/config/config_sidebar.ui:78
 msgid "How much video is pre-loaded for playback, measured in seconds. If set to 0 this value will be chosen automatically."
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:123
+#: lada/gui/config/config_sidebar.ui:92
 msgid "Mute audio by default"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:124
+#: lada/gui/config/config_sidebar.ui:93
 msgid "When enabled, audio will be muted automatically when a new file is opened."
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:137
+#: lada/gui/config/config_sidebar.ui:102 lada/gui/config/config_sidebar.ui:269
+#: lada/gui/window.ui:48
+msgid "Export"
+msgstr ""
+
+#: lada/gui/config/config_sidebar.ui:106
 msgid "Codec"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:138
+#: lada/gui/config/config_sidebar.ui:107
 msgid "Video Codec used for encoding the restored video."
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:150
+#: lada/gui/config/config_sidebar.ui:119
 msgid "CRF (Constant Rate Factor)"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:151
+#: lada/gui/config/config_sidebar.ui:120
 msgid "Quality setting of the video encoder. Lower values will result in higher quality but larger file sizes."
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:165
+#: lada/gui/config/config_sidebar.ui:134
 msgid ""
 "Custom FFmpeg encoder options (Optional).\n"
 "Example: <span background=\"#D3D3D350\"><tt>-rc-lookahead 32 -rc vbr_hq</tt></span>"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:166
+#: lada/gui/config/config_sidebar.ui:135
 msgid ""
 "FFmpeg Codecs Documentation:\n"
 "https://ffmpeg.org/ffmpeg-codecs.html"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:172
+#: lada/gui/config/config_sidebar.ui:141
 msgid "Output Directory"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:177
+#: lada/gui/config/config_sidebar.ui:146
 msgid "Always ask"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:188
+#: lada/gui/config/config_sidebar.ui:157
 msgid "Use this folder"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:210
+#: lada/gui/config/config_sidebar.ui:179
 msgid ""
 "File name pattern for restored files.\n"
 "Must include placeholder <span background=\"#D3D3D350\"><tt>{orig_file_name}</tt></span>."
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:220
+#: lada/gui/config/config_sidebar.ui:189
+msgid "Troubleshooting"
+msgstr ""
+
+#: lada/gui/config/config_sidebar.ui:193
+msgid "Show mosaic detections"
+msgstr ""
+
+#: lada/gui/config/config_sidebar.ui:194
+msgid "Show detected mosaic areas. Useful to evaluate quality of detection model."
+msgstr ""
+
+#: lada/gui/config/config_sidebar.ui:207
 msgid "UI"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:223
+#: lada/gui/config/config_sidebar.ui:210
 msgid "Color Scheme"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:227
+#: lada/gui/config/config_sidebar.ui:214
 msgid "Follow System style"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:239
+#: lada/gui/config/config_sidebar.ui:226
 msgid "Light style"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:251
+#: lada/gui/config/config_sidebar.ui:238
 msgid "Dark style"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:263
-msgid "Initial View"
+#: lada/gui/config/config_sidebar.ui:250
+msgid "Default View"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:264
+#: lada/gui/config/config_sidebar.ui:251
 msgid "View shown after opening files"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:311
+#: lada/gui/config/config_sidebar.ui:258 lada/gui/preview/preview_view.py:445
+#: lada/gui/window.ui:38
+msgid "Watch"
+msgstr ""
+
+#: lada/gui/config/config_sidebar.ui:298
 msgid "Reset to factory settings"
 msgstr ""
 
@@ -230,16 +226,36 @@ msgstr ""
 msgid "No GPU detected! Running the app on CPU will be painfully slow"
 msgstr ""
 
-#: lada/gui/fileselection/file_selection_view.py:78
+#: lada/gui/preview/preview_view.py:442
+msgid "Switch to Export View"
+msgstr ""
+
+#: lada/gui/preview/preview_view.py:443
+msgid "Switch to Preview View"
+msgstr ""
+
+#: lada/gui/preview/preview_view.py:446
+msgid "Mute/Unmute"
+msgstr ""
+
+#: lada/gui/preview/preview_view.py:447
+msgid "Play/Pause"
+msgstr ""
+
+#: lada/gui/preview/preview_view.py:448
+msgid "Enable/Disable fullscreen"
+msgstr ""
+
+#: lada/gui/fileselection/file_selection_view.py:80
 msgid "Select one or multiple video files"
 msgstr ""
 
 #: lada/gui/fileselection/file_selection_view.ui:31
-msgid "Restore pixelated Videos"
+msgid "Restore pixelated adult videos"
 msgstr ""
 
 #: lada/gui/fileselection/file_selection_view.ui:32
-msgid "Drop one or more Videos here"
+msgid "Drop one or more videos here"
 msgstr ""
 
 #: lada/gui/fileselection/file_selection_view.ui:35
@@ -391,19 +407,19 @@ msgstr ""
 msgid "Processing frames"
 msgstr ""
 
-#: lada/cli/main.py:166
-msgid "Received Ctrl-C, stop currently running restore"
-msgstr ""
-
 #: lada/cli/main.py:173
 msgid "Processing audio"
 msgstr ""
 
-#: lada/cli/main.py:243
+#: lada/cli/main.py:248
 #, python-brace-format
 msgid "Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension"
 msgstr ""
 
-#: lada/cli/main.py:246
+#: lada/cli/main.py:251
 msgid "Invalid output directory. If input is a directory then --output must also be set to a directory"
+msgstr ""
+
+#: lada/cli/main.py:271
+msgid "Received Ctrl-C, stopping restoration..."
 msgstr ""

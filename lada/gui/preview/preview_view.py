@@ -439,13 +439,13 @@ class PreviewView(Gtk.Widget):
 
     def _setup_shortcuts(self):
         self._shortcuts_manager.register_group("ui", "UI")
-        self._shortcuts_manager.add("ui", "show-export-view", "e", lambda *args: self._view_stack.set_visible_child_name('export'), "Switch to Export View")
-        self._shortcuts_manager.add("ui", "show-preview-view", "p", lambda *args: self._view_stack.set_visible_child_name('preview'), "Switch to Preview View")
+        self._shortcuts_manager.add("ui", "show-export-view", "e", lambda *args: self._view_stack.set_visible_child_name('export'), _("Switch to Export View"))
+        self._shortcuts_manager.add("ui", "show-preview-view", "p", lambda *args: self._view_stack.set_visible_child_name('preview'), _("Switch to Preview View"))
 
         self._shortcuts_manager.register_group("preview", _("Watch"))
-        self._shortcuts_manager.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
-        self._shortcuts_manager.add("preview", "toggle-play-pause", "<Ctrl>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
-        self._shortcuts_manager.add("preview", "toggle-fullscreen", "f", lambda *args: self.emit("toggle-fullscreen-requested"), "Enable/Disable fullscreen")
+        self._shortcuts_manager.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), _("Mute/Unmute"))
+        self._shortcuts_manager.add("preview", "toggle-play-pause", "<Ctrl>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), _("Play/Pause"))
+        self._shortcuts_manager.add("preview", "toggle-fullscreen", "f", lambda *args: self.emit("toggle-fullscreen-requested"), _("Enable/Disable fullscreen"))
 
     def close(self, block=False):
         if not self.pipeline_manager:

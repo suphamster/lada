@@ -268,7 +268,7 @@ def main():
                                mosaic_restoration_model_name=args.mosaic_restoration_model, preferred_pad_mode=preferred_pad_mode, max_clip_length=args.max_clip_length,
                                codec=args.codec, crf=args.crf, moov_front=args.moov_front, preset=args.preset, custom_encoder_options=args.custom_encoder_options)
         except KeyboardInterrupt:
-            print(_("Received Ctrl-C, stop currently running restore"))
+            print(_("Received Ctrl-C, stopping restoration."))
             break
 
 if __name__ == '__main__':
