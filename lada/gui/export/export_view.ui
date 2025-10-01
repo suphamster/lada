@@ -56,7 +56,7 @@
                         <property name="sidebar">
                             <object class="ConfigSidebar" id="config_sidebar">
                                 <property name="config" bind-source="ExportView" bind-property="config"/>
-                                <property name="show-preview-section">False</property>
+                                <property name="show-playback-section">False</property>
                             </object>
                         </property>
                         <property name="content">
@@ -160,7 +160,7 @@
                                                                   <property name="child">
                                                                     <object class="AdwButtonContent">
                                                                       <property name="icon-name">external-link-symbolic</property>
-                                                                      <property name="label" translatable="true">Show File</property>
+                                                                      <property name="label" translatable="true">Open File</property>
                                                                     </object>
                                                                   </property>
                                                                 <style>

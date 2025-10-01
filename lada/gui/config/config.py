@@ -19,7 +19,7 @@ class ColorScheme(Enum):
 
 class Config(GObject.Object):
     _defaults = {
-        'preview_mode': 'mosaic-removal',
+        'show_mosaic_detections': False,
         'mosaic_restoration_model': 'basicvsrpp-v1.2',
         'mosaic_detection_model': 'v3.1-fast',
         'export_codec': 'libx264',
@@ -37,7 +37,7 @@ class Config(GObject.Object):
 
     def __init__(self, style_manager: Adw.StyleManager):
         super().__init__()
-        self._preview_mode = self._defaults['preview_mode']
+        self._show_mosaic_detections = self._defaults['show_mosaic_detections']
         self._mosaic_restoration_model = self._defaults['mosaic_restoration_model']
         self._mosaic_detection_model = self._defaults['mosaic_detection_model']
         self._export_codec = self._defaults['export_codec']
@@ -56,14 +56,14 @@ class Config(GObject.Object):
         self._style_manager = style_manager
 
     @GObject.Property()
-    def preview_mode(self):
-        return self._preview_mode
+    def show_mosaic_detections(self):
+        return self._show_mosaic_detections
 
-    @preview_mode.setter
-    def preview_mode(self, value):
-        if value == self._preview_mode:
+    @show_mosaic_detections.setter
+    def show_mosaic_detections(self, value):
+        if value == self._show_mosaic_detections:
             return
-        self._preview_mode = value
+        self._show_mosaic_detections = value
         self.save()
 
     @GObject.Property()
@@ -242,7 +242,7 @@ class Config(GObject.Object):
         self._update_style(self._color_scheme)
 
     def reset_to_default_values(self):
-        self.preview_mode = self._defaults['preview_mode']
+        self.show_mosaic_detections = self._defaults['show_mosaic_detections']
         self.mosaic_restoration_model = self._defaults['mosaic_restoration_model']
         self.device = self._defaults['device']
         self.preview_buffer_duration = self._defaults['preview_buffer_duration']
@@ -265,7 +265,7 @@ class Config(GObject.Object):
 
     def _as_dict(self) -> dict:
         return {
-            'preview_mode': self._preview_mode,
+            'show_mosaic_detections': self._show_mosaic_detections,
             'mosaic_restoration_model': self._mosaic_restoration_model,
             'mosaic_detection_model': self._mosaic_detection_model,
             'export_codec': self._export_codec,

@@ -71,38 +71,7 @@
                         <child>
                             <object class="AdwPreferencesGroup">
                                 <property name="title" translatable="true">Playback</property>
-                                <property name="visible" bind-source="ConfigSidebar" bind-property="show-preview-section"/>
-                                <child>
-                                    <object class="AdwActionRow">
-                                        <property name="title" translatable="true">Preview Mode</property>
-                                        <property name="subtitle" translatable="true">"Detection" will show detected mosaic areas, "Mosaic" will restore them.</property>
-                                        <child>
-                                            <object class="GtkToggleButton"
-                                                    id="toggle_button_mosaic_detection">
-                                                <property name="label" translatable="true">Mosaic&#xA;Detection</property>
-                                                <property name="sensitive">True</property>
-                                                <signal name="clicked"
-                                                        handler="toggle_button_mosaic_detection_callback"/>
-                                                <style>
-                                                    <class name="flat"/>
-                                                </style>
-                                            </object>
-                                        </child>
-                                        <child>
-                                            <object class="GtkToggleButton"
-                                                    id="toggle_button_mosaic_removal">
-                                                <property name="label" translatable="true">Mosaic&#xA;Removal</property>
-                                                <property name="sensitive">True</property>
-                                                <property name="active">True</property>
-                                                <signal name="clicked"
-                                                        handler="toggle_button_mosaic_removal_callback"/>
-                                                <style>
-                                                    <class name="flat"/>
-                                                </style>
-                                            </object>
-                                        </child>
-                                    </object>
-                                </child>
+                                <property name="visible" bind-source="ConfigSidebar" bind-property="show-playback-section"/>
                                 <child>
                                     <object class="AdwSpinRow" id="spin_row_preview_buffer_duration">
                                         <property name="title" translatable="true">Buffer duration</property>
@@ -212,6 +181,24 @@
                                     <!-- I could not find any other way to check if the row is focused except checking for focused css class. has-focus is never true -->
                                     <signal name="notify::css-classes" handler="entry_row_file_name_pattern_focused_callback"/>
                                   </object>
+                                </child>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="AdwPreferencesGroup">
+                                <property name="title" translatable="true">Troubleshooting</property>
+                                <property name="visible" bind-source="ConfigSidebar" bind-property="show-playback-section"/>
+                                <child>
+                                      <object class="AdwActionRow">
+                                        <property name="title" translatable="true">Show mosaic detections</property>
+                                        <property name="subtitle" translatable="true">Show detected mosaic areas. Useful to evaluate quality of detection model.</property>
+                                        <child type="prefix">
+                                          <object class="GtkCheckButton" id="check_button_show_mosaic_detections">
+                                            <property name="active">true</property>
+                                            <signal name="toggled" handler="check_button_show_mosaic_detections_callback"/>
+                                          </object>
+                                        </child>
+                                      </object>
                                 </child>
                             </object>
                         </child>

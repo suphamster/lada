@@ -17,8 +17,6 @@ logging.basicConfig(level=LOG_LEVEL)
 class ConfigSidebar(Gtk.Box):
     __gtype_name__ = 'ConfigSidebar'
 
-    toggle_button_mosaic_detection = Gtk.Template.Child()
-    toggle_button_mosaic_removal = Gtk.Template.Child()
     combo_row_gpu = Gtk.Template.Child()
     combo_row_mosaic_removal_models = Gtk.Template.Child()
     combo_row_mosaic_detection_models = Gtk.Template.Child()
@@ -38,17 +36,17 @@ class ConfigSidebar(Gtk.Box):
     toggle_button_initial_view_preview: Gtk.ToggleButton = Gtk.Template.Child()
     toggle_button_initial_view_export: Gtk.ToggleButton = Gtk.Template.Child()
     entry_row_custom_ffmpeg_encoder_options: Adw.EntryRow = Gtk.Template.Child()
+    check_button_show_mosaic_detections: Gtk.CheckButton = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._config: Config | None = None
         self.init_done = False
-        self._show_preview_section = True
+        self._show_playback_section = True
         self._show_export_section = True
 
     def init_sidebar_from_config(self, config: Config):
-        self.toggle_button_mosaic_detection.set_property("active", config.preview_mode == 'mosaic-detection')
-        self.toggle_button_mosaic_removal.set_property("active", config.preview_mode == 'mosaic-removal')
+        self.check_button_show_mosaic_detections.props.active = config.show_mosaic_detections
 
         # init device
         combo_row_gpu_list = Gtk.StringList.new([])
@@ -135,12 +133,12 @@ class ConfigSidebar(Gtk.Box):
         self.preferences_page.set_property("sensitive", not value)
 
     @GObject.Property(type=bool, default=True)
-    def show_preview_section(self):
-        return self._show_preview_section
+    def show_playback_section(self):
+        return self._show_playback_section
 
-    @show_preview_section.setter
-    def show_preview_section(self, value):
-        self._show_preview_section = value
+    @show_playback_section.setter
+    def show_playback_section(self, value):
+        self._show_playback_section = value
 
     @GObject.Property(type=bool, default=True)
     def show_export_section(self):
@@ -149,28 +147,6 @@ class ConfigSidebar(Gtk.Box):
     @show_export_section.setter
     def show_export_section(self, value):
         self._show_export_section = value
-
-    @Gtk.Template.Callback()
-    @skip_if_uninitialized
-    def toggle_button_mosaic_detection_callback(self, button_clicked):
-        enable_mosaic_detection = button_clicked.get_property("active")
-        if enable_mosaic_detection:
-            self.toggle_button_mosaic_removal.set_property("active", False)
-            self._config.preview_mode = 'mosaic-detection'
-        else:
-            self.toggle_button_mosaic_removal.set_property("active", True)
-            self._config.preview_mode = 'mosaic-removal'
-
-    @Gtk.Template.Callback()
-    @skip_if_uninitialized
-    def toggle_button_mosaic_removal_callback(self, button_clicked):
-        enable_mosaic_removal = button_clicked.get_property("active")
-        if enable_mosaic_removal:
-            self.toggle_button_mosaic_detection.set_property("active", False)
-            self._config.preview_mode = 'mosaic-removal'
-        else:
-            self.toggle_button_mosaic_detection.set_property("active", True)
-            self._config.preview_mode = 'mosaic-detection'
 
     @Gtk.Template.Callback()
     @skip_if_uninitialized
@@ -282,6 +258,11 @@ class ConfigSidebar(Gtk.Box):
     @skip_if_uninitialized
     def entry_row_custom_ffmpeg_encoder_options_changed_callback(self, entry_row):
         self._config.custom_ffmpeg_encoder_options = self.entry_row_custom_ffmpeg_encoder_options.get_text()
+
+    @Gtk.Template.Callback()
+    @skip_if_uninitialized
+    def check_button_show_mosaic_detections_callback(self, check_button):
+        self._config.show_mosaic_detections = self.check_button_show_mosaic_detections.props.active
 
     def set_file_name_pattern_row_styles(self):
         is_valid = validate_file_name_pattern(self.entry_row_file_name_pattern.get_text())

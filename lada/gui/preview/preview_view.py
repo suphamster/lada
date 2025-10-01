@@ -194,10 +194,10 @@ class PreviewView(Gtk.Widget):
             self.update_gst_buffers()
 
     def setup_config_signal_handlers(self):
-        def on_preview_mode(*args):
+        def on_show_mosaic_detections(*args):
             if self._frame_restorer_options:
-                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection(self._config.preview_mode == 'mosaic-detection')
-        self._config.connect("notify::preview-mode", on_preview_mode)
+                self.frame_restorer_options = self._frame_restorer_options.with_mosaic_detection(self._config.show_mosaic_detections)
+        self._config.connect("notify::show-mosaic-detections", on_show_mosaic_detections)
 
         def on_device(object, spec):
             if self._frame_restorer_options:
@@ -280,7 +280,7 @@ class PreviewView(Gtk.Widget):
         threading.Thread(target=run).start()
 
     def _open_file(self, file: Gio.File):
-        self.frame_restorer_options = FrameRestorerOptions(self.config.mosaic_restoration_model, self.config.mosaic_detection_model, video_utils.get_video_meta_data(file.get_path()), self.config.device, self.config.max_clip_duration, self.config.preview_mode == 'mosaic-detection', False)
+        self.frame_restorer_options = FrameRestorerOptions(self.config.mosaic_restoration_model, self.config.mosaic_detection_model, video_utils.get_video_meta_data(file.get_path()), self.config.device, self.config.max_clip_duration, self.config.show_mosaic_detections, False)
         file_path = file.get_path()
 
         assert not self._video_preview_init_done
