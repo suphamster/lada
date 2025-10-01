@@ -66,36 +66,29 @@ compare.
 
 You configure the models in the side panel, or when using the CLI by specifying path and type of the model as arguments.
 
-## Status
+## Performance and hardware requirements
 Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Other scenes can be rather meh and show worse artifacts than the original mosaics.
 
-You'll need a Nvidia (CUDA) GPU and some patience to run the app. If your card has at least 4-6GB of VRAM then it should work out of the box.
+You'll need a GPU and some patience to run the app. If your card has at least 4-6GB of VRAM then it should work out of the box.
 
-The CPU is used for encoding the restored video so shouldn't be too slow either (current version does not ship with GPU video encoders). You can adjust encoder options to your needs on the CLI.
+The CPU is used for encoding the restored video so shouldn't be too slow either. But you can also use GPU encoding and run both the restoration and encoding tasks on the GPU.
 
 The app also needs quite a bit of RAM for buffering to increase throughput. For 1080p content you should be fine with 6-8GB RAM, 4K will need a lot more.
 
-If you want to use watch the restored video in the GUI preview mode in real-time you'll need a pretty beefy machine or you'll see the player pausing until next restored frames are computed.
-GUI Preview mode will need less CPU resources as it will not have to encode the video but will use more additional RAM for buffering.
+To watch the restored video in realtime you'll need a pretty beefy machine or you'll see the player pausing and buffering until next restored frames are computed.
+When viewing the video no encoding is done but it will use more additional RAM for buffering.
 
-If your GPU is not fast enough to watch the video in real-time you'll have to export it first and watch it later with your favorite media player.
+If your GPU is not fast enough to watch the video in real-time you'll have to export it first and watch it later with your favorite media player (available in GUI and CLI).
 
-Technically running the app on your CPU is also supported where *supported* is defined as: It will not crash but processing will be so slow you wish you haven't given it a try.
+Technically running the app on your CPU is also supported but it will be so slow that it's not really practical.
 
-Here are some speed performance numbers using Lada v0.7.0 on my available hardware to give you an idea what to expect (used libx264 codec with default settings; RTX 3090 results are limited by CPU encoding and could be faster with other settings):
+Here are some speed performance numbers using Lada v0.7.0 on my available hardware to give you an idea what to expect (used libx264/CPU codec with default settings; RTX 3090 results are limited by CPU encoding and could be a lot faster by switching to NVENC/GPU encoder):
 
 | Video name | Video description                                                                                    | Video<br>duration / resolution / FPS | Lada<br>runtime / FPS<br>Nvidia RTX 3050<br>(*Laptop GPU*) | Lada<br>runtime / FPS<br>Nvidia RTX 3090<br>(Desktop GPU) |
 |------------|------------------------------------------------------------------------------------------------------|--------------------------------------|------------------------------------------------------------|-----------------------------------------------------------|
 | vid1       | multiple mosaic regions present on all frames                                                        | 1m30s / 10920x1080 / 30 FPS          | 3m36s / 12 FPS                                             | 1m33s / 30 FPS                                            |
 | vid2       | single mosaic region present on all frames                                                           | 3m0s / 1920x1080 / 30 FPS            | 4m11s / 21 FPS                                             | 2m16s / 39 FPS                                            |
 | vid3       | half of the video doesn't have any mosaics present,<br>the other half mostly single mosaic per frame | 41m16s / 852x480 / 30 FPS            | 26m30s / 46 FPS                                            | 10m20s / 119 FPS                                          |
-
-
-It may or may not work on Windows and Mac and other GPUs. You'll have to try to follow [Build](#build) below and see how far you get.
-
-There have been successful reports of installing Lada on Windows with Nvidia and Intel GPUs. AMD GPUs should also work but probably not with Windows as PyTorch/ROCm builds are only available for Linux.
-
-Patches / reports welcome if you are able to make it run on other systems or have a suggestion how to improve the documentation.
 
 ## Installation
 ### Using Flatpak
@@ -148,10 +141,14 @@ docker pull ladaapp/lada:latest
 
 ### Alternative Installation Methods
 
-If you prefer not to use Flatpak or Docker, have different hardware specifications, or are using a non-Linux system, follow the [Build](#build) steps.
-Contributions are welcome if someone can package the app for other systems!
+If the packages above don't work for you then you'll have to follow the [Build](#build) steps to set up the project. Note that these
+instructions are mostly intended for developers to set up their environment to start working on the source code.
 
-There is some work-in-progress to package for [Windows](https://github.com/ladaapp/lada/issues/77).
+There have been successful reports of installing Lada on Windows with Nvidia and Intel GPUs. AMD GPUs should also work but probably not with Windows as PyTorch/ROCm builds are only available for Linux.
+
+Patches / reports welcome if you are able to make it run on other systems or have a suggestion how to improve the documentation.
+
+Reach out if you can support packaging the app for other OS or hardware.
 
 ## Build
 If you want to start hacking on this project you'll need to install the app from source. Check out the detailed installation guides for [Linux](docs/linux_install.md) and [Windows](docs/windows_install.md).

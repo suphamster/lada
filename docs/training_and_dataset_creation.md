@@ -152,11 +152,11 @@ We'll randomly extend those masks automatically when working on mosaic detection
 
 In *labelme* use the *Draw Polygon* tool to label NSFW regions in the image.
 
-<img src="assets/screenshot_labelme_nsfw.png" alt="screenshot showing LabelMe program using polygon tool to label NSFW regions" height="300px">
+<img src="../assets/screenshot_labelme_nsfw.png" alt="screenshot showing LabelMe program using polygon tool to label NSFW regions" height="300px">
 
 You should also add some images without any visible NSFW content. For those, create a *SFW* label and no Polygons.
 
-<img src="assets/screenshot_labelme_sfw.png" alt="screenshot showing LabelMe program labeling image as SFW" height="300px">
+<img src="../assets/screenshot_labelme_sfw.png" alt="screenshot showing LabelMe program labeling image as SFW" height="300px">
 
 Then continue this process with a couple more images.
 
@@ -190,7 +190,7 @@ python scripts/evaluation/view-yolo.py --input <path to your nsfw file> --model-
 This will open a very simple GUI where you can seek through the video frame-by-frame to check the detection result (masks and prediction confidence levels).
 If you find frames with false-positives or other parts the model incorrectly classified hit the `S` key to take a screenshot and save the frame in the specified directory.
 
-<img src="assets/screenshot_view_yolo.png" alt="screenshot showing view-yolo.py tool" width="45%">
+<img src="../assets/screenshot_view_yolo.png" alt="screenshot showing view-yolo.py tool" width="45%">
 
 Then you can fire up labelme once more and annotate this file properly.
 
