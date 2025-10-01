@@ -18,12 +18,17 @@ class HeaderbarFilesDropDown(Gtk.DropDown):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-        # Custom drop down factory so we can limit the dropdown width and ellipse the selected item in the header bar
-        factory = Gtk.SignalListItemFactory()
+        # Custom drop down factory so we can limit the dropdown button width and ellipse the selected item in the header bar if they are too long
+        button_factory = Gtk.SignalListItemFactory()
+        button_factory.connect("setup", self.on_button_item_setup)
+        button_factory.connect("bind", self.on_item_bind)
+        button_factory.connect("unbind", self.on_item_unbind)
 
-        factory.connect("setup", self.on_item_setup)
-        factory.connect("bind", self.on_item_bind)
-        factory.connect("unbind", self.on_item_unbind)
+        # Custom drop down factory for popup items shown when dropdown is clicked without width restrictions
+        popup_factory = Gtk.SignalListItemFactory()
+        popup_factory.connect("setup", self.on_popup_item_setup)
+        popup_factory.connect("bind", self.on_item_bind)
+        popup_factory.connect("unbind", self.on_item_unbind)
 
         expression = Gtk.ClosureExpression.new(
             GObject.TYPE_STRING,
@@ -33,11 +38,16 @@ class HeaderbarFilesDropDown(Gtk.DropDown):
 
         self.props.model = Gtk.StringList()
         self.props.expression = expression
-        self.props.factory = factory
+        self.props.factory = button_factory
+        self.props.list_factory = popup_factory
 
-    def on_item_setup(self, factory, list_item):
+    def on_popup_item_setup(self, factory, list_item):
         label = Gtk.Label()
-        label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
+        list_item.set_child(label)
+
+    def on_button_item_setup(self, factory, list_item):
+        label = Gtk.Label()
+        label.set_ellipsize(Pango.EllipsizeMode.END)
         label.set_max_width_chars(20)
         list_item.set_child(label)
 
