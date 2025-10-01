@@ -67,8 +67,10 @@ class FileSelectionView(Gtk.Widget):
         self.add_controller(drop_target)
 
     def _setup_shortcuts(self):
-        self._shortcuts_manager.register_group("files", "Files")
-        self._shortcuts_manager.add("files", "open-file", "o", lambda *args: self.show_open_dialog(), "Open a video file")
+        # TODO: bring it back once implemented for Watch view (play the file) and Export view (add file to export queue)
+        pass
+        # self._shortcuts_manager.register_group("files", "Files")
+        # self._shortcuts_manager.add("files", "open-file", "o", lambda *args: self.show_open_dialog(), "Open a video file")
 
     def show_open_dialog(self):
         file_dialog = Gtk.FileDialog()

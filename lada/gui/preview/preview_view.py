@@ -445,8 +445,8 @@ class PreviewView(Gtk.Widget):
 
         self._shortcuts_manager.register_group("preview", "Preview")
         self._shortcuts_manager.add("preview", "toggle-mute-unmute", "m", lambda *args: self.button_mute_unmute_callback(self.button_mute_unmute), "Mute/Unmute")
-        self._shortcuts_manager.add("preview", "toggle-play-pause", "<Alt>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
-        self._shortcuts_manager.add("preview", "toggle-fullscreen", "<Ctrl>f", lambda *args: self.emit("toggle-fullscreen-requested"), "Enable/Disable fullscreen")
+        self._shortcuts_manager.add("preview", "toggle-play-pause", "<Ctrl>space", lambda *args: self.button_play_pause_callback(self.button_play_pause), "Play/Pause")
+        self._shortcuts_manager.add("preview", "toggle-fullscreen", "f", lambda *args: self.emit("toggle-fullscreen-requested"), "Enable/Disable fullscreen")
 
     def close(self, block=False):
         if not self.pipeline_manager:
