@@ -450,6 +450,7 @@ class PreviewView(Gtk.Widget):
     def close(self, block=False):
         if not self.pipeline_manager:
             return
+        self._video_preview_init_done = False
         if block:
             self.pipeline_manager.close_video_file()
         else:
