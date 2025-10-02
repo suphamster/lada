@@ -126,11 +126,11 @@ class ConfigSidebar(Gtk.Box):
 
     @GObject.Property()
     def disabled(self):
-        return self.preferences_page.get_property("sensitive")
+        return self.get_property("sensitive")
 
     @disabled.setter
     def disabled(self, value):
-        self.preferences_page.set_property("sensitive", not value)
+        self.set_property("sensitive", not value)
 
     @GObject.Property(type=bool, default=True)
     def show_playback_section(self):
