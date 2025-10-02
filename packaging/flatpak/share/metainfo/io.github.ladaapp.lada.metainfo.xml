@@ -27,11 +27,16 @@
     </categories>
 
     <description>
-        <p>Remove and recover pixelated content in adult videos (mostly present in Japanese sources (JAV)). Watch or export your recovered videos via CLI or GUI.</p>
-        <p>The process is pretty resource-intensive and will not run on all hardware. Please read the Status section of the README file in the project repository on GitHub.</p>
+        <p>Lada is a tool designed to recover pixelated adult videos (JAV). It helps restore the visual quality of such content, making it more enjoyable to watch:</p>
+        <ul>
+            <li>Recover Pixelated Videos: Restore pixelated or mosaic scenes in adult videos.</li>
+            <li>Watch/Export Videos: Use either the CLI or GUI to watch or export your restored videos.</li>
+        </ul>
+        <p>The process is pretty resource-intensive and this Flatpak package will not run on all hardware. Please read the README file of the project on GitHub.</p>
     </description>
 
     <url type="homepage">https://github.com/ladaapp/lada</url>
+    <url type="bugtracker">https://github.com/ladaapp/lada/issues</url>
 
     <launchable type="desktop-id">io.github.ladaapp.lada.desktop</launchable>
 
@@ -50,6 +55,22 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release date="2025-10-02" version="0.8.0">
+            <description>
+                <p>Revamped the GUI so it can be used with multiple files enabling you to queue a batch of files for restoration. You can choose if you want the start the app in watch mode (watch restored video in realtime) or in export mode (restore one or multiple files in the background to watch later)</p>
+                <p>Similarly, the CLI now also accepts multiple files by passing a directory of files as input.</p>
+                <p>Other changes:</p>
+                <ul>
+                    <li>GUI: Toggle fullscreen mode by double-clicking the video</li>
+                    <li>GUI/CLI: Set file name pattern used to determine file names of output file(s)</li>
+                    <li>GUI: Fix occasional glitch in fullscreen mode where screen became full black (or white on light theme)</li>
+                    <li>GUI: Set custom FFmpeg encoder options. Previously this was only available in CLI</li>
+                    <li>GUI: New setting to choose a default output directory. Use it if you don't want to see the File/Folder dialog when clicking Restore</li>
+                    <li>GUI: Fixed crash when opening files containing audio with samplerate other than 48 kHz. This probably only affected Windows users</li>
+                    <li>CLI: Removed --preserve-relative-scale. --output now is optional. Added --list-devices</li>
+                </ul>
+            </description>
+        </release>
         <release date="2025-07-04" version="0.7.2">
             <description>
                 <ul>

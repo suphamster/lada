@@ -1,27 +1,14 @@
 ## Creating `requirements.txt`
 
-> [!NOTE]
-> TODO:
-> Note that we constrain torch to version 2.6.0 / cuda 12.4. For some reason newer version throw errors in Docker using CPU.
-> Reproducible by running lada-cli or just this simple code:
-> ```python
-> import torch
-> m = torch.nn.Conv2d(16, 33, 3, stride=2)
-> input = torch.randn(20, 16, 50, 100)
-> output = m(input)
-> ```
-> When running `m(input)` it crashes with `RuntimeError: could not create a primitive`.
-> As a workaround let's downgrade.
-
 ```shell
 python -m venv .venv_requirements_cli
 source .venv_requirements_cli/bin/activate
 pip install pip-tools
 test -f packaging/requirements-cli.txt && rm packaging/requirements-cli.txt 
-pip-compile --extra basicvsrpp -o packaging/requirements-cli.txt -c packaging/constraints.txt setup.py
+pip-compile --extra basicvsrpp -o packaging/requirements-cli.txt setup.py
 sed -i 's#opencv-python#opencv-python-headless#' packaging/requirements-cli.txt
 test -f packaging/requirements-gui.txt && rm packaging/requirements-gui.txt 
-pip-compile --extra basicvsrpp,gui -o packaging/requirements-gui.txt -c packaging/constraints.txt setup.py
+pip-compile --extra basicvsrpp,gui -o packaging/requirements-gui.txt setup.py
 deactivate
 rm -r .venv_requirements_cli
 ```

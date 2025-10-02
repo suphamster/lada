@@ -134,6 +134,9 @@ docker pull ladaapp/lada:latest
 > It can also be used without a GPU but it will be very slow.
 
 > [!TIP]
+> Make sure that you have installed the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on your system so Docker can pass through the GPU
+
+> [!TIP]
 > When using Docker you'll need to make the file/directory available to the container as well as the GPU:
 >  ```shell
 > docker run --rm --gpus all --mount type=bind,src=<input video path>,dst=/mnt ladaapp/lada:latest --input "/mnt/<input video file>"

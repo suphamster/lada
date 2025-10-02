@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lada\n"
 "Report-Msgid-Bugs-To: https://github.com/ladaapp/issues\n"
-"POT-Creation-Date: 2025-10-02 00:59+0200\n"
+"POT-Creation-Date: 2025-10-02 05:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,22 +19,6 @@ msgstr ""
 
 #: lada/gui/export/export_item_row.ui:61 lada/gui/export/export_view.ui:159
 msgid "Open in External Program…"
-msgstr ""
-
-#: lada/gui/export/export_view.py:146
-msgid "Finished video restoration!"
-msgstr ""
-
-#: lada/gui/export/export_view.py:177
-msgid "Restoring video…"
-msgstr ""
-
-#: lada/gui/export/export_view.py:302
-msgid "Save restored video file"
-msgstr ""
-
-#: lada/gui/export/export_view.py:310
-msgid "Save restored video files"
 msgstr ""
 
 #: lada/gui/export/export_view.ui:30 lada/gui/preview/preview_view.ui:41
@@ -53,13 +37,20 @@ msgstr ""
 msgid "Open File"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.py:106 lada/gui/config/config_sidebar.py:222
-#: lada/gui/config/config_sidebar.ui:158
-msgid "Click the folder button to choose a default"
+#: lada/gui/export/export_view.py:145
+msgid "Finished video restoration!"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.py:290
-msgid "Select a folder where restored videos should be saved"
+#: lada/gui/export/export_view.py:180
+msgid "Restoring video…"
+msgstr ""
+
+#: lada/gui/export/export_view.py:320
+msgid "Save restored video file"
+msgstr ""
+
+#: lada/gui/export/export_view.py:328
+msgid "Save restored video files"
 msgstr ""
 
 #: lada/gui/config/config_sidebar.ui:16
@@ -163,6 +154,11 @@ msgstr ""
 msgid "Use this folder"
 msgstr ""
 
+#: lada/gui/config/config_sidebar.ui:158 lada/gui/config/config_sidebar.py:106
+#: lada/gui/config/config_sidebar.py:222
+msgid "Click the folder button to choose a default"
+msgstr ""
+
 #: lada/gui/config/config_sidebar.ui:179
 msgid ""
 "File name pattern for restored files.\n"
@@ -218,6 +214,10 @@ msgstr ""
 msgid "Reset to factory settings"
 msgstr ""
 
+#: lada/gui/config/config_sidebar.py:290
+msgid "Select a folder where restored videos should be saved"
+msgstr ""
+
 #: lada/gui/preview/preview_view.ui:29
 msgid "Toggle Fullscreen"
 msgstr ""
@@ -246,10 +246,6 @@ msgstr ""
 msgid "Enable/Disable fullscreen"
 msgstr ""
 
-#: lada/gui/fileselection/file_selection_view.py:80
-msgid "Select one or multiple video files"
-msgstr ""
-
 #: lada/gui/fileselection/file_selection_view.ui:31
 msgid "Restore pixelated adult videos"
 msgstr ""
@@ -260,6 +256,10 @@ msgstr ""
 
 #: lada/gui/fileselection/file_selection_view.ui:35
 msgid "Open Files…"
+msgstr ""
+
+#: lada/gui/fileselection/file_selection_view.py:80
+msgid "Select one or multiple video files"
 msgstr ""
 
 #: lada/cli/main.py:24
@@ -421,5 +421,5 @@ msgid "Invalid output directory. If input is a directory then --output must also
 msgstr ""
 
 #: lada/cli/main.py:271
-msgid "Received Ctrl-C, stopping restoration..."
+msgid "Received Ctrl-C, stopping restoration."
 msgstr ""
