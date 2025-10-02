@@ -88,4 +88,5 @@ class FileSelectionView(Gtk.Widget):
                     logger.debug("FileDialog cancelled: Dismissed by user")
                 else:
                     logger.error(f"Error opening file: {error.message}")
+                    raise error
         file_dialog.open_multiple(callback=on_open_multiple)

@@ -300,6 +300,7 @@ class ConfigSidebar(Gtk.Box):
                     logger.debug("FileDialog cancelled: Dismissed by user")
                 else:
                     logger.error(f"Error selecting folder: {error.message}")
+                    raise error
                 if self.check_button_export_directory_defaultdir and not self._config.export_directory:
                     self.check_button_export_directory_alwaysask.set_active(True)
         file_dialog.select_folder(callback=on_select_folder)

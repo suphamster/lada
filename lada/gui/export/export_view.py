@@ -33,6 +33,7 @@ class ExportView(Gtk.Widget):
     stack: Gtk.Stack = Gtk.Template.Child()
     button_open_status_page: Gtk.Button = Gtk.Template.Child()
     view_switcher: Adw.ViewSwitcher = Gtk.Template.Child()
+    config_sidebar = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -110,8 +111,6 @@ class ExportView(Gtk.Widget):
     @Gtk.Template.Callback()
     def button_start_export_callback(self, button_clicked):
         self.export_in_progress = True
-        if not self.single_file:
-            self.button_start_export.set_visible(False)
         if self._config.export_directory:
             if self.single_file:
                 orig_file = self._files[0]
@@ -147,9 +146,10 @@ class ExportView(Gtk.Widget):
             self.status_page.set_icon_name("check-round-outline2-symbolic")
             self.progress_bar_file_export_status_page.set_visible(False)
             self.button_open_status_page.set_visible(True)
+            self.view_switcher.set_sensitive(True)
+            self.config_sidebar.set_property("disabled", False)
         else:
-            if self.in_progress_idx is None:
-                return
+            assert self.in_progress_idx is not None
             idx = self.in_progress_idx
 
             view_item = self.list_box.get_row_at_index(idx)
@@ -166,13 +166,16 @@ class ExportView(Gtk.Widget):
             idx = self.get_next_queued_item_idx()
             if idx is None:
                 # done, all queued items processed
-                pass
+                self.view_switcher.set_sensitive(True)
+                self.config_sidebar.set_property("disabled", False)
             else:
                 # continue, queued items remaining
                 self._start_export(self.model[idx].orig_file, self.model[idx].restored_file)
 
     def show_video_export_started(self, save_file: Gio.File):
         self.view_switcher.set_sensitive(False)
+        self.config_sidebar.set_property("disabled", True)
+        self.button_start_export.set_visible(False)
         if self.single_file:
             self.status_page.set_title(_("Restoring video…"))
             self.status_page.set_icon_name("cafe-symbolic")
@@ -294,6 +297,21 @@ class ExportView(Gtk.Widget):
         self.model.remove(index)
 
     def show_export_dialog(self):
+        def on_dialog_result(dialog, result):
+            try:
+                if self.single_file:
+                    selected = dialog.save_finish(result)
+                else:
+                    selected = dialog.select_folder_finish(result)
+                if selected is not None:
+                    self.emit("video-export-requested", first_orig_file, selected)
+            except GLib.Error as error:
+                if error.message == "Dismissed by user":
+                    logger.debug("FileDialog cancelled: Dismissed by user")
+                else:
+                    logger.error(f"Error opening file: {error.message}")
+                    raise error
+
         if self.single_file:
             file_dialog = Gtk.FileDialog()
             video_file_filter = Gtk.FileFilter()
@@ -304,13 +322,13 @@ class ExportView(Gtk.Widget):
             initial_restored_file = self.get_restored_file_path(first_orig_file, first_orig_file.get_parent().get_path())
             file_dialog.set_initial_folder(initial_restored_file.get_parent())
             file_dialog.set_initial_name(initial_restored_file.get_basename())
-            file_dialog.save(callback=lambda dialog, result: self.emit("video-export-requested", first_orig_file, dialog.save_finish(result)))
+            file_dialog.save(callback=on_dialog_result)
         else:
             file_dialog = Gtk.FileDialog()
             file_dialog.set_title(_("Save restored video files"))
             first_orig_file = self._files[0]
             file_dialog.set_initial_folder(first_orig_file.get_parent())
-            file_dialog.select_folder(callback=lambda dialog, result: self.emit("video-export-requested", first_orig_file, dialog.select_folder_finish(result)))
+            file_dialog.select_folder(callback=on_dialog_result)
 
     def get_restored_file_path(self, original_file: Gio.File, output_dir: str) -> Gio.File:
         orig_file_name = os.path.splitext(original_file.get_basename())[0]
