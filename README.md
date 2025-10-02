@@ -15,7 +15,7 @@
 
 ### GUI
 
-After opening a file, you can either watch the restored version of the provided video within the app (make sure you've enabled the *Preview* toggle) or export it to a new file.
+After opening a file, you can either watch the restored via in realtime or export it to a new file to watch it later:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot_gui_1_dark.png">
@@ -32,7 +32,7 @@ Additional settings can be found in the left sidebar.
 
 ### CLI
 
-You can also use the command-line interface (CLI) to export restored videos:
+You can also use the command-line interface (CLI) to restore video(s):
 
 ```shell
 lada-cli --input <input video path>
@@ -61,10 +61,10 @@ compare.
 **Mosaic Detection Models:**
 
 *   **v3.1-fast (Default):** Fast and efficient.
-*   **v3.1-accurate:**  More accurate than v3.1-fast, but slower. Not always better than v2.
-*   **v2:** Slowest of all but often provides better mosaic detection than v3.1-accurate.
+*   **v3.1-accurate:**  Slightly more accurate than v3.1-fast, but slower. Not always better than v2.
+*   **v2:** Slowest of all but often provides better mosaic detection than v3.1-accurate but YMMV.
 
-You configure the models in the side panel, or when using the CLI by specifying path and type of the model as arguments.
+You can configure the models in the side panel, or when using the CLI by specifying path and type of the model as arguments.
 
 ## Performance and hardware requirements
 Don't expect this to work perfectly, some scenes can be pretty good and close to the real thing. Other scenes can be rather meh and show worse artifacts than the original mosaics.
