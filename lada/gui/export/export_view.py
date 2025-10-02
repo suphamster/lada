@@ -44,6 +44,7 @@ class ExportView(Gtk.Widget):
         self.in_progress_idx: int | None = None
         self._files: list[Gio.File] = []
         self.single_file = True
+        self.close_requested = False
 
         self.connect("video-export-finished", self.show_video_export_success)
         self.connect("video-export-progress", self.on_video_export_progress)
@@ -258,6 +259,10 @@ class ExportView(Gtk.Widget):
                                              self._config.export_codec, time_base=video_metadata.time_base,
                                              crf=self._config.export_crf, custom_encoder_options=self._config.custom_ffmpeg_encoder_options) as video_writer:
                     for frame_num, elem in enumerate(frame_restorer):
+                        if self.close_requested:
+                            success = False
+                            logger.warning("Close requested: frame restorer stopped prematurely")
+                            break
                         if elem is None:
                             success = False
                             logger.error("Error on export: frame restorer stopped prematurely")
@@ -334,3 +339,6 @@ class ExportView(Gtk.Widget):
         orig_file_name = os.path.splitext(original_file.get_basename())[0]
         restored_file_name = self._config.file_name_pattern.replace("{orig_file_name}", orig_file_name)
         return Gio.File.new_build_filenamev([output_dir, restored_file_name])
+
+    def close(self):
+        self.close_requested = True

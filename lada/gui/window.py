@@ -76,3 +76,4 @@ class MainWindow(Adw.ApplicationWindow):
 
     def close(self, *args):
         self.preview_view.close()
+        self.export_view.close()
