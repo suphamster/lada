@@ -290,15 +290,18 @@ class PreviewView(Gtk.Widget):
         self._reinit_open_file_async(self.files[idx])
 
     def add_files(self, files: list[Gio.File]):
-        for item in files:
-            if item in self.files:
+        unique_files_to_add = []
+        for file_to_add in files:
+            if any(file_to_add.get_path() == file_already_added.get_path() for file_already_added in self.files):
                 # duplicate
                 continue
-            self.files.append(item)
+            self.files.append(file_to_add)
+            unique_files_to_add.append(file_to_add)
 
-        self.drop_down_files.handler_block(self.drop_down_selected_handler_id)
-        self.drop_down_files.add_files(files)
-        self.drop_down_files.handler_unblock(self.drop_down_selected_handler_id)
+        if len(unique_files_to_add) > 0:
+            self.drop_down_files.handler_block(self.drop_down_selected_handler_id)
+            self.drop_down_files.add_files(files)
+            self.drop_down_files.handler_unblock(self.drop_down_selected_handler_id)
 
     def _reinit_open_file_async(self, file: Gio.File):
         def run():

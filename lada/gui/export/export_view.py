@@ -83,7 +83,7 @@ class ExportView(Gtk.Widget):
         assert len(added_files) > 0
 
         for orig_file in added_files:
-            if any([orig_file == item.orig_file for item in self.model]):
+            if any([orig_file.get_path() == item.orig_file.get_path() for item in self.model]):
                 # duplicate
                 continue
             if self._config.export_directory:
