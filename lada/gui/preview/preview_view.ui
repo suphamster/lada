@@ -12,10 +12,10 @@
                 <child type="top">
                     <object class="AdwHeaderBar" id="header_bar">
                         <property name="title-widget">
-                          <object class="AdwViewSwitcher" id="view_switcher">
-                            <property name="policy">1</property>
-                              <property name="stack" bind-source="PreviewView" bind-property="view-stack"/>
-                          </object>
+                            <object class="AdwViewSwitcher" id="view_switcher">
+                                <property name="policy">1</property>
+                                <property name="stack" bind-source="PreviewView" bind-property="view-stack"/>
+                            </object>
                         </property>
                         <child type="start">
                             <object class="GtkToggleButton" id="toggle_button_pane">
@@ -32,7 +32,7 @@
                             </object>
                         </child>
                         <child type="start">
-                          <object class="HeaderbarFilesDropDown" id="drop_down_files"/>
+                            <object class="HeaderbarFilesDropDown" id="drop_down_files"/>
                         </child>
                         <child type="end">
                             <object class="GtkMenuButton">

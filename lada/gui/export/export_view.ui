@@ -164,12 +164,12 @@
                                                                 <property name="visible">false</property>
                                                                 <property name="halign">center</property>
                                                                 <property name="tooltip-text" translatable="true">Open in External Program…</property>
-                                                                  <property name="child">
+                                                                <property name="child">
                                                                     <object class="AdwButtonContent">
-                                                                      <property name="icon-name">external-link-symbolic</property>
-                                                                      <property name="label" translatable="true">Open File</property>
+                                                                        <property name="icon-name">external-link-symbolic</property>
+                                                                        <property name="label" translatable="true">Open File</property>
                                                                     </object>
-                                                                  </property>
+                                                                </property>
                                                                 <style>
                                                                     <class name="pill"/>
                                                                 </style>
