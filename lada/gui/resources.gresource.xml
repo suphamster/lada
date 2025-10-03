@@ -14,6 +14,7 @@
     <file alias="sliders-horizontal-symbolic.svg">icons/sliders-horizontal-symbolic.svg</file>
     <file alias="speaker-0-symbolic.svg">icons/speaker-0-symbolic.svg</file>
     <file alias="speaker-4-symbolic.svg">icons/speaker-4-symbolic.svg</file>
+    <file alias="plus-large-symbolic.svg">icons/plus-large-symbolic.svg</file>
   </gresource>
   <gresource prefix="/io/github/ladaapp/lada/icons/128x128">
     <file alias="lada-logo-gray.png">icons/lada-logo-gray.png</file>

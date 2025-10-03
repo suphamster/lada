@@ -40,3 +40,6 @@ class ExportItemData(GObject.Object):
     @restored_file.setter
     def restored_file(self, value):
         self._restored_file = value
+
+    def __repr__(self):
+        return f"{{{self._orig_file.get_basename()}, {self._restored_file.get_basename()}, {self._state}, {self._progress}}}"

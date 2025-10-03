@@ -1,9 +1,17 @@
+import logging
 import os
+from gettext import gettext as _
 
 import torch
+from gi.repository import Gio
+from gi.repository import Gtk, GLib, Gdk
+
+from lada import LOG_LEVEL
 from lada.lib import video_utils
 
-from gi.repository import Gio
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=LOG_LEVEL)
+
 def is_device_available(device: str) -> bool:
     device = device.lower()
     if device == 'cpu':
@@ -57,3 +65,33 @@ def filter_video_files(files: list[Gio.File]) -> list[Gio.File]:
         return file_info.get_content_type().startswith("video/")
     filtered_files = [file for file in files if is_video_file(file)]
     return filtered_files
+
+def show_open_files_dialog(callback, dismissed_callback):
+    file_dialog = Gtk.FileDialog()
+    video_file_filter = Gtk.FileFilter()
+    video_file_filter.add_mime_type("video/*")
+    file_dialog.set_default_filter(video_file_filter)
+    file_dialog.set_title(_("Select one or multiple video files"))
+    def on_open_multiple(_file_dialog, result):
+        try:
+            video_files = _file_dialog.open_multiple_finish(result)
+            if len(video_files) > 0:
+                callback(video_files)
+        except GLib.Error as error:
+            if error.message == "Dismissed by user":
+                dismissed_callback()
+                logger.debug("FileDialog cancelled: Dismissed by user")
+            else:
+                logger.error(f"Error opening file: {error.message}")
+                raise error
+    file_dialog.open_multiple(callback=on_open_multiple)
+
+def create_video_files_drop_target(callback):
+    drop_target = Gtk.DropTarget.new(Gio.File, actions=Gdk.DragAction.COPY)
+    drop_target.set_gtypes((Gdk.FileList,))
+    def on_file_drop(_drop_target, files: list[Gio.File], x, y):
+        video_files = filter_video_files(files)
+        if len(video_files) > 0:
+            callback(video_files)
+    drop_target.connect("drop", on_file_drop)
+    return drop_target

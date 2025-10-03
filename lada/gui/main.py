@@ -72,7 +72,7 @@ class LadaApplication(Adw.Application):
             self.bind_property("config", win.export_view, "config", flags=GObject.BindingFlags.SYNC_CREATE)
             self.bind_property("config", win, "config", flags=GObject.BindingFlags.SYNC_CREATE)
             self.bind_property("shortcuts-manager", win.preview_view, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
-            self.bind_property("shortcuts-manager", win.file_selection_view, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
+            self.bind_property("shortcuts-manager", win, "shortcuts-manager", flags=GObject.BindingFlags.SYNC_CREATE)
             self.window = win
 
             self._shortcuts_manager.init(win.shortcut_controller)

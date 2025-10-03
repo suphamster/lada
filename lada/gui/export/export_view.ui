@@ -32,6 +32,13 @@
                             </object>
                         </child>
                         <child type="end">
+                            <object class="GtkButton" id="button_add_files">
+                                <property name="icon-name">plus-large-symbolic</property>
+                                <property name="tooltip-text" translatable="true">Add Files…</property>
+                                <signal name="clicked" handler="button_add_files_callback"/>
+                            </object>
+                        </child>
+                        <child type="end">
                             <object class="GtkButton" id="button_start_export">
                                 <property name="label" translatable="true">Restore</property>
                                 <property name="visible">False</property>
