@@ -93,7 +93,12 @@ class PreviewView(Gtk.Widget):
             self.button_open_files.set_sensitive(True)
             self.add_files(files)
             if self._video_preview_init_done:
-                self.play_file(len(self.files) - 1)
+                last_file_idx = len(self.files) - 1
+                if self.drop_down_files.get_selected() != last_file_idx:
+                    self.drop_down_files.handler_block(self.drop_down_selected_handler_id)
+                    self.drop_down_files.set_selected(last_file_idx)
+                    self.drop_down_files.handler_unblock(self.drop_down_selected_handler_id)
+                    self.play_file(last_file_idx)
             else:
                 self.drop_down_files.set_sensitive(False)
         self.connect("files-opened", on_files_opened)
