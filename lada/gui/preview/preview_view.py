@@ -439,7 +439,7 @@ class PreviewView(Gtk.Widget):
 
     def on_fullscreened(self, fullscreened: bool):
         if fullscreened:
-            self.fullscreen_mouse_activity_controller = FullscreenMouseActivityController(self)
+            self.fullscreen_mouse_activity_controller = FullscreenMouseActivityController(self, self.box_video_preview)
             self.banner_no_gpu.set_revealed(False)
             self.button_toggle_fullscreen.set_property("icon-name", "view-restore-symbolic")
             self.box_video_preview.set_css_classes(["fullscreen-preview"])
