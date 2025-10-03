@@ -92,7 +92,10 @@ class PreviewView(Gtk.Widget):
         def on_files_opened(obj, files):
             self.button_open_files.set_sensitive(True)
             self.add_files(files)
-            self.play_file(len(self.files) - 1)
+            if self._video_preview_init_done:
+                self.play_file(len(self.files) - 1)
+            else:
+                self.drop_down_files.set_sensitive(False)
         self.connect("files-opened", on_files_opened)
 
     @GObject.Property(type=Config)
