@@ -42,6 +42,13 @@
                                 <property name="menu-model">primary_menu</property>
                             </object>
                         </child>
+                        <child type="end">
+                            <object class="GtkButton" id="button_open_files">
+                                <property name="icon-name">folder-open-symbolic</property>
+                                <property name="tooltip-text" translatable="true">Open Files…</property>
+                                <signal name="clicked" handler="button_open_files_callback"/>
+                            </object>
+                        </child>
                     </object>
                 </child>
                 <property name="content">
