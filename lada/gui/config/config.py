@@ -1,13 +1,14 @@
+import json
 import logging
 import threading
 from enum import Enum
+from pathlib import Path
 
 from gi.repository import GLib, GObject, Adw
-from pathlib import Path
-import json
+
 from lada import LOG_LEVEL
-from lada.gui import utils
 from lada import get_available_restoration_models, get_available_detection_models
+from lada.gui import utils
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)

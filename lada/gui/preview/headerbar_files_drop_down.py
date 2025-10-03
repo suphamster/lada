@@ -1,7 +1,7 @@
 import logging
 import pathlib
 
-from gi.repository import Adw, Gtk, Gio, GObject, GLib, Pango
+from gi.repository import Gtk, Gio, GObject, Pango
 
 from lada import LOG_LEVEL
 

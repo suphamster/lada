@@ -1,6 +1,6 @@
-from gi.repository import Gtk, GObject, Gio, Adw, GLib
+from gi.repository import GObject, Gio
 
-from lada.gui.export.export_item_row import ExportItemRow, ExportItemState, get_video_metadata_string
+from lada.gui.export.export_item_row import ExportItemState
 
 class ExportItemData(GObject.Object):
     __gtype_name__ = 'ExportItemData'

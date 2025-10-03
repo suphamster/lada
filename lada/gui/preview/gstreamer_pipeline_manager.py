@@ -1,12 +1,12 @@
+import logging
 import pathlib
 import sys
+from enum import Enum
 from time import sleep
 
-from lada import LOG_LEVEL
-import logging
-from enum import Enum
 from gi.repository import GObject, GLib, Gst, GstApp, Gdk
 
+from lada import LOG_LEVEL
 from lada.gui.frame_restorer_provider import FrameRestorerProvider
 from lada.gui.preview.gstreamer_pipeline_appsrc import FrameRestorerAppSrc
 from lada.lib import VideoMetadata, audio_utils

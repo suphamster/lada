@@ -1,12 +1,12 @@
 import pathlib
 import threading
-
-from gi.repository import Adw, Gtk, Gio, GLib, GObject
 from gettext import gettext as _
 
+from gi.repository import Adw, Gtk, Gio, GLib, GObject
+
 from lada.gui.config.config import Config
-from lada.gui.fileselection.file_selection_view import FileSelectionView
 from lada.gui.export.export_view import ExportView
+from lada.gui.fileselection.file_selection_view import FileSelectionView
 from lada.gui.preview.preview_view import PreviewView
 from lada.gui.shortcuts import ShortcutsManager
 

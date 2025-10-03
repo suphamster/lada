@@ -1,12 +1,13 @@
 import logging
 import pathlib
+from gettext import gettext as _
 
 from gi.repository import Gtk, GObject, Adw, Gio, GLib
-from gettext import gettext as _
-from lada.gui.config.config import Config, ColorScheme
-from lada.gui import utils
-from lada.gui.utils import skip_if_uninitialized, get_available_video_codecs, validate_file_name_pattern
+
 from lada import get_available_restoration_models, get_available_detection_models, LOG_LEVEL
+from lada.gui import utils
+from lada.gui.config.config import Config, ColorScheme
+from lada.gui.utils import skip_if_uninitialized, get_available_video_codecs, validate_file_name_pattern
 
 here = pathlib.Path(__file__).parent.resolve()
 

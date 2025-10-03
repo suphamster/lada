@@ -1,8 +1,9 @@
+import gettext
 import locale
 import logging
 import pathlib
-import gettext
 import sys
+
 import gi
 
 from lada import VERSION, LOG_LEVEL, LOCALE_DIR

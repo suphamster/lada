@@ -2,6 +2,7 @@ import logging
 import pathlib
 
 from gi.repository import Adw, Gtk, Gio, GObject
+
 from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.frame_restorer_provider import FrameRestorerOptions
