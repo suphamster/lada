@@ -97,7 +97,7 @@ The easiest way to install the app (CLI and GUI) on Linux is via Flathub:
 <a href='https://flathub.org/apps/details/io.github.ladaapp.lada'><img width='200' alt='Download from Flathub' src='https://flathub.org/api/badge?svg&locale=en'/></a>
 
 > [!NOTE]
-> The Flatpak version works only with x86_64 CPUs and Nvidia/CUDA GPUs. Ensure your system NVIDIA GPU drivers are upt-to-date.
+> The Flatpak only works with x86_64 CPUs and Nvidia/CUDA GPUs (Turing or newer: RTX 20xx up to including RTX 50xx). Ensure your NVIDIA GPU driver is up-to-date.
 > It can also be used without a GPU but it will be very slow.
 
 > [!TIP]
@@ -130,7 +130,7 @@ docker pull ladaapp/lada:latest
 ````
 
 > [!NOTE]
-> The Docker version works only with x86_64 CPUs and Nvidia/CUDA GPUs. Ensure your system NVIDIA GPU drivers are upt-to-date.
+> The Docker image only works with x86_64 CPUs and Nvidia/CUDA GPUs (Turing or newer: RTX 20xx up to including RTX 50xx). Ensure your NVIDIA GPU driver is up-to-date.
 > It can also be used without a GPU but it will be very slow.
 
 > [!TIP]
@@ -149,7 +149,8 @@ If the packages above don't work for you then you'll have to follow the [Build](
 Note that these instructions are mostly intended for developers to set up their environment to start working on the source code. But you should hopefully be able
 to follow the instructions even if you aren't a developer.
 
-There have been successful reports of installing Lada on Windows with Nvidia and Intel GPUs. AMD GPUs should also work but probably not with Windows as PyTorch/ROCm builds are only available for Linux.
+There have been successful reports of installing Lada on Linux and Windows with older and newer Nvidia cards. Also the newer Intel Xe GPUs apparently work. 
+AMD GPUs should also work but probably not with Windows as PyTorch/ROCm builds are only available for Linux.
 
 Reach out if you can support packaging the app for other operating systems or hardware.
 

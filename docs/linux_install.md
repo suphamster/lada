@@ -14,7 +14,7 @@ This section describes how to install the app (CLI and GUI) from source.
    ```
 
 2) Install system dependencies with your system package manager or compile/install from source
-   * Python >= 3.12
+   * Python >= 3.12, <= 3.13
    * FFmpeg >= 4.4
 
 > [!TIP]
