@@ -62,7 +62,11 @@ def validate_file_name_pattern(file_name_pattern: str) -> bool:
 def filter_video_files(files: list[Gio.File]) -> list[Gio.File]:
     def is_video_file(file: Gio.File):
         file_info: Gio.FileInfo = file.query_info("standard::content-type", Gio.FileQueryInfoFlags.NONE)
-        return file_info.get_content_type().startswith("video/")
+        content_type = file_info.get_content_type() # on linux content_type is MIME type but on windows it's just a file extension
+        if content_type is None: return False
+        mime_type = Gio.content_type_get_mime_type(content_type)
+        if mime_type is None: return False
+        return mime_type.startswith("video/")
     filtered_files = [file for file in files if is_video_file(file)]
     return filtered_files
 
