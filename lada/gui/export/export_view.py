@@ -10,6 +10,7 @@ from gi.repository import Gtk, GObject, Gio, Adw, GLib
 from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.config.config import Config
+from lada.gui.config.no_gpu_banner import NoGpuBanner
 from lada.gui.export.export_item_data import ExportItemData
 from lada.gui.export.export_item_row import ExportItemRow, ExportItemState, get_video_metadata_string
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
@@ -36,6 +37,7 @@ class ExportView(Gtk.Widget):
     view_switcher: Adw.ViewSwitcher = Gtk.Template.Child()
     config_sidebar = Gtk.Template.Child()
     button_add_files: Gtk.Button = Gtk.Template.Child()
+    banner_no_gpu: NoGpuBanner = Gtk.Template.Child()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

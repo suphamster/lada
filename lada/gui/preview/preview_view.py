@@ -9,6 +9,7 @@ from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.config.config import Config
 from lada.gui.config.config_sidebar import ConfigSidebar
+from lada.gui.config.no_gpu_banner import NoGpuBanner
 from lada.gui.frame_restorer_provider import FrameRestorerProvider, FrameRestorerOptions, FRAME_RESTORER_PROVIDER
 from lada.gui.preview.fullscreen_mouse_activity_controller import FullscreenMouseActivityController
 from lada.gui.preview.gstreamer_pipeline_manager import PipelineManager, PipelineState
@@ -38,7 +39,7 @@ class PreviewView(Gtk.Widget):
     box_video_preview = Gtk.Template.Child()
     drop_down_files: HeaderbarFilesDropDown = Gtk.Template.Child()
     spinner_overlay = Gtk.Template.Child()
-    banner_no_gpu = Gtk.Template.Child()
+    banner_no_gpu: NoGpuBanner = Gtk.Template.Child()
     config_sidebar: ConfigSidebar = Gtk.Template.Child()
     header_bar: Adw.HeaderBar = Gtk.Template.Child()
     button_toggle_fullscreen: Gtk.Button = Gtk.Template.Child()
@@ -110,8 +111,6 @@ class PreviewView(Gtk.Widget):
     @config.setter
     def config(self, value):
         self._config = value
-        if self._config.get_property('device') == 'cpu':
-            self.banner_no_gpu.set_revealed(True)
         self.setup_config_signal_handlers()
 
     @GObject.Property()
@@ -193,10 +192,6 @@ class PreviewView(Gtk.Widget):
         callback = lambda files: self.emit("files-opened", files)
         dismissed_callback = lambda *args: self.button_open_files.set_sensitive(True)
         utils.show_open_files_dialog(callback, dismissed_callback)
-
-    @Gtk.Template.Callback()
-    def banner_no_gpu_button_clicked(self, button_clicked):
-        self.banner_no_gpu.set_revealed(False)
 
     @property
     def frame_restorer_options(self):
