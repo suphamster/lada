@@ -251,7 +251,7 @@ def main():
     if os.path.isdir(args.input) and args.output is not None and os.path.isfile(args.output):
         print(_("Invalid output directory. If input is a directory then --output must also be set to a directory"))
         sys.exit(1)
-    if not (os.path.isfile(args.input or os.path.isdir(args.input))):
+    if not (os.path.isfile(args.input) or os.path.isdir(args.input)):
         print(_("Invalid input. No file or directory at {input_path}".format(input_path=args.input)))
         sys.exit(1)
 
