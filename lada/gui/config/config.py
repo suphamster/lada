@@ -245,7 +245,7 @@ class Config(GObject.Object):
     def reset_to_default_values(self):
         self.show_mosaic_detections = self._defaults['show_mosaic_detections']
         self.mosaic_restoration_model = self._defaults['mosaic_restoration_model']
-        self.device = self._defaults['device']
+        self.validate_and_set_device(self._defaults['device'])
         self.preview_buffer_duration = self._defaults['preview_buffer_duration']
         self.max_clip_duration = self._defaults['max_clip_duration']
         self.export_crf = self._defaults['export_crf']
