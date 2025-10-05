@@ -250,6 +250,9 @@ def main():
     if os.path.isdir(args.input) and args.output is not None and os.path.isfile(args.output):
         print(_("Invalid output directory. If input is a directory then --output must also be set to a directory"))
         exit(1)
+    if not (os.path.isfile(args.input or os.path.isdir(args.input))):
+        print(_("Invalid input. No file or directory at {input_path}".format(input_path=args.input)))
+        exit(1)
 
     mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(
         args.device, args.mosaic_restoration_model, args.mosaic_restoration_model_path, args.mosaic_restoration_config_path,
