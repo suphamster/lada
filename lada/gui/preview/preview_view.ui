@@ -73,6 +73,8 @@
                                     <object class="AdwBanner" id="banner_no_gpu">
                                         <property name="title" translatable="true">No GPU detected! Running the app on CPU will be painfully slow</property>
                                         <property name="revealed">False</property>
+                                        <property name="button-label">Dismiss</property>
+                                        <signal name="button-clicked" handler="banner_no_gpu_button_clicked"/>
                                     </object>
                                 </child>
                                 <child>

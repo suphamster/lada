@@ -194,6 +194,10 @@ class PreviewView(Gtk.Widget):
         dismissed_callback = lambda *args: self.button_open_files.set_sensitive(True)
         utils.show_open_files_dialog(callback, dismissed_callback)
 
+    @Gtk.Template.Callback()
+    def banner_no_gpu_button_clicked(self, button_clicked):
+        self.banner_no_gpu.set_revealed(False)
+
     @property
     def frame_restorer_options(self):
         return self._frame_restorer_options
