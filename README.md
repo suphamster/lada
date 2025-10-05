@@ -158,6 +158,8 @@ The .zip is available in the *Assets* section. You'll find ´lada.exe´ and ´la
 > Download both files (´<version>.zip.001´ and ´<version>.zip.002´). Then open the first file in [7-zip](https://7-zip.org/).
 > You should then be able to see and extract the *lada* folder containing the .exe files and another subfolder with the dependencies of the application.
 
+> [!NOTE]
+> Be aware that the first start of lada.exe or lada-cli.exe could take a while before Windows Security or your AV has scanned it.
 
 ### Alternative Installation Methods
 
