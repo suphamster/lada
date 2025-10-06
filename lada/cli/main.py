@@ -67,8 +67,14 @@ def filter_video_files(directory_path: str):
     video_files = []
     for name in os.listdir(directory_path):
         path = os.path.join(directory_path, name)
-        if os.path.isfile(path) and mimetypes.guess_file_type(path)[0].lower().startswith("video/"):
-            video_files.append(path)
+        if not os.path.isfile(path):
+            continue
+        mime_type, _ = mimetypes.guess_file_type(path)
+        if not mime_type:
+            continue
+        if not mime_type.lower().startswith("video/"):
+            continue
+        video_files.append(path)
     return video_files
 
 def get_output_file_path(input_file_path: str, output_directory: str, output_file_pattern: str):
@@ -185,7 +191,9 @@ def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
     else:
         input_files = filter_video_files(input_arg)
 
-    assert len(input_files) > 0
+    if len(input_files) == 0:
+        print(_("No video files found"))
+        sys.exit(1)
 
     if single_file_input:
         if not output_arg:
