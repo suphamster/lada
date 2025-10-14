@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lada\n"
 "Report-Msgid-Bugs-To: https://github.com/ladaapp/issues\n"
-"POT-Creation-Date: 2025-10-13 17:20+0000\n"
+"POT-Creation-Date: 2025-10-14 08:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,6 +42,16 @@ msgstr ""
 msgid "Open File"
 msgstr ""
 
+#: lada/gui/export/export_view.ui:205 lada/gui/preview/preview_view.ui:214
+#: lada/gui/fileselection/file_selection_view.ui:54
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+#: lada/gui/export/export_view.ui:209 lada/gui/preview/preview_view.ui:218
+#: lada/gui/fileselection/file_selection_view.ui:58
+msgid "About Lada"
+msgstr ""
+
 #: lada/gui/export/export_item_row.py:25
 #, python-brace-format
 msgid "Duration: {duration}, Resolution: {resolution}, FPS: {fps}"
@@ -69,6 +79,15 @@ msgstr ""
 
 #: lada/gui/config/no_gpu_banner.ui:11
 msgid "No GPU detected! Running the app on CPU will be painfully slow."
+msgstr ""
+
+#: lada/gui/config/config_sidebar.py:107 lada/gui/config/config_sidebar.py:223
+#: lada/gui/config/config_sidebar.ui:158
+msgid "Click the folder button to choose a default"
+msgstr ""
+
+#: lada/gui/config/config_sidebar.py:291
+msgid "Select a folder where restored videos should be saved"
 msgstr ""
 
 #: lada/gui/config/config_sidebar.ui:16
@@ -172,11 +191,6 @@ msgstr ""
 msgid "Use this folder"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.ui:158 lada/gui/config/config_sidebar.py:107
-#: lada/gui/config/config_sidebar.py:223
-msgid "Click the folder button to choose a default"
-msgstr ""
-
 #: lada/gui/config/config_sidebar.ui:179
 msgid ""
 "File name pattern for restored files.\n"
@@ -232,10 +246,6 @@ msgstr ""
 msgid "Reset to factory settings"
 msgstr ""
 
-#: lada/gui/config/config_sidebar.py:291
-msgid "Select a folder where restored videos should be saved"
-msgstr ""
-
 #: lada/gui/preview/preview_view.ui:29
 msgid "Toggle Fullscreen"
 msgstr ""
@@ -263,14 +273,6 @@ msgstr ""
 
 #: lada/gui/fileselection/file_selection_view.ui:32
 msgid "Drop one or more videos here"
-msgstr ""
-
-#: lada/gui/fileselection/file_selection_view.ui:54
-msgid "Keyboard Shortcuts"
-msgstr ""
-
-#: lada/gui/fileselection/file_selection_view.ui:58
-msgid "About Lada"
 msgstr ""
 
 #: lada/gui/window.py:91

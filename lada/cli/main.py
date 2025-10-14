@@ -274,7 +274,7 @@ def main():
         argparser.print_help()
         sys.exit(0)
     if args.device.startswith("cuda") and not torch.cuda.is_available():
-        print(_("GPU {device} selected but CUDA is not available".format(device=args.device)))
+        print(_("GPU {device} selected but CUDA is not available").format(device=args.device))
         sys.exit(1)
     if "{orig_file_name}" not in args.output_file_pattern or "." not in args.output_file_pattern:
         print(_("Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension"))
@@ -283,7 +283,7 @@ def main():
         print(_("Invalid output directory. If input is a directory then --output must also be set to a directory"))
         sys.exit(1)
     if not (os.path.isfile(args.input) or os.path.isdir(args.input)):
-        print(_("Invalid input. No file or directory at {input_path}".format(input_path=args.input)))
+        print(_("Invalid input. No file or directory at {input_path}").format(input_path=args.input))
         sys.exit(1)
 
     mosaic_detection_model, mosaic_restoration_model, preferred_pad_mode = load_models(

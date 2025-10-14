@@ -22,10 +22,10 @@ MIN_VISIBLE_PROGRESS_FRACTION = 0.01
 
 def get_video_metadata_string(file: Gio.File):
     meta_data = video_utils.get_video_meta_data(file.get_path())
-    return _("Duration: {duration}, Resolution: {resolution}, FPS: {fps}".format(
+    return _("Duration: {duration}, Resolution: {resolution}, FPS: {fps}").format(
         duration=_format_duration(meta_data.duration),
         resolution=f"{meta_data.video_width}x{meta_data.video_height}",
-        fps=f"{meta_data.video_fps:.2f}"))
+        fps=f"{meta_data.video_fps:.2f}")
 
 def _format_duration(duration_s):
     if not duration_s or duration_s == -1:
