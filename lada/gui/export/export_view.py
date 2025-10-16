@@ -3,7 +3,6 @@ import os
 import pathlib
 import tempfile
 import threading
-from gettext import gettext as _
 
 from gi.repository import Gtk, GObject, Gio, Adw, GLib
 
@@ -21,7 +20,7 @@ here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-@Gtk.Template(filename=here / 'export_view.ui')
+@Gtk.Template(string=utils.translate_ui_xml(here / 'export_view.ui'))
 class ExportView(Gtk.Widget):
     __gtype_name__ = 'ExportView'
 

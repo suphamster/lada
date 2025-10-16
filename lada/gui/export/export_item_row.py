@@ -1,11 +1,11 @@
 import logging
 import pathlib
 import threading
-from gettext import gettext as _
 
 from gi.repository import Adw, Gtk, Gio, GObject, GLib
 
 from lada import LOG_LEVEL
+from lada.gui import utils
 from lada.lib import video_utils
 
 here = pathlib.Path(__file__).parent.resolve()
@@ -39,7 +39,7 @@ def _format_duration(duration_s):
     time = f"{minutes}:{seconds:02d}" if hours == 0 else f"{hours}:{minutes:02d}:{seconds:02d}"
     return time
 
-@Gtk.Template(filename=here / 'export_item_row.ui')
+@Gtk.Template(string=utils.translate_ui_xml(here / 'export_item_row.ui'))
 class ExportItemRow(Adw.PreferencesRow):
     __gtype_name__ = "ExportItemRow"
 

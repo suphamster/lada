@@ -1,6 +1,5 @@
 import logging
 import pathlib
-from gettext import gettext as _
 
 from gi.repository import Gtk, GObject, Adw, Gio, GLib
 
@@ -14,7 +13,7 @@ here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-@Gtk.Template(filename=here / 'config_sidebar.ui')
+@Gtk.Template(string=utils.translate_ui_xml(here / 'config_sidebar.ui'))
 class ConfigSidebar(Gtk.Box):
     __gtype_name__ = 'ConfigSidebar'
 

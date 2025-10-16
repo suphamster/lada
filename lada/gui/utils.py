@@ -1,6 +1,6 @@
 import logging
 import os
-from gettext import gettext as _
+import xml.etree.ElementTree as ET
 
 import torch
 from gi.repository import Gio
@@ -99,3 +99,14 @@ def create_video_files_drop_target(callback):
             callback(video_files)
     drop_target.connect("drop", on_file_drop)
     return drop_target
+
+def translate_ui_xml(path: str) -> str:
+    with open(path, 'r', encoding="utf-8") as file:
+        element = file.read()
+    tree = ET.fromstring(element)
+    for node in tree.iter():
+        if 'translatable' in node.attrib:
+            node.text = _(node.text)
+            del node.attrib["translatable"]
+    as_str = ET.tostring(tree, encoding='utf-8', method='xml')
+    return as_str

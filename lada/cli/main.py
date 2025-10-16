@@ -1,13 +1,10 @@
 import argparse
-import gettext
-import locale
 import mimetypes
 import os
 import sys
 import pathlib
 import tempfile
 import textwrap
-from gettext import gettext as _
 
 import av
 import torch
@@ -238,21 +235,7 @@ def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
 
     return input_files, output_files
 
-def init_localization():
-    APP_NAME = 'lada'
-    LOCALE_DIR =  './translations'
-    try:
-        locale.bindtextdomain(APP_NAME, LOCALE_DIR)
-        locale.textdomain(APP_NAME)
-    except AttributeError as e:
-        pass
-        # TODO: Workaround for Windows as reported in #88
-        #  Translations of .ui files will probably not work then
-    gettext.bindtextdomain(APP_NAME, LOCALE_DIR)
-    gettext.textdomain(APP_NAME)
-
 def main():
-    init_localization()
     argparser = setup_argparser()
     args = argparser.parse_args()
     if args.version:
