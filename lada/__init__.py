@@ -45,7 +45,7 @@ def _init_translations():
     if "LOCALE_DIR" in os.environ:
         LOCALE_DIR = os.environ["LOCALE_DIR"]
     else:
-        LOCALE_DIR = "translations"
+        LOCALE_DIR = "lada/locale"
     is_language_set = False
     for var_name in ["LANGUAGE", "LANG"]:
         if var_name in os.environ:

@@ -17,7 +17,7 @@ cd release_lada
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-$env:Path = $project + "\build\gtk\x64\release\bin;" + $env:Path
+$env:Path = $project + "\build\gtk\x64\release\bin;" + "\gettext\bin;" + $env:Path
 $env:LIB = $project + "\build\gtk\x64\release\lib;" + $env:LIB
 $env:INCLUDE = $project + "\build\gtk\x64\release\include;" + $project + "\build\gtk\x64\release\include\cairo;" + $project + "\build\gtk\x64\release\include\glib-2.0;" + $project + "\build\gtk\x64\release\include\gobject-introspection-1.0;" + $project + "\build\gtk\x64\release\lib\glib-2.0\include;" + $env:INCLUDE
 
@@ -36,6 +36,8 @@ Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.7.1/lada
 Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.2.0/lada_mosaic_detection_model_v2.pt' -OutFile ".\model_weights\lada_mosaic_detection_model_v2.pt"
 Invoke-WebRequest 'https://github.com/ladaapp/lada/releases/download/v0.6.0/lada_mosaic_restoration_model_generic_v1.2.pth' -OutFile ".\model_weights\lada_mosaic_restoration_model_generic_v1.2.pth"
 Invoke-WebRequest 'https://drive.usercontent.google.com/download?id=1ulct4RhRxQp1v5xwEmUH7xz7AK42Oqlw&export=download&confirm=t' -OutFile ".\model_weights\3rd_party\clean_youknow_video.pth"
+
+.\translations/compile_po.ps1
 ```
 
 Just do a quick test `lada`, drop in a video and see if it loads. If all looks good lets continue and create a package:

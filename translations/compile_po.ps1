@@ -7,11 +7,11 @@ Get-ChildItem -File -Filter "*.po" | ForEach-Object {
     $poFile = $_.Name
     $lang = $poFile -replace "\.po$"
 
-    $langDir = "$lang\LC_MESSAGES"
+    $langDir = "..\lada\locale\$lang\LC_MESSAGES"
     if (-not (Test-Path -Path $langDir)) {
         New-Item -ItemType Directory -Path $langDir -Force
     }
 
     Write-Host "Compiling language '$lang' .po file into .mo file"
-    & msgfmt $poFile -o "$lang\LC_MESSAGES\lada.mo"
+    & msgfmt $poFile -o "$langDir\lada.mo"
 }

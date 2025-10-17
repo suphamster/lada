@@ -28,6 +28,7 @@ common_datas = [
         (ospj(LADA_BASE_DIR, 'model_weights/lada_mosaic_restoration_model_generic_v1.2.pth'), 'model_weights'),
         (ospj(LADA_BASE_DIR, 'model_weights/3rd_party/clean_youknow_video.pth'), 'model_weights/3rd_party'),
 ]
+common_datas += [(str(p), str(p.relative_to(LADA_BASE_DIR).parent)) for p in pathlib.Path(ospj(LADA_BASE_DIR, "lada/locale")).rglob("*.mo")]
 gui_datas = []
 gui_datas += common_datas
 gui_datas += collect_data_files('lada.gui', includes=['**/*.ui'])
