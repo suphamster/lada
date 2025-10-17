@@ -134,3 +134,28 @@ Now you should be able to run the CLI by calling `lada-cli`.
 > If you intend to hack on the GUI code install also `gui-dev` extra: `python -m pip install -e '.[gui-dev]'`
 
 Now you should be able to run the GUI by calling `lada`.
+
+### Install Translations (optional)
+
+If we have a translation file for your language you might want to use Lada in your preferred language instead of English.
+
+1) Install system dependencies
+
+> [!TIP]
+> Arch Linux: 
+> ```bash
+> sudo pacman -Syu gettext 
+> ```
+>   
+> Ubuntu:
+> ```bash
+> sudo apt install gettext
+> ```
+
+2) Compile translations
+    ```bash
+    bash translations/compile_po.sh
+    ```
+
+The app should now use the translations and be shown in your system language. If not then you may need to set the environment variable
+`LANG` (or `LANGAUGE`) to your preferred language e.g. `export LANGUAGE="zh_TW"`.

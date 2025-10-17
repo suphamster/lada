@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lada\n"
 "Report-Msgid-Bugs-To: https://github.com/ladaapp/issues\n"
-"POT-Creation-Date: 2025-10-16 13:12+0000\n"
+"POT-Creation-Date: 2025-10-17 07:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -246,6 +246,15 @@ msgstr ""
 msgid "Reset to factory settings"
 msgstr ""
 
+#: lada/gui/preview/preview_view.ui:29
+msgid "Toggle Fullscreen"
+msgstr ""
+
+#: lada/gui/preview/preview_view.ui:48
+#: lada/gui/fileselection/file_selection_view.ui:35
+msgid "Open Files…"
+msgstr ""
+
 #: lada/gui/preview/preview_view.py:484
 msgid "Mute/Unmute"
 msgstr ""
@@ -256,15 +265,6 @@ msgstr ""
 
 #: lada/gui/preview/preview_view.py:486
 msgid "Enable/Disable fullscreen"
-msgstr ""
-
-#: lada/gui/preview/preview_view.ui:29
-msgid "Toggle Fullscreen"
-msgstr ""
-
-#: lada/gui/preview/preview_view.ui:48
-#: lada/gui/fileselection/file_selection_view.ui:35
-msgid "Open Files…"
 msgstr ""
 
 #: lada/gui/fileselection/file_selection_view.ui:31
