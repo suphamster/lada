@@ -65,6 +65,19 @@
                                 </style>
                             </object>
                         </child>
+                        <child>
+                            <object class="GtkButton" id="button_remove">
+                                <property name="valign">3</property>
+                                <property name="halign">2</property>
+                                <property name="icon-name">cross-large-symbolic</property>
+                                <property name="tooltip-text" translatable="true">Remove</property>
+                                <property name="visible">true</property>
+                                <signal name="clicked" handler="button_remove_callback"/>
+                                <style>
+                                    <class name="flat"/>
+                                </style>
+                            </object>
+                        </child>
                     </object>
                 </child>
                 <child>

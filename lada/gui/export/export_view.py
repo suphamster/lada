@@ -56,7 +56,7 @@ class ExportView(Gtk.Widget):
         self.connect("video-export-progress", self.on_video_export_progress)
 
         self.model =  Gio.ListStore(item_type=ExportItemData)
-        self.list_box.bind_model(self.model, self.create_item_for_list_box)
+        self.list_box.bind_model(self.model, self.create_item_for_list_box_fun())
 
         def on_files_added(obj, files):
             self.button_add_files.set_sensitive(True)
@@ -114,7 +114,12 @@ class ExportView(Gtk.Widget):
             threading.Thread(target=update_label_with_video_metadata).start()
         else:
             self.stack.set_visible_child_name("multiple-files")
-            self.button_start_export.set_visible(self.in_progress_idx is None)
+            self.button_start_export.set_visible(self.is_should_show_start_button())
+
+    def is_should_show_start_button(self) -> bool:
+        count_queued_items = sum([item.state == ExportItemState.QUEUED for item in self.model])
+        is_in_progress = self.in_progress_idx is None
+        return is_in_progress and count_queued_items > 0
 
     @GObject.Signal(name="video-export-finished")
     def video_export_finished_signal(self):
@@ -266,7 +271,7 @@ class ExportView(Gtk.Widget):
             self.progress_bar_file_export_status_page.add_css_class("failed")
             self.progress_bar_file_export_status_page.set_show_text(True)
             self.progress_bar_file_export_status_page.set_text(_("Failed"))
-            self.status_page.set_icon_name("cross-large-circle-outline-symbolic")
+            self.status_page.set_icon_name("exclamation-mark-symbolic")
 
         self.open_error_dialog(model_item.orig_file.get_basename(), error_message)
 
@@ -356,17 +361,21 @@ class ExportView(Gtk.Widget):
         exporter_thread = threading.Thread(target=run_export)
         exporter_thread.start()
 
-    def create_item_for_list_box(_view, obj: ExportItemData):
-        list_row = ExportItemRow(
-            original_file=obj.orig_file,
-            restored_file=obj.restored_file,
-        )
-        return list_row
+    def create_item_for_list_box_fun(self):
+        def fun(obj: ExportItemData):
+            list_row = ExportItemRow(
+                original_file=obj.orig_file,
+                restored_file=obj.restored_file,
+            )
+            list_row.connect("remove-requested", lambda *args: self.on_export_item_remove_requested(list_row))
+            return list_row
+        return fun
 
-    def on_remove_clicked(self, _button):
-        selected_row = self.list_box.get_selected_row()
-        index = selected_row.get_index()
-        self.model.remove(index)
+    def on_export_item_remove_requested(self, view_item: ExportItemRow):
+        for idx, model_item in enumerate(self.model):
+            if model_item.orig_file == view_item.original_file:
+                self.model.remove(idx)
+                break
 
     def show_export_dialog(self):
         def on_dialog_result(dialog, result):
