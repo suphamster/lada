@@ -12,6 +12,7 @@ class ExportItemData(GObject.Object):
         self._orig_file: Gio.File = orig_file
         self._restored_file: Gio.File = restored_file
         self._state: ExportItemState = ExportItemState.QUEUED
+        self._error_details: str = ""
 
     @GObject.Property(type=float)
     def progress(self):
@@ -40,6 +41,14 @@ class ExportItemData(GObject.Object):
     @restored_file.setter
     def restored_file(self, value):
         self._restored_file = value
+
+    @GObject.Property(type=str)
+    def error_details(self):
+        return self._error_details
+
+    @error_details.setter
+    def error_details(self, value):
+        self._error_details = value
 
     def __repr__(self):
         return f"{{{self._orig_file.get_basename()}, {self._restored_file.get_basename()}, {self._state}, {self._progress}}}"

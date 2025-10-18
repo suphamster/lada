@@ -37,6 +37,7 @@ class ExportView(Gtk.Widget):
     label_file_name_status_page: Gtk.Label = Gtk.Template.Child()
     stack: Gtk.Stack = Gtk.Template.Child()
     button_open_status_page: Gtk.Button = Gtk.Template.Child()
+    button_show_error_status_page: Gtk.Button = Gtk.Template.Child()
     view_switcher: Adw.ViewSwitcher = Gtk.Template.Child()
     config_sidebar = Gtk.Template.Child()
     button_add_files: Gtk.Button = Gtk.Template.Child()
@@ -156,6 +157,14 @@ class ExportView(Gtk.Widget):
         dismissed_callback = lambda *args: self.button_add_files.set_sensitive(True)
         utils.show_open_files_dialog(callback, dismissed_callback)
 
+    @Gtk.Template.Callback()
+    def button_show_error_status_page_callback(self, button_clicked):
+        assert self.single_file
+        model_item = self.model[0]
+        assert model_item.state == ExportItemState.FAILED
+
+        self.open_error_dialog(model_item.orig_file.get_basename(), model_item.error_details)
+
     def on_config_changed(self, *args):
         if self._config.export_directory:
             for model_item in self.model:
@@ -239,6 +248,7 @@ class ExportView(Gtk.Widget):
                 file=save_file
             )
             self.button_open_status_page.connect("clicked", lambda _: file_launcher.launch())
+            self.button_show_error_status_page.connect("clicked", lambda _: file_launcher.launch())
 
     def on_video_export_progress(self, obj, progress:float, time_remaining: str):
         if self.in_progress_idx is None:
@@ -264,14 +274,14 @@ class ExportView(Gtk.Widget):
         model_item = self.model[current_idx]
 
         model_item.state = ExportItemState.FAILED
+        model_item.error_details = error_message
         view_item.state = ExportItemState.FAILED
 
         if self.single_file:
             self.status_page.set_title(_("Restoration failed"))
-            self.progress_bar_file_export_status_page.add_css_class("failed")
-            self.progress_bar_file_export_status_page.set_show_text(True)
-            self.progress_bar_file_export_status_page.set_text(_("Failed"))
             self.status_page.set_icon_name("exclamation-mark-symbolic")
+            self.progress_bar_file_export_status_page.set_visible(False)
+            self.button_show_error_status_page.set_visible(True)
 
         self.open_error_dialog(model_item.orig_file.get_basename(), error_message)
 
@@ -368,6 +378,7 @@ class ExportView(Gtk.Widget):
                 restored_file=obj.restored_file,
             )
             list_row.connect("remove-requested", lambda *args: self.on_export_item_remove_requested(list_row))
+            list_row.connect("show-error-requested", lambda *args: self.on_show_error_requested(list_row))
             return list_row
         return fun
 
@@ -375,6 +386,12 @@ class ExportView(Gtk.Widget):
         for idx, model_item in enumerate(self.model):
             if model_item.orig_file == view_item.original_file:
                 self.model.remove(idx)
+                break
+
+    def on_show_error_requested(self, view_item: ExportItemRow):
+        for idx, model_item in enumerate(self.model):
+            if model_item.state == ExportItemState.FAILED and model_item.orig_file == view_item.original_file:
+                self.open_error_dialog(model_item.orig_file.get_basename(), model_item.error_details)
                 break
 
     def show_export_dialog(self):

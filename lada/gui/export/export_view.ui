@@ -182,6 +182,22 @@
                                                                         </style>
                                                                     </object>
                                                                 </child>
+                                                                <child>
+                                                                    <object class="GtkButton" id="button_show_error_status_page">
+                                                                        <property name="visible">false</property>
+                                                                        <property name="halign">center</property>
+                                                                        <property name="child">
+                                                                            <object class="AdwButtonContent">
+                                                                                <property name="icon-name">cross-large-symbolic</property>
+                                                                                <property name="label" translatable="true">Show Error</property>
+                                                                            </object>
+                                                                        </property>
+                                                                        <signal name="clicked" handler="button_show_error_status_page_callback"/>
+                                                                        <style>
+                                                                            <class name="pill"/>
+                                                                        </style>
+                                                                    </object>
+                                                                </child>
                                                             </object>
                                                         </child>
                                                     </object>
