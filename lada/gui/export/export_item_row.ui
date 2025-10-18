@@ -72,6 +72,7 @@
                         <property name="margin-bottom">9</property>
                         <property name="margin-start">9</property>
                         <property name="margin-end">6</property>
+                        <property name="show-text">false</property>
                     </object>
                 </child>
             </object>

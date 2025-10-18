@@ -57,6 +57,7 @@ class ExportItemRow(Adw.PreferencesRow):
         self._progress: float = 0.0
         self._state: ExportItemState = ExportItemState.QUEUED
         self._subtitle = ""
+        self._time_remaining = None
 
         def update_title_with_video_metadata():
             subtitle = get_video_metadata_string(original_file)
@@ -72,6 +73,17 @@ class ExportItemRow(Adw.PreferencesRow):
         self._progress = value
         self.progressbar.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, value) if self._state in [ExportItemState.PROCESSING, ExportItemState.FAILED] else value)
 
+    @GObject.Property(type=str)
+    def time_remaining(self):
+        return self._time_remaining
+
+    @time_remaining.setter
+    def time_remaining(self, value: str):
+        if not value:
+            return
+        self._time_remaining = value
+        self.progressbar.set_text(_("Processing {done_percent}%, Time remaining: {remaining_time}").format(done_percent=int(self.progressbar.get_fraction() * 100), remaining_time=value))
+
     @GObject.Property(type=ExportItemState, default=ExportItemState.QUEUED)
     def state(self):
         return self._state
@@ -82,13 +94,20 @@ class ExportItemRow(Adw.PreferencesRow):
         if value == ExportItemState.FINISHED:
             self.progressbar.add_css_class("finished")
             self.button_open.set_visible(True)
+            self.progressbar.set_text(_("Finished"))
+            self.progressbar.set_show_text(True)
         elif value == ExportItemState.QUEUED:
             self.button_open.set_visible(False)
+            self.progressbar.set_show_text(False)
         elif value == ExportItemState.PROCESSING:
             self.button_open.set_visible(False)
             self.progressbar.set_fraction(MIN_VISIBLE_PROGRESS_FRACTION)
+            self.progressbar.set_text(_("Processing {done_percent}%, Time remaining: Estimating…").format(done_percent=int(self.progressbar.get_fraction() * 100)))
+            self.progressbar.set_show_text(True)
         elif value == ExportItemState.FAILED:
             self.progressbar.add_css_class("failed")
+            self.progressbar.set_text(_("Failed"))
+            self.progressbar.set_show_text(True)
         else:
             logger.error("Unhandled enum state", value)
 
