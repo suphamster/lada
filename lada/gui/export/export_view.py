@@ -12,32 +12,27 @@ from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.config.config import Config
 from lada.gui.config.no_gpu_banner import NoGpuBanner
+from lada.gui.export import export_utils
 from lada.gui.export.export_item_data import ExportItemData
-from lada.gui.export.export_item_row import ExportItemRow, ExportItemState, get_video_metadata_string
+from lada.gui.export.export_item_row import ExportItemRow
+from lada.gui.export.export_single_file_status_page import ExportSingleFileStatusPage
+from lada.gui.export.export_utils import ExportItemState
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
-from lada.lib import audio_utils, video_utils, VideoMetadata
+from lada.lib import audio_utils, video_utils
 
 here = pathlib.Path(__file__).parent.resolve()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-MIN_VISIBLE_PROGRESS_FRACTION = 0.01
-
 @Gtk.Template(string=utils.translate_ui_xml(here / 'export_view.ui'))
 class ExportView(Gtk.Widget):
     __gtype_name__ = 'ExportView'
 
-    status_page = Gtk.Template.Child()
+    status_page: ExportSingleFileStatusPage = Gtk.Template.Child()
     list_box: Gtk.ListBox = Gtk.Template.Child()
     button_start_export: Gtk.Button = Gtk.Template.Child()
-    button_start_export_status_page: Gtk.Button = Gtk.Template.Child()
-    progress_bar_file_export_status_page: Gtk.ProgressBar = Gtk.Template.Child()
-    label_meta_data_status_page: Gtk.Label = Gtk.Template.Child()
-    label_file_name_status_page: Gtk.Label = Gtk.Template.Child()
     stack: Gtk.Stack = Gtk.Template.Child()
-    button_open_status_page: Gtk.Button = Gtk.Template.Child()
-    button_show_error_status_page: Gtk.Button = Gtk.Template.Child()
     view_switcher: Adw.ViewSwitcher = Gtk.Template.Child()
     config_sidebar = Gtk.Template.Child()
     button_add_files: Gtk.Button = Gtk.Template.Child()
@@ -63,6 +58,8 @@ class ExportView(Gtk.Widget):
             self.button_add_files.set_sensitive(True)
             self.add_files(files)
         self.connect("files-added", on_files_added)
+
+        self.status_page.connect("start-export-requested", self.button_start_export_callback)
 
         drop_target = utils.create_video_files_drop_target(lambda files: self.emit("files-added", files))
         self.add_controller(drop_target)
@@ -104,15 +101,8 @@ class ExportView(Gtk.Widget):
         self.single_file = len(self.model) == 1
 
         if self.single_file:
-            file = self.model[0].orig_file
             self.stack.set_visible_child_name("single-file")
-            self.button_start_export_status_page.set_visible(True)
-            self.label_meta_data_status_page.set_visible(True)
-            self.label_file_name_status_page.set_label(file.get_basename())
-            def update_label_with_video_metadata():
-                label = get_video_metadata_string(file)
-                GLib.idle_add(lambda: self.label_meta_data_status_page.set_label(label))
-            threading.Thread(target=update_label_with_video_metadata).start()
+            self.status_page.on_add_file(self.model[0])
         else:
             self.stack.set_visible_child_name("multiple-files")
             self.button_start_export.set_visible(self.is_should_show_start_button())
@@ -143,7 +133,7 @@ class ExportView(Gtk.Widget):
         pass
 
     @Gtk.Template.Callback()
-    def button_start_export_callback(self, button_clicked):
+    def button_start_export_callback(self, *args):
         if self._config.export_directory:
             item = self.model[self.get_next_queued_item_idx()]
             self.emit("video-export-requested", item.restored_file)
@@ -157,14 +147,6 @@ class ExportView(Gtk.Widget):
         dismissed_callback = lambda *args: self.button_add_files.set_sensitive(True)
         utils.show_open_files_dialog(callback, dismissed_callback)
 
-    @Gtk.Template.Callback()
-    def button_show_error_status_page_callback(self, button_clicked):
-        assert self.single_file
-        model_item = self.model[0]
-        assert model_item.state == ExportItemState.FAILED
-
-        self.open_error_dialog(model_item.orig_file.get_basename(), model_item.error_details)
-
     def on_config_changed(self, *args):
         if self._config.export_directory:
             for model_item in self.model:
@@ -174,7 +156,7 @@ class ExportView(Gtk.Widget):
 
     def set_restore_button_label(self):
         label = _("Restore") if self._config.export_directory else _("Restore…")
-        self.button_start_export_status_page.set_label(label)
+        self.status_page.set_button_start_restore_label(label)
         self.button_start_export.set_label(label)
 
     def get_next_queued_item_idx(self) -> int | None:
@@ -197,10 +179,7 @@ class ExportView(Gtk.Widget):
         view_item.state = ExportItemState.FINISHED
 
         if self.single_file:
-            self.status_page.set_title(_("Finished video restoration!"))
-            self.status_page.set_icon_name("check-round-outline2-symbolic")
-            self.progress_bar_file_export_status_page.set_visible(False)
-            self.button_open_status_page.set_visible(True)
+            self.status_page.on_video_export_finished()
 
         self.continue_next_file()
 
@@ -236,19 +215,7 @@ class ExportView(Gtk.Widget):
         view_item.state = ExportItemState.PROCESSING
 
         if self.single_file:
-            self.status_page.set_title(_("Restoring video…"))
-            self.status_page.set_icon_name("cafe-symbolic")
-            self.progress_bar_file_export_status_page.set_fraction(MIN_VISIBLE_PROGRESS_FRACTION)
-            self.progress_bar_file_export_status_page.set_visible(True)
-            self.progress_bar_file_export_status_page.set_show_text(True)
-            self.progress_bar_file_export_status_page.set_text(_("Processing {done_percent}%, Time remaining: Estimating…").format(done_percent=int(self.progress_bar_file_export_status_page.get_fraction() * 100)))
-            self.button_start_export_status_page.set_visible(False)
-            file_launcher = Gtk.FileLauncher(
-                always_ask=False,
-                file=save_file
-            )
-            self.button_open_status_page.connect("clicked", lambda _: file_launcher.launch())
-            self.button_show_error_status_page.connect("clicked", lambda _: file_launcher.launch())
+            self.status_page.show_video_export_started(save_file)
 
     def on_video_export_progress(self, obj, progress:float, time_remaining: str):
         if self.in_progress_idx is None:
@@ -263,8 +230,7 @@ class ExportView(Gtk.Widget):
         view_item.time_remaining = time_remaining
 
         if self.single_file:
-            self.progress_bar_file_export_status_page.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, progress))
-            self.progress_bar_file_export_status_page.set_text(_("Processing {done_percent}%, Time remaining: {remaining_time}").format(done_percent=int(self.progress_bar_file_export_status_page.get_fraction() * 100), remaining_time=time_remaining))
+            self.status_page.on_video_export_progress(progress, time_remaining)
 
     def on_video_export_failed(self, obj, error_message):
         assert self.in_progress_idx is not None
@@ -278,12 +244,9 @@ class ExportView(Gtk.Widget):
         view_item.state = ExportItemState.FAILED
 
         if self.single_file:
-            self.status_page.set_title(_("Restoration failed"))
-            self.status_page.set_icon_name("exclamation-mark-symbolic")
-            self.progress_bar_file_export_status_page.set_visible(False)
-            self.button_show_error_status_page.set_visible(True)
+            self.status_page.on_video_export_failed()
 
-        self.open_error_dialog(model_item.orig_file.get_basename(), error_message)
+        export_utils.open_error_dialog(self, model_item.orig_file.get_basename(), error_message)
 
         self.continue_next_file()
 
@@ -324,7 +287,7 @@ class ExportView(Gtk.Widget):
             progress_update_step_size = 100
             success = True
             video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(restore_file_path)[0])}.tmp{os.path.splitext(restore_file_path)[1]}")
-            remaining_processing_time_estimator = RemainingProcessingTimeEstimator(video_metadata)
+            remaining_processing_time_estimator = export_utils.RemainingProcessingTimeEstimator(video_metadata)
             try:
                 frame_restorer.start(start_ns=0)
 
@@ -391,7 +354,7 @@ class ExportView(Gtk.Widget):
     def on_show_error_requested(self, view_item: ExportItemRow):
         for idx, model_item in enumerate(self.model):
             if model_item.state == ExportItemState.FAILED and model_item.orig_file == view_item.original_file:
-                self.open_error_dialog(model_item.orig_file.get_basename(), model_item.error_details)
+                export_utils.open_error_dialog(self, model_item.orig_file.get_basename(), model_item.error_details)
                 break
 
     def show_export_dialog(self):
@@ -434,71 +397,3 @@ class ExportView(Gtk.Widget):
 
     def close(self):
         self.close_requested = True
-
-    def open_error_dialog(self, filename:str, details:str|None):
-        extra_child = None
-        if details:
-            textview = Gtk.TextView()
-            PADDING = 6
-            textview.set_left_margin(PADDING)
-            textview.set_right_margin(PADDING)
-            textview.set_top_margin(PADDING)
-            textview.set_bottom_margin(PADDING)
-            textbuffer = textview.get_buffer()
-            textbuffer.set_text(details.strip())
-
-            scrolledwindow = Gtk.ScrolledWindow()
-            scrolledwindow.props.hexpand = True
-            scrolledwindow.props.vexpand = True
-            scrolledwindow.set_child(textview)
-            extra_child = scrolledwindow
-
-        dialog = Adw.AlertDialog(
-            heading=_("Restoration failed"),
-            body=_("Error while processing <span><tt>{filename}</tt></span>").format(filename=filename),
-            close_response="okay",
-            extra_child=extra_child,
-            body_use_markup=True
-        )
-
-        def on_response_selected(_dialog, task):
-            _dialog.choose_finish(task)
-
-        dialog.add_response("okay", _("Okay"))
-
-        dialog.choose(self, None, on_response_selected)
-
-class RemainingProcessingTimeEstimator:
-    def __init__(self, video_metadata: VideoMetadata):
-        self.frame_processing_durations_buffer = []
-        self.video_metadata = video_metadata
-        self.frame_processing_durations_buffer_min_len = min(video_metadata.frames_count - 1, int(video_metadata.video_fps * 15))
-        self.frame_processing_durations_buffer_max_len = min(video_metadata.frames_count - 1, int(video_metadata.video_fps * 120))
-
-    def _convert_seconds_remaining_to_text_label(self, seconds):
-        minutes = int(seconds / 60)
-        hours = int(minutes / 60)
-        seconds = seconds % 60
-        minutes = minutes % 60
-        hours, minutes, seconds = int(hours), int(minutes), int(seconds)
-        if hours == 0 and minutes == 0:
-            return f"{seconds:02d}"
-        elif hours == 0:
-            return f"{minutes}:{seconds:02d}"
-        else:
-            return f"{hours}:{minutes:02d}:{seconds:02d}"
-
-    def _get_mean_processing_duration(self):
-        return sum(self.frame_processing_durations_buffer) / len(self.frame_processing_durations_buffer)
-
-    def add_processing_duration(self, duration):
-        if len(self.frame_processing_durations_buffer) >= self.frame_processing_durations_buffer_max_len:
-            self.frame_processing_durations_buffer.pop(0)
-        self.frame_processing_durations_buffer.append(duration)
-
-    def get_time_remaining(self, frame_num) -> str:
-        if len(self.frame_processing_durations_buffer) < self.frame_processing_durations_buffer_min_len:
-            return _("Estimating…")
-        frames_remaining = self.video_metadata.frames_count - (frame_num + 1)
-        seconds_remaining = frames_remaining * self._get_mean_processing_duration()
-        return self._convert_seconds_remaining_to_text_label(seconds_remaining)

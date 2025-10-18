@@ -6,39 +6,12 @@ from gi.repository import Adw, Gtk, Gio, GObject, GLib
 
 from lada import LOG_LEVEL
 from lada.gui import utils
-from lada.lib import video_utils
+from lada.gui.export.export_utils import ExportItemState, MIN_VISIBLE_PROGRESS_FRACTION, get_video_metadata_string
 
 here = pathlib.Path(__file__).parent.resolve()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
-
-class ExportItemState(GObject.GEnum):
-    QUEUED = 0
-    PROCESSING = 1
-    FINISHED = 2
-    FAILED = 3
-
-MIN_VISIBLE_PROGRESS_FRACTION = 0.01
-
-def get_video_metadata_string(file: Gio.File):
-    meta_data = video_utils.get_video_meta_data(file.get_path())
-    return _("Duration: {duration}, Resolution: {resolution}, FPS: {fps}").format(
-        duration=_format_duration(meta_data.duration),
-        resolution=f"{meta_data.video_width}x{meta_data.video_height}",
-        fps=f"{meta_data.video_fps:.2f}")
-
-def _format_duration(duration_s):
-    if not duration_s or duration_s == -1:
-        return ""
-    seconds = int(duration_s)
-    minutes = int(seconds / 60)
-    hours = int(minutes / 60)
-    seconds = seconds % 60
-    minutes = minutes % 60
-    hours, minutes, seconds = int(hours), int(minutes), int(seconds)
-    time = f"{minutes}:{seconds:02d}" if hours == 0 else f"{hours}:{minutes:02d}:{seconds:02d}"
-    return time
 
 @Gtk.Template(string=utils.translate_ui_xml(here / 'export_item_row.ui'))
 class ExportItemRow(Adw.PreferencesRow):
