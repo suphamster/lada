@@ -17,6 +17,7 @@ class ExportItemState(GObject.GEnum):
     QUEUED = 0
     PROCESSING = 1
     FINISHED = 2
+    FAILED = 3
 
 MIN_VISIBLE_PROGRESS_FRACTION = 0.01
 
@@ -69,7 +70,7 @@ class ExportItemRow(Adw.PreferencesRow):
     @progress.setter
     def progress(self, value: float):
         self._progress = value
-        self.progressbar.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, value) if self._state == ExportItemState.PROCESSING else value)
+        self.progressbar.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, value) if self._state in [ExportItemState.PROCESSING, ExportItemState.FAILED] else value)
 
     @GObject.Property(type=ExportItemState, default=ExportItemState.QUEUED)
     def state(self):
@@ -86,6 +87,8 @@ class ExportItemRow(Adw.PreferencesRow):
         elif value == ExportItemState.PROCESSING:
             self.button_open.set_visible(False)
             self.progressbar.set_fraction(MIN_VISIBLE_PROGRESS_FRACTION)
+        elif value == ExportItemState.FAILED:
+            self.progressbar.add_css_class("failed")
         else:
             logger.error("Unhandled enum state", value)
 

@@ -3,6 +3,7 @@ import os
 import pathlib
 import tempfile
 import threading
+import traceback
 
 from gi.repository import Gtk, GObject, Gio, Adw, GLib
 
@@ -19,6 +20,8 @@ here = pathlib.Path(__file__).parent.resolve()
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
+
+MIN_VISIBLE_PROGRESS_FRACTION = 0.01
 
 @Gtk.Template(string=utils.translate_ui_xml(here / 'export_view.ui'))
 class ExportView(Gtk.Widget):
@@ -47,7 +50,8 @@ class ExportView(Gtk.Widget):
         self.single_file = True
         self.close_requested = False
 
-        self.connect("video-export-finished", self.show_video_export_success)
+        self.connect("video-export-finished", self.on_video_export_finished)
+        self.connect("video-export-failed", self.on_video_export_failed)
         self.connect("video-export-progress", self.on_video_export_progress)
 
         self.model =  Gio.ListStore(item_type=ExportItemData)
@@ -115,6 +119,10 @@ class ExportView(Gtk.Widget):
     def video_export_finished_signal(self):
         pass
 
+    @GObject.Signal(name="video-export-failed", arg_types=(GObject.TYPE_STRING,))
+    def video_export_failed_signal(self, error_message: str):
+        pass
+
     @GObject.Signal(name="video-export-progress")
     def video_export_progress_signal(self, status: float):
         pass
@@ -160,7 +168,7 @@ class ExportView(Gtk.Widget):
                 return idx
         return None
 
-    def show_video_export_success(self, obj):
+    def on_video_export_finished(self, obj):
         assert self.in_progress_idx is not None
         current_idx = self.in_progress_idx
 
@@ -173,17 +181,21 @@ class ExportView(Gtk.Widget):
         view_item.progress = 1.0
         view_item.state = ExportItemState.FINISHED
 
+        if self.single_file:
+            self.status_page.set_title(_("Finished video restoration!"))
+            self.status_page.set_icon_name("check-round-outline2-symbolic")
+            self.progress_bar_file_export_status_page.set_visible(False)
+            self.button_open_status_page.set_visible(True)
+
+        self.continue_next_file()
+
+    def continue_next_file(self):
         next_idx = self.get_next_queued_item_idx()
         if next_idx is None:
             # done, all queued items processed
             self.view_switcher.set_sensitive(True)
             self.config_sidebar.set_property("disabled", False)
             self.in_progress_idx = None
-            if self.single_file:
-                self.status_page.set_title(_("Finished video restoration!"))
-                self.status_page.set_icon_name("check-round-outline2-symbolic")
-                self.progress_bar_file_export_status_page.set_visible(False)
-                self.button_open_status_page.set_visible(True)
         else:
             # continue, queued items remaining
             self._start_export(self.model[next_idx].orig_file, self.model[next_idx].restored_file)
@@ -211,6 +223,7 @@ class ExportView(Gtk.Widget):
         if self.single_file:
             self.status_page.set_title(_("Restoring video…"))
             self.status_page.set_icon_name("cafe-symbolic")
+            self.progress_bar_file_export_status_page.set_fraction(MIN_VISIBLE_PROGRESS_FRACTION)
             self.progress_bar_file_export_status_page.set_visible(True)
             self.button_start_export_status_page.set_visible(False)
             file_launcher = Gtk.FileLauncher(
@@ -231,7 +244,26 @@ class ExportView(Gtk.Widget):
         view_item.progress = progress
 
         if self.single_file:
-            self.progress_bar_file_export_status_page.set_fraction(progress)
+            self.progress_bar_file_export_status_page.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, progress))
+
+    def on_video_export_failed(self, obj, error_message):
+        assert self.in_progress_idx is not None
+        current_idx = self.in_progress_idx
+
+        view_item = self.list_box.get_row_at_index(current_idx)
+        model_item = self.model[current_idx]
+
+        model_item.state = ExportItemState.FAILED
+        view_item.state = ExportItemState.FAILED
+
+        if self.single_file:
+            self.progress_bar_file_export_status_page.add_css_class("failed")
+            self.status_page.set_title(_("Restoration failed!"))
+            self.status_page.set_icon_name("cross-large-circle-outline-symbolic")
+
+        self.open_error_dialog(model_item.orig_file.get_basename(), error_message)
+
+        self.continue_next_file()
 
     def start_export(self, restore_directory_or_file: Gio.File):
         # Update initial guessed output restore directory/file now that the user has provided it via file/dir picker dialog
@@ -265,10 +297,11 @@ class ExportView(Gtk.Widget):
             frame_restorer_provider = FRAME_RESTORER_PROVIDER
             frame_restorer_provider.init(frame_restorer_options)
             frame_restorer = frame_restorer_provider.get()
+            restore_file_path = restore_file.get_path()
 
             progress_update_step_size = 100
             success = True
-            video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(video_metadata.video_file)[0])}.tmp{os.path.splitext(video_metadata.video_file)[1]}")
+            video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(restore_file_path)[0])}.tmp{os.path.splitext(restore_file_path)[1]}")
             try:
                 frame_restorer.start(start_ns=0)
 
@@ -292,12 +325,13 @@ class ExportView(Gtk.Widget):
 
             except Exception as e:
                 success = False
-                logger.error("Error on export", exc_info=e)
+                err_msg = "".join(traceback.format_exception_only(e))
+                GLib.idle_add(lambda: self.emit('video-export-failed', err_msg))
             finally:
                 frame_restorer.stop()
 
             if success:
-                audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, restore_file.get_path())
+                audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, restore_file_path)
                 GLib.idle_add(lambda: self.emit('video-export-progress', 1.0))
                 GLib.idle_add(lambda: self.emit('video-export-finished'))
             else:
@@ -359,3 +393,36 @@ class ExportView(Gtk.Widget):
 
     def close(self):
         self.close_requested = True
+
+    def open_error_dialog(self, filename:str, details:str|None):
+        extra_child = None
+        if details:
+            textview = Gtk.TextView()
+            PADDING = 6
+            textview.set_left_margin(PADDING)
+            textview.set_right_margin(PADDING)
+            textview.set_top_margin(PADDING)
+            textview.set_bottom_margin(PADDING)
+            textbuffer = textview.get_buffer()
+            textbuffer.set_text(details.strip())
+
+            scrolledwindow = Gtk.ScrolledWindow()
+            scrolledwindow.props.hexpand = True
+            scrolledwindow.props.vexpand = True
+            scrolledwindow.set_child(textview)
+            extra_child = scrolledwindow
+
+        dialog = Adw.AlertDialog(
+            heading=_("Restoration failed"),
+            body=_("Error while processing <span><tt>{filename}</tt></span>").format(filename=filename),
+            close_response="okay",
+            extra_child=extra_child,
+            body_use_markup=True
+        )
+
+        def on_response_selected(_dialog, task):
+            _dialog.choose_finish(task)
+
+        dialog.add_response("okay", _("Okay"))
+
+        dialog.choose(self, None, on_response_selected)
