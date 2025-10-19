@@ -14,5 +14,5 @@ xgettext \
     --msgid-bugs-address=https://github.com/ladaapp/issues \
     --from-code=UTF-8 \
     --no-wrap \
-    -f <( (find lada/gui -name "*.ui" -or -name "*.py" ; echo lada/cli/main.py) ) \
+    -f <( find lada/gui lada/cli -name "*.ui" -or -name "*.py" ) \
     -o $translations_dir/lada.pot

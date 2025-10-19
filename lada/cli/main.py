@@ -1,30 +1,17 @@
 import argparse
-import mimetypes
 import os
-import sys
 import pathlib
+import sys
 import tempfile
 import textwrap
 
-import av
 import torch
-from tqdm import tqdm
 
-from lada import MODEL_WEIGHTS_DIR, VERSION, DETECTION_MODEL_NAMES_TO_FILES, RESTORATION_MODEL_NAMES_TO_FILES, \
-    get_available_restoration_models, get_available_detection_models
+from lada import MODEL_WEIGHTS_DIR, VERSION
+from lada.cli import utils
 from lada.lib import audio_utils
 from lada.lib.frame_restorer import load_models, FrameRestorer
 from lada.lib.video_utils import get_video_meta_data, VideoWriter
-
-
-class TranslatableHelpFormatter(argparse.RawDescriptionHelpFormatter):
-    def __init__(self, *args, **kwargs):
-        super(TranslatableHelpFormatter, self).__init__(*args, **kwargs)
-
-    def add_usage(self, usage, actions, groups, prefix=None):
-        prefix = _("Usage: ")
-        args = usage, actions, groups, prefix
-        self._add_item(self._format_usage, args)
 
 def setup_argparser() -> argparse.ArgumentParser:
     examples_header_text = _("Examples:")
@@ -50,7 +37,7 @@ def setup_argparser() -> argparse.ArgumentParser:
                 * {example3_text}
                     {example3_command}
             ''')),
-        formatter_class=TranslatableHelpFormatter,
+        formatter_class=utils.TranslatableHelpFormatter,
         add_help=False)
 
     group_general = parser.add_argument_group(_('General'))
@@ -83,92 +70,8 @@ def setup_argparser() -> argparse.ArgumentParser:
 
     return parser
 
-def filter_video_files(directory_path: str):
-    video_files = []
-    for name in os.listdir(directory_path):
-        path = os.path.join(directory_path, name)
-        if not os.path.isfile(path):
-            continue
-        if sys.version_info >= (3, 13):
-            mime_type, _ = mimetypes.guess_file_type(path)
-        else:
-            mime_type, _ = mimetypes.guess_type(path)
-        if not mime_type:
-            continue
-        if not mime_type.lower().startswith("video/"):
-            continue
-        video_files.append(path)
-    return video_files
-
-def get_output_file_path(input_file_path: str, output_directory: str, output_file_pattern: str):
-    output_file_name = output_file_pattern.replace("{orig_file_name}", pathlib.Path(input_file_path).stem)
-    return os.path.join(output_directory, output_file_name)
-
-def dump_pyav_codecs():
-    print(_("PyAV version:"))
-    print(f"\t{av.__version__}")
-
-    from lada.lib.video_utils import get_available_video_encoder_codecs
-    print(_("Available video encoders:"))
-    for short_name, long_name in get_available_video_encoder_codecs():
-        print("\t%-18s %s" % (short_name, long_name))
-
-    try:
-        from av.codec.hwaccel import hwdevices_available
-        print(_("Encoders with support for hardware acceleration (GPU):"))
-        for x in hwdevices_available():
-            print(f"\t{x}")
-    except ImportError:
-        print("Unable to list available hwdevices, ImportError")
-
-    try:
-        from av.codec.codec import dump_hwconfigs
-        dump_hwconfigs()
-    except ImportError:
-        print("Unable to list hwdevice configs, ImportError")
-
-def dump_torch_devices():
-    device_header = _("Device")
-    description_header = _("Description")
-    s = _("Available devices:")
-    s += f"\n\t{device_header}\t{description_header}"
-    s += f"\n\t{len(device_header)*"-"}\t{len(description_header)*"-"}"
-    s += "\n\tcpu\tCPU"
-    for i in range(torch.cuda.device_count()):
-        gpu_name = torch.cuda.get_device_properties(i).name
-        s += f"\n\tcuda:{i}\t{gpu_name}"
-    print(s)
-
-def dump_available_detection_models():
-    s = _("Available detection models:")
-    detection_model_names = get_available_detection_models()
-    if len(detection_model_names) == 0:
-        s += f"\n\t{_("None!")}"
-    else:
-        model_name_header = _("Name")
-        model_path_header = _("Path")
-        s += f"\n\t{model_name_header}\t{model_path_header}"
-        s += f"\n\t{len(model_name_header) * "-"}\t{len(model_path_header) * "-"}"
-        for name in detection_model_names:
-            s += f"\n\t{name}\t{DETECTION_MODEL_NAMES_TO_FILES[name]}"
-    print(s)
-
-def dump_available_restoration_models():
-    s = _("Available restoration models:")
-    restoration_model_names = get_available_restoration_models()
-    if len(restoration_model_names) == 0:
-        s += f"\n\t{_("None!")}"
-    else:
-        model_name_header = _("Name")
-        model_path_header = _("Path")
-        s += f"\n\t{model_name_header}\t{model_path_header}"
-        s += f"\n\t{len(model_name_header) * "-"}\t{len(model_path_header) * "-"}"
-        for name in restoration_model_names:
-            s += f"\n\t{name}\t{RESTORATION_MODEL_NAMES_TO_FILES[name]}"
-    print(s)
-
 def process_video_file(input_path: str, output_path: str, device, mosaic_restoration_model, mosaic_detection_model,
-                       mosaic_restoration_model_name, preferred_pad_mode, max_clip_length, codec, crf, moov_front, preset, custom_encoder_options, print_prefix=""):
+                       mosaic_restoration_model_name, preferred_pad_mode, max_clip_length, codec, crf, moov_front, preset, custom_encoder_options):
     video_metadata = get_video_meta_data(input_path)
 
     frame_restorer = FrameRestorer(device, input_path, max_clip_length, mosaic_restoration_model_name,
@@ -183,13 +86,16 @@ def process_video_file(input_path: str, output_path: str, device, mosaic_restora
                          video_metadata.video_fps_exact, codec=codec, crf=crf, moov_front=moov_front,
                          time_base=video_metadata.time_base, preset=preset,
                          custom_encoder_options=custom_encoder_options) as video_writer:
-            for elem in tqdm(frame_restorer, total=video_metadata.frames_count, desc=_("Processing frames")):
+            frame_restorer_progressbar = utils.Progressbar(video_metadata, frame_restorer)
+            for elem in frame_restorer_progressbar:
                 if elem is None:
                     success = False
                     print("Error on export: frame restorer stopped prematurely")
                     break
                 (restored_frame, restored_frame_pts) = elem
                 video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
+                frame_restorer_progressbar.update()
+                frame_restorer_progressbar.update_time_remaining_and_speed()
     except (Exception, KeyboardInterrupt) as e:
         success = False
         if isinstance(e, KeyboardInterrupt):
@@ -206,41 +112,6 @@ def process_video_file(input_path: str, output_path: str, device, mosaic_restora
         if os.path.exists(video_tmp_file_output_path):
             os.remove(video_tmp_file_output_path)
 
-def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
-    single_file_input = os.path.isfile(input_arg)
-
-    if single_file_input:
-        input_files = [os.path.abspath(input_arg)]
-    else:
-        input_files = filter_video_files(input_arg)
-
-    if len(input_files) == 0:
-        print(_("No video files found"))
-        sys.exit(1)
-
-    if single_file_input:
-        if not output_arg:
-            input_file_path = input_files[0]
-            output_dir_path = str(pathlib.Path(input_file_path).parent)
-            output_files = [get_output_file_path(input_file_path, output_dir_path, output_file_pattern)]
-        elif os.path.isdir(output_arg):
-            input_file_path = input_files[0]
-            output_files = [get_output_file_path(input_file_path, output_arg, output_file_pattern)]
-        else:
-            output_files = [output_arg]
-    else:
-        if output_arg:
-            if not os.path.exists(output_arg):
-                os.makedirs(output_arg)
-            output_dir_path = output_arg
-        else:
-            output_dir_path = str(pathlib.Path(input_files[0]).parent)
-        output_files = [get_output_file_path(input_file_path, output_dir_path, output_file_pattern) for input_file_path in input_files]
-
-    assert len(input_files) == len(output_files)
-
-    return input_files, output_files
-
 def main():
     argparser = setup_argparser()
     args = argparser.parse_args()
@@ -248,16 +119,16 @@ def main():
         print("Lada: ", VERSION)
         sys.exit(0)
     if args.list_codecs:
-        dump_pyav_codecs()
+        utils.dump_pyav_codecs()
         sys.exit(0)
     if args.list_mosaic_detection_models:
-        dump_available_detection_models()
+        utils.dump_available_detection_models()
         sys.exit(0)
     if args.list_mosaic_restoration_models:
-        dump_available_restoration_models()
+        utils.dump_available_restoration_models()
         sys.exit(0)
     if args.list_devices:
-        dump_torch_devices()
+        utils.dump_torch_devices()
         sys.exit(0)
     if args.help or not args.input:
         argparser.print_help()
@@ -280,7 +151,7 @@ def main():
         args.mosaic_detection_model_path
     )
 
-    input_files, output_files = setup_input_and_output_paths(args.input, args.output, args.output_file_pattern)
+    input_files, output_files = utils.setup_input_and_output_paths(args.input, args.output, args.output_file_pattern)
 
     single_file_input = len(input_files) == 1
 

@@ -20,7 +20,7 @@ def _format_duration(duration_s):
 
 def get_video_metadata_string(file: Gio.File):
     meta_data = video_utils.get_video_meta_data(file.get_path())
-    return _("Duration: {duration}, Resolution: {resolution}, FPS: {fps}").format(
+    return _("Duration: {duration}, Resolution: {resolution}, Frame rate: {fps} FPS").format(
         duration=_format_duration(meta_data.duration),
         resolution=f"{meta_data.video_width}x{meta_data.video_height}",
         fps=f"{meta_data.video_fps:.2f}")
@@ -73,7 +73,7 @@ def get_progressbar_text(state: ExportItemState, progress: ExportItemDataProgres
         if progress.enough_datapoints:
             time_remaining = _format_duration(progress.time_remaining_s)
             speed_fps = f"{progress.speed_fps:.1f}"
-            text = _("Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: {time_remaining} ({frames_remaining} frames)  |  Speed FPS: {speed_fps}").format(
+            text = _("Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: {time_remaining} ({frames_remaining} frames)  |  Speed: {speed_fps} FPS").format(
                 done_percent=done_percent,
                 time_done=time_done,
                 time_remaining=time_remaining,
@@ -81,7 +81,7 @@ def get_progressbar_text(state: ExportItemState, progress: ExportItemDataProgres
                 frames_remaining=progress.frames_remaining,
                 speed_fps=speed_fps)
         else:
-            text = _("Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: Estimating… |  Speed FPS: Estimating…").format(
+            text = _("Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: Estimating… |  Speed: Estimating…").format(
                 done_percent=done_percent,
                 time_done=time_done,
                 frames_done=progress.frames_done)
