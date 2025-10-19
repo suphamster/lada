@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lada\n"
 "Report-Msgid-Bugs-To: https://github.com/ladaapp/issues\n"
-"POT-Creation-Date: 2025-10-17 07:11+0000\n"
+"POT-Creation-Date: 2025-10-19 05:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,13 +17,90 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lada/gui/export/export_item_row.ui:61 lada/gui/export/export_view.ui:173
+#: lada/gui/export/export_item_row.ui:61
+#: lada/gui/export/export_single_file_status_page.ui:71
 msgid "Open in External Program…"
 msgstr ""
 
-#: lada/gui/export/export_item_row.py:25
+#: lada/gui/export/export_item_row.ui:73
+#: lada/gui/export/export_single_file_status_page.ui:87
+msgid "Show Error"
+msgstr ""
+
+#: lada/gui/export/export_item_row.ui:86
+msgid "Remove"
+msgstr ""
+
+#: lada/gui/export/export_single_file_status_page.py:49
+msgid "Restoring video…"
+msgstr ""
+
+#: lada/gui/export/export_single_file_status_page.py:63
+msgid "Finished video restoration!"
+msgstr ""
+
+#: lada/gui/export/export_single_file_status_page.py:69
+#: lada/gui/export/export_utils.py:47
+msgid "Restoration failed"
+msgstr ""
+
+#: lada/gui/export/export_single_file_status_page.py:80
+#: lada/gui/export/export_single_file_status_page.ui:12
+msgid "Export video"
+msgstr ""
+
+#: lada/gui/export/export_single_file_status_page.ui:57
+#: lada/gui/export/export_view.py:157 lada/gui/export/export_view.ui:43
+msgid "Restore"
+msgstr ""
+
+#: lada/gui/export/export_single_file_status_page.ui:75
+msgid "Open File"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:23
 #, python-brace-format
 msgid "Duration: {duration}, Resolution: {resolution}, FPS: {fps}"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:48
+#, python-brace-format
+msgid "Error while processing <span><tt>{filename}</tt></span>"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:57
+msgid "Okay"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:63
+msgid "Failed"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:68
+#, python-brace-format
+msgid "Finished  |  Processed: {time_done} ({frames_done} frames)"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:76
+#, python-brace-format
+msgid "Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: {time_remaining} ({frames_remaining} frames)  |  Speed FPS: {speed_fps}"
+msgstr ""
+
+#: lada/gui/export/export_utils.py:85
+#, python-brace-format
+msgid "Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: Estimating… |  Speed FPS: Estimating…"
+msgstr ""
+
+#: lada/gui/export/export_view.py:157
+msgid "Restore…"
+msgstr ""
+
+#: lada/gui/export/export_view.py:379
+msgid "Save restored video file"
+msgstr ""
+
+#: lada/gui/export/export_view.py:386
+msgid "Save restored video files"
 msgstr ""
 
 #: lada/gui/export/export_view.ui:30 lada/gui/preview/preview_view.ui:41
@@ -34,47 +111,14 @@ msgstr ""
 msgid "Add Files…"
 msgstr ""
 
-#: lada/gui/export/export_view.ui:43 lada/gui/export/export_view.ui:159
-#: lada/gui/export/export_view.py:153
-msgid "Restore"
-msgstr ""
-
-#: lada/gui/export/export_view.ui:114
-msgid "Export video"
-msgstr ""
-
-#: lada/gui/export/export_view.ui:177
-msgid "Open File"
-msgstr ""
-
-#: lada/gui/export/export_view.ui:205 lada/gui/preview/preview_view.ui:214
+#: lada/gui/export/export_view.ui:132 lada/gui/preview/preview_view.ui:214
 #: lada/gui/fileselection/file_selection_view.ui:54
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: lada/gui/export/export_view.ui:209 lada/gui/preview/preview_view.ui:218
+#: lada/gui/export/export_view.ui:136 lada/gui/preview/preview_view.ui:218
 #: lada/gui/fileselection/file_selection_view.ui:58
 msgid "About Lada"
-msgstr ""
-
-#: lada/gui/export/export_view.py:153
-msgid "Restore…"
-msgstr ""
-
-#: lada/gui/export/export_view.py:183
-msgid "Finished video restoration!"
-msgstr ""
-
-#: lada/gui/export/export_view.py:212
-msgid "Restoring video…"
-msgstr ""
-
-#: lada/gui/export/export_view.py:343
-msgid "Save restored video file"
-msgstr ""
-
-#: lada/gui/export/export_view.py:350
-msgid "Save restored video files"
 msgstr ""
 
 #: lada/gui/config/no_gpu_banner.ui:11
@@ -431,81 +475,81 @@ msgstr ""
 msgid "List available detection model weights found in MODEL_WEIGHTS_DIR and exit (default location is './model_weights' if not overwritten by environment variable MODEL_WEIGHTS_DIR)"
 msgstr ""
 
-#: lada/cli/main.py:105
+#: lada/cli/main.py:108
 msgid "PyAV version:"
 msgstr ""
 
-#: lada/cli/main.py:109
+#: lada/cli/main.py:112
 msgid "Available video encoders:"
 msgstr ""
 
-#: lada/cli/main.py:115
+#: lada/cli/main.py:118
 msgid "Encoders with support for hardware acceleration (GPU):"
 msgstr ""
 
-#: lada/cli/main.py:128
+#: lada/cli/main.py:131
 msgid "Device"
 msgstr ""
 
-#: lada/cli/main.py:129
+#: lada/cli/main.py:132
 msgid "Description"
 msgstr ""
 
-#: lada/cli/main.py:130
+#: lada/cli/main.py:133
 msgid "Available devices:"
 msgstr ""
 
-#: lada/cli/main.py:140
+#: lada/cli/main.py:143
 msgid "Available detection models:"
 msgstr ""
 
-#: lada/cli/main.py:143 lada/cli/main.py:157
+#: lada/cli/main.py:146 lada/cli/main.py:160
 msgid "None!"
 msgstr ""
 
-#: lada/cli/main.py:145 lada/cli/main.py:159
+#: lada/cli/main.py:148 lada/cli/main.py:162
 msgid "Name"
 msgstr ""
 
-#: lada/cli/main.py:146 lada/cli/main.py:160
+#: lada/cli/main.py:149 lada/cli/main.py:163
 msgid "Path"
 msgstr ""
 
-#: lada/cli/main.py:154
+#: lada/cli/main.py:157
 msgid "Available restoration models:"
 msgstr ""
 
-#: lada/cli/main.py:183
+#: lada/cli/main.py:186
 msgid "Processing frames"
 msgstr ""
 
-#: lada/cli/main.py:200
+#: lada/cli/main.py:203
 msgid "Processing audio"
 msgstr ""
 
-#: lada/cli/main.py:215
+#: lada/cli/main.py:218
 msgid "No video files found"
-msgstr ""
-
-#: lada/cli/main.py:260
-#, python-brace-format
-msgid "GPU {device} selected but CUDA is not available"
 msgstr ""
 
 #: lada/cli/main.py:263
 #, python-brace-format
-msgid "Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension"
+msgid "GPU {device} selected but CUDA is not available"
 msgstr ""
 
 #: lada/cli/main.py:266
-msgid "Invalid output directory. If input is a directory then --output must also be set to a directory"
+#, python-brace-format
+msgid "Invalid file name pattern. It must include the template string '{orig_file_name}' and a file extension"
 msgstr ""
 
 #: lada/cli/main.py:269
+msgid "Invalid output directory. If input is a directory then --output must also be set to a directory"
+msgstr ""
+
+#: lada/cli/main.py:272
 #, python-brace-format
 msgid "Invalid input. No file or directory at {input_path}"
 msgstr ""
 
-#: lada/cli/main.py:289
+#: lada/cli/main.py:292
 msgid "Received Ctrl-C, stopping restoration."
 msgstr ""

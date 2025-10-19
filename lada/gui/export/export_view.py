@@ -13,10 +13,9 @@ from lada.gui import utils
 from lada.gui.config.config import Config
 from lada.gui.config.no_gpu_banner import NoGpuBanner
 from lada.gui.export import export_utils
-from lada.gui.export.export_item_data import ExportItemData
+from lada.gui.export.export_item_data import ExportItemData, ExportItemDataProgress, ExportItemState
 from lada.gui.export.export_item_row import ExportItemRow
 from lada.gui.export.export_single_file_status_page import ExportSingleFileStatusPage
-from lada.gui.export.export_utils import ExportItemState
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
 from lada.lib import audio_utils, video_utils
 
@@ -120,8 +119,8 @@ class ExportView(Gtk.Widget):
     def video_export_failed_signal(self, error_message: str):
         pass
 
-    @GObject.Signal(name="video-export-progress")
-    def video_export_progress_signal(self, status: float, time_remaining: str):
+    @GObject.Signal(name="video-export-progress", arg_types=(ExportItemDataProgress,))
+    def video_export_progress_signal(self, progress):
         pass
 
     @GObject.Signal(name="video-export-requested")
@@ -172,10 +171,10 @@ class ExportView(Gtk.Widget):
         view_item = self.list_box.get_row_at_index(current_idx)
         model_item = self.model[current_idx]
 
-        model_item.progress = 1.0
+        model_item.progress.complete()
         model_item.state = ExportItemState.FINISHED
 
-        view_item.progress = 1.0
+        view_item.progress.complete()
         view_item.state = ExportItemState.FINISHED
 
         if self.single_file:
@@ -208,16 +207,13 @@ class ExportView(Gtk.Widget):
         view_item = self.list_box.get_row_at_index(idx)
         model_item = self.model[idx]
 
-        model_item.progress = 0.
         model_item.state = ExportItemState.PROCESSING
-
-        view_item.progress = 0.
         view_item.state = ExportItemState.PROCESSING
 
         if self.single_file:
             self.status_page.show_video_export_started(save_file)
 
-    def on_video_export_progress(self, obj, progress:float, time_remaining: str):
+    def on_video_export_progress(self, obj, progress: ExportItemDataProgress):
         if self.in_progress_idx is None:
             return
         idx = self.in_progress_idx
@@ -227,10 +223,9 @@ class ExportView(Gtk.Widget):
 
         model_item.progress = progress
         view_item.progress = progress
-        view_item.time_remaining = time_remaining
 
         if self.single_file:
-            self.status_page.on_video_export_progress(progress, time_remaining)
+            self.status_page.on_video_export_progress(progress)
 
     def on_video_export_failed(self, obj, error_message):
         assert self.in_progress_idx is not None
@@ -287,7 +282,7 @@ class ExportView(Gtk.Widget):
             progress_update_step_size = 100
             success = True
             video_tmp_file_output_path = os.path.join(tempfile.gettempdir(),f"{os.path.basename(os.path.splitext(restore_file_path)[0])}.tmp{os.path.splitext(restore_file_path)[1]}")
-            remaining_processing_time_estimator = export_utils.RemainingProcessingTimeEstimator(video_metadata)
+            progress_calculator = export_utils.ProgressCalculator(video_metadata)
             try:
                 frame_restorer.start(start_ns=0)
 
@@ -295,7 +290,7 @@ class ExportView(Gtk.Widget):
                                              video_metadata.video_height, video_metadata.video_fps_exact,
                                              self._config.export_codec, time_base=video_metadata.time_base,
                                              crf=self._config.export_crf, custom_encoder_options=self._config.custom_ffmpeg_encoder_options) as video_writer:
-                    start = time.time()
+                    duration_start = time.time()
                     for frame_num, elem in enumerate(frame_restorer):
                         if self.close_requested:
                             success = False
@@ -309,12 +304,12 @@ class ExportView(Gtk.Widget):
                         (restored_frame, restored_frame_pts) = elem
                         video_writer.write(restored_frame, restored_frame_pts, bgr2rgb=True)
 
-                        stop = time.time()
-                        duration = stop - start
-                        start = stop
-                        remaining_processing_time_estimator.add_processing_duration(duration)
+                        duration_end = time.time()
+                        duration = duration_end - duration_start
+                        duration_start = duration_end
+                        progress_calculator.update(duration)
                         if frame_num % progress_update_step_size == 0:
-                            GLib.idle_add(lambda: self.emit('video-export-progress', frame_num / video_metadata.frames_count, remaining_processing_time_estimator.get_time_remaining(frame_num)))
+                            GLib.idle_add(lambda: self.emit('video-export-progress', progress_calculator.get_progress()))
 
             except Exception as e:
                 success = False
@@ -325,7 +320,9 @@ class ExportView(Gtk.Widget):
 
             if success:
                 audio_utils.combine_audio_video_files(video_metadata, video_tmp_file_output_path, restore_file_path)
-                GLib.idle_add(lambda: self.emit('video-export-progress', 1.0, None))
+                progress = progress_calculator.get_progress()
+                progress.complete()
+                GLib.idle_add(lambda: self.emit('video-export-progress', progress))
                 GLib.idle_add(lambda: self.emit('video-export-finished'))
             else:
                 if os.path.exists(video_tmp_file_output_path):

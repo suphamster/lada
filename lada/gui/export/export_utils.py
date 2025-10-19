@@ -1,6 +1,6 @@
 from gi.repository import Gtk, Adw, GObject, Gio
 
-
+from lada.gui.export.export_item_data import ExportItemDataProgress, ExportItemState
 from lada.lib import video_utils
 from lada.lib import VideoMetadata
 
@@ -8,7 +8,7 @@ MIN_VISIBLE_PROGRESS_FRACTION = 0.01
 
 def _format_duration(duration_s):
     if not duration_s or duration_s == -1:
-        return ""
+        return "0:00"
     seconds = int(duration_s)
     minutes = int(seconds / 60)
     hours = int(minutes / 60)
@@ -58,43 +58,61 @@ def open_error_dialog(parent: Gtk.Widget, filename:str, details:str|None):
 
     dialog.choose(parent, None, on_response_selected)
 
-class ExportItemState(GObject.GEnum):
-    QUEUED = 0
-    PROCESSING = 1
-    FINISHED = 2
-    FAILED = 3
+def get_progressbar_text(state: ExportItemState, progress: ExportItemDataProgress):
+    if state == ExportItemState.FAILED:
+        text = _("Failed")
+    elif state == ExportItemState.QUEUED:
+        text = ""
+    elif state == ExportItemState.FINISHED:
+        time_done = _format_duration(progress._time_done_s)
+        text = _("Finished  |  Processed: {time_done} ({frames_done} frames)").format(time_done=time_done, frames_done=progress.frames_done)
+    elif state == ExportItemState.PROCESSING:
+        done_fraction = max(MIN_VISIBLE_PROGRESS_FRACTION, progress.fraction)
+        time_done = _format_duration(progress._time_done_s)
+        done_percent = f"{(done_fraction * 100):3.0f}"
+        if progress.enough_datapoints:
+            time_remaining = _format_duration(progress.time_remaining_s)
+            speed_fps = f"{progress.speed_fps:.1f}"
+            text = _("Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: {time_remaining} ({frames_remaining} frames)  |  Speed FPS: {speed_fps}").format(
+                done_percent=done_percent,
+                time_done=time_done,
+                time_remaining=time_remaining,
+                frames_done=progress.frames_done,
+                frames_remaining=progress.frames_remaining,
+                speed_fps=speed_fps)
+        else:
+            text = _("Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: Estimating… |  Speed FPS: Estimating…").format(
+                done_percent=done_percent,
+                time_done=time_done,
+                frames_done=progress.frames_done)
+    else:
+        raise ValueError(f"Unknown ExportItemState: {state}")
+    return text
 
-class RemainingProcessingTimeEstimator:
+class ProgressCalculator:
     def __init__(self, video_metadata: VideoMetadata):
         self.frame_processing_durations_buffer = []
+        self.progress: ExportItemDataProgress = ExportItemDataProgress()
         self.video_metadata = video_metadata
         self.frame_processing_durations_buffer_min_len = min(video_metadata.frames_count - 1, int(video_metadata.video_fps * 15))
         self.frame_processing_durations_buffer_max_len = min(video_metadata.frames_count - 1, int(video_metadata.video_fps * 120))
 
-    def _convert_seconds_remaining_to_text_label(self, seconds):
-        minutes = int(seconds / 60)
-        hours = int(minutes / 60)
-        seconds = seconds % 60
-        minutes = minutes % 60
-        hours, minutes, seconds = int(hours), int(minutes), int(seconds)
-        if hours == 0 and minutes == 0:
-            return f"{seconds:02d}"
-        elif hours == 0:
-            return f"{minutes}:{seconds:02d}"
-        else:
-            return f"{hours}:{minutes:02d}:{seconds:02d}"
-
     def _get_mean_processing_duration(self):
         return sum(self.frame_processing_durations_buffer) / len(self.frame_processing_durations_buffer)
 
-    def add_processing_duration(self, duration):
+    def update(self, duration):
         if len(self.frame_processing_durations_buffer) >= self.frame_processing_durations_buffer_max_len:
             self.frame_processing_durations_buffer.pop(0)
         self.frame_processing_durations_buffer.append(duration)
+        self.progress.time_done_s += duration
+        self.progress.frames_done += 1
 
-    def get_time_remaining(self, frame_num) -> str:
-        if len(self.frame_processing_durations_buffer) < self.frame_processing_durations_buffer_min_len:
-            return _("Estimating…")
-        frames_remaining = self.video_metadata.frames_count - (frame_num + 1)
-        seconds_remaining = frames_remaining * self._get_mean_processing_duration()
-        return self._convert_seconds_remaining_to_text_label(seconds_remaining)
+    def get_progress(self) -> float | None:
+        self.progress.fraction = self.progress.frames_done / self.video_metadata.frames_count
+        self.progress.frames_remaining = self.video_metadata.frames_count - self.progress.frames_done
+        self.progress.enough_datapoints =  len(self.frame_processing_durations_buffer) > self.frame_processing_durations_buffer_min_len
+        if self.progress.enough_datapoints:
+            mean_duration = self._get_mean_processing_duration()
+            self.progress.time_remaining_s = self.progress.frames_remaining * mean_duration
+            self.progress.speed_fps = 1. / mean_duration
+        return self.progress
