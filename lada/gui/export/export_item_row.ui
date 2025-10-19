@@ -72,7 +72,7 @@
                                 <property name="icon-name">exclamation-mark-symbolic</property>
                                 <property name="tooltip-text" translatable="true">Show Error</property>
                                 <property name="visible">false</property>
-                                <signal name="clicked" handler="button_show_error_callback"/>
+                                <signal name="clicked" handler="on_button_show_error_clicked"/>
                                 <style>
                                     <class name="flat"/>
                                 </style>

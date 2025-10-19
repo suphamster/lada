@@ -85,6 +85,9 @@ def get_progressbar_text(state: ExportItemState, progress: ExportItemDataProgres
                 done_percent=done_percent,
                 time_done=time_done,
                 frames_done=progress.frames_done)
+    elif state == ExportItemState.PAUSED:
+        time_done = _format_duration(progress._time_done_s)
+        text = _("Paused  |  Processed: {time_done} ({frames_done} frames)").format(time_done=time_done, frames_done=progress.frames_done)
     else:
         raise ValueError(f"Unknown ExportItemState: {state}")
     return text

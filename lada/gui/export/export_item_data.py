@@ -5,6 +5,7 @@ class ExportItemState(GObject.GEnum):
     PROCESSING = 1
     FINISHED = 2
     FAILED = 3
+    PAUSED = 4
 
 class ExportItemDataProgress(GObject.Object):
     __gtype_name__ = 'ExportItemDataProgress'
@@ -131,4 +132,4 @@ class ExportItemData(GObject.Object):
         self._error_details = value
 
     def __repr__(self):
-        return f"{{{self._orig_file.get_basename()}, {self._restored_file.get_basename()}, {self._state}, {self._progress.progress_fraction}}}"
+        return f"{{{self._orig_file.get_basename()}, {self._restored_file.get_basename()}, {self._state}, {self._progress.fraction}}}"

@@ -20,6 +20,9 @@ class ExportSingleFileStatusPage(Gtk.Widget):
     status_page = Gtk.Template.Child()
     progress_bar: Gtk.ProgressBar = Gtk.Template.Child()
     button_open: Gtk.Button = Gtk.Template.Child()
+    button_cancel_export: Gtk.Button = Gtk.Template.Child()
+    button_resume_export: Gtk.Button = Gtk.Template.Child()
+    button_pause_export: Gtk.Button = Gtk.Template.Child()
     button_show_error: Gtk.Button = Gtk.Template.Child()
     button_start_export: Gtk.Button = Gtk.Template.Child()
     label_meta_data: Gtk.Label = Gtk.Template.Child()
@@ -33,14 +36,47 @@ class ExportSingleFileStatusPage(Gtk.Widget):
     def start_export_requested_signal(self):
         pass
 
+    @GObject.Signal(name="stop-export-requested")
+    def stop_export_requested_signal(self):
+        pass
+
+    @GObject.Signal(name="pause-export-requested")
+    def pause_export_requested_signal(self):
+        pass
+
+    @GObject.Signal(name="resume-export-requested")
+    def resume_export_requested_signal(self):
+        pass
+
     @Gtk.Template.Callback()
-    def button_start_export_callback(self, button_clicked):
+    def on_button_start_export_clicked(self, button_clicked):
         assert self.item.state == ExportItemState.QUEUED
 
         self.emit("start-export-requested")
 
     @Gtk.Template.Callback()
-    def button_show_error_callback(self, button_clicked):
+    def on_button_resume_export_clicked(self, button_clicked):
+        assert self.item.state == ExportItemState.PAUSED
+        self.button_cancel_export.set_sensitive(False)
+        self.button_resume_export.set_sensitive(False)
+        self.emit("resume-export-requested")
+
+    @Gtk.Template.Callback()
+    def on_button_pause_export_clicked(self, button_clicked):
+        assert self.item.state == ExportItemState.PROCESSING
+        self.button_cancel_export.set_sensitive(False)
+        self.button_pause_export.set_sensitive(False)
+        self.emit("pause-export-requested")
+
+    @Gtk.Template.Callback()
+    def on_button_cancel_export_clicked(self, button_clicked):
+        assert self.item.state in [ExportItemState.PROCESSING, ExportItemState.PAUSED]
+        self.button_cancel_export.set_sensitive(False)
+        self.button_pause_export.set_sensitive(False)
+        self.emit("stop-export-requested")
+
+    @Gtk.Template.Callback()
+    def on_button_show_error_clicked(self, button_clicked):
         assert self.item.state == ExportItemState.FAILED
 
         export_utils.open_error_dialog(self, self.item.orig_file.get_basename(), self.item.error_details)
@@ -53,6 +89,8 @@ class ExportSingleFileStatusPage(Gtk.Widget):
         self.progress_bar.set_show_text(True)
         self.progress_bar.set_text(export_utils.get_progressbar_text(self.item.state, self.item.progress))
         self.button_start_export.set_visible(False)
+        self.button_pause_export.set_visible(True)
+        self.button_cancel_export.set_visible(True)
         file_launcher = Gtk.FileLauncher(
             always_ask=False,
             file=save_file
@@ -64,12 +102,50 @@ class ExportSingleFileStatusPage(Gtk.Widget):
         self.status_page.set_icon_name("check-round-outline2-symbolic")
         self.progress_bar.set_visible(False)
         self.button_open.set_visible(True)
+        self.button_pause_export.set_visible(False)
+        self.button_cancel_export.set_visible(False)
 
     def on_video_export_failed(self):
         self.status_page.set_title(_("Restoration failed"))
         self.status_page.set_icon_name("exclamation-mark-symbolic")
+
         self.progress_bar.set_visible(False)
+        self.button_pause_export.set_visible(False)
+        self.button_cancel_export.set_visible(False)
         self.button_show_error.set_visible(True)
+
+    def on_video_export_stopped(self):
+        self.status_page.set_title(_("Export video"))
+        self.status_page.set_icon_name("arrow-pointing-away-from-line-right-symbolic")
+
+        self.button_start_export.set_sensitive(True)
+        self.button_cancel_export.set_sensitive(True)
+
+        self.button_start_export.set_visible(True)
+        self.button_pause_export.set_visible(False)
+        self.button_resume_export.set_visible(False)
+        self.button_cancel_export.set_visible(False)
+        self.progress_bar.set_visible(False)
+
+    def on_video_export_paused(self):
+        self.status_page.set_title(_("Restoration paused"))
+        self.status_page.set_icon_name("pause-large-symbolic")
+
+        self.button_pause_export.set_sensitive(True)
+        self.button_cancel_export.set_sensitive(True)
+
+        self.button_resume_export.set_visible(True)
+        self.button_pause_export.set_visible(False)
+
+    def on_video_export_resumed(self):
+        self.status_page.set_title(_("Restoring video…"))
+        self.status_page.set_icon_name("cafe-symbolic")
+
+        self.button_resume_export.set_sensitive(True)
+        self.button_cancel_export.set_sensitive(True)
+
+        self.button_resume_export.set_visible(False)
+        self.button_pause_export.set_visible(True)
 
     def on_video_export_progress(self, progress: ExportItemDataProgress):
         self.progress_bar.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, progress.fraction))

@@ -47,7 +47,8 @@ class ExportItemRow(Adw.PreferencesRow):
     @progress.setter
     def progress(self, value: ExportItemDataProgress):
         self._progress = value
-        self.progressbar.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, self._progress.fraction))
+        fraction = max(MIN_VISIBLE_PROGRESS_FRACTION, self._progress.fraction) if self._state != ExportItemState.QUEUED else self._progress.fraction
+        self.progressbar.set_fraction(fraction)
         self.progressbar.set_text(export_utils.get_progressbar_text(self._state, self._progress))
 
     @GObject.Property(type=ExportItemState, default=ExportItemState.QUEUED)
@@ -73,7 +74,7 @@ class ExportItemRow(Adw.PreferencesRow):
             self.button_open.set_visible(False)
             self.button_remove.set_visible(False)
             self.button_show_error.set_visible(False)
-            self.progressbar.set_fraction(MIN_VISIBLE_PROGRESS_FRACTION)
+            self.progressbar.set_fraction(max(MIN_VISIBLE_PROGRESS_FRACTION, self._progress.fraction))
             self.progressbar.set_text(export_utils.get_progressbar_text(self._state, self._progress))
             self.progressbar.set_show_text(True)
         elif value == ExportItemState.FAILED:
@@ -81,6 +82,12 @@ class ExportItemRow(Adw.PreferencesRow):
             self.button_remove.set_visible(True)
             self.button_show_error.set_visible(True)
             self.progressbar.add_css_class("failed")
+            self.progressbar.set_text(export_utils.get_progressbar_text(self._state, self._progress))
+            self.progressbar.set_show_text(True)
+        elif value == ExportItemState.PAUSED:
+            self.button_open.set_visible(False)
+            self.button_remove.set_visible(False)
+            self.button_show_error.set_visible(False)
             self.progressbar.set_text(export_utils.get_progressbar_text(self._state, self._progress))
             self.progressbar.set_show_text(True)
         else:
@@ -117,7 +124,7 @@ class ExportItemRow(Adw.PreferencesRow):
         self.emit("remove-requested")
 
     @Gtk.Template.Callback()
-    def button_show_error_callback(self, button):
+    def on_button_show_error_clicked(self, button):
         self.emit("show-error-requested")
 
     @GObject.Signal(name="remove-requested")

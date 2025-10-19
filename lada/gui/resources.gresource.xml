@@ -18,6 +18,7 @@
         <file alias="folder-open-symbolic.svg">icons/folder-open-symbolic.svg</file>
         <file alias="exclamation-mark-symbolic.svg">icons/exclamation-mark-symbolic.svg</file>
         <file alias="cross-large-symbolic.svg">icons/cross-large-symbolic.svg</file>
+        <file alias="pause-large-symbolic.svg">icons/pause-large-symbolic.svg</file>
     </gresource>
     <gresource prefix="/io/github/ladaapp/lada/icons/128x128">
         <file alias="lada-logo-gray.png">icons/lada-logo-gray.png</file>
