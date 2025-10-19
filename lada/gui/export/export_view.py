@@ -7,6 +7,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from fractions import Fraction
+from typing import Any
 
 from gi.repository import Gtk, GObject, Gio, Adw, GLib
 
@@ -16,8 +17,9 @@ from lada.gui.config.config import Config
 from lada.gui.config.no_gpu_banner import NoGpuBanner
 from lada.gui.export import export_utils
 from lada.gui.export.export_item_data import ExportItemData, ExportItemDataProgress, ExportItemState
-from lada.gui.export.export_item_row import ExportItemRow
-from lada.gui.export.export_single_file_status_page import ExportSingleFileStatusPage
+from lada.gui.export.export_multiple_files_row import ExportMultipleFilesRow
+from lada.gui.export.export_multiple_files_page import ExportMultipleFilesPage
+from lada.gui.export.export_single_file_page import ExportSingleFileStatusPage
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
 from lada.lib import audio_utils, video_utils
 
@@ -41,7 +43,7 @@ class ExportView(Gtk.Widget):
     __gtype_name__ = 'ExportView'
 
     status_page: ExportSingleFileStatusPage = Gtk.Template.Child()
-    list_box: Gtk.ListBox = Gtk.Template.Child()
+    multiple_files_page: ExportMultipleFilesPage = Gtk.Template.Child()
     button_start_export: Gtk.Button = Gtk.Template.Child()
     button_cancel_export: Gtk.Button = Gtk.Template.Child()
     button_resume_export: Gtk.Button = Gtk.Template.Child()
@@ -73,7 +75,7 @@ class ExportView(Gtk.Widget):
         self.connect("video-export-stopped", self.on_video_export_stopped)
 
         self.model =  Gio.ListStore(item_type=ExportItemData)
-        self.list_box.bind_model(self.model, self.create_item_for_list_box_fun())
+        self.multiple_files_page.bind(self.model)
 
         def on_files_added(obj, files):
             self.button_add_files.set_sensitive(True)
@@ -84,6 +86,9 @@ class ExportView(Gtk.Widget):
         self.status_page.connect("stop-export-requested", self.on_button_cancel_export_clicked)
         self.status_page.connect("pause-export-requested", self.on_button_pause_export_clicked)
         self.status_page.connect("resume-export-requested", self.on_button_resume_export_clicked)
+
+        self.multiple_files_page.connect("show-error-requested", self.on_show_error_requested)
+        self.multiple_files_page.connect("remove-item-requested", self.on_remove_item_requested)
 
         drop_target = utils.create_video_files_drop_target(lambda files: self.emit("files-added", files))
         self.add_controller(drop_target)
@@ -110,16 +115,16 @@ class ExportView(Gtk.Widget):
     def add_files(self, added_files: list[Gio.File]):
         assert len(added_files) > 0
 
-        for orig_file in added_files:
-            if any([orig_file.get_path() == item.orig_file.get_path() for item in self.model]):
+        for original_file in added_files:
+            if any([original_file.get_path() == item.original_file.get_path() for item in self.model]):
                 # duplicate
                 continue
             if self._config.export_directory:
-                restored_file = self.get_restored_file_path(orig_file, self._config.export_directory)
+                restored_file = self.get_restored_file_path(original_file, self._config.export_directory)
             else:
                 # We don't know the output directory yet. This guess needs to be updated after the user set one via FilePicker
-                restored_file = self.get_restored_file_path(orig_file, added_files[0].get_parent().get_path())
-            export_item = ExportItemData(orig_file, restored_file)
+                restored_file = self.get_restored_file_path(original_file, added_files[0].get_parent().get_path())
+            export_item = ExportItemData(original_file, restored_file)
             self.model.append(export_item)
 
         self.single_file = len(self.model) == 1
@@ -213,17 +218,25 @@ class ExportView(Gtk.Widget):
         self.pause_requested = False
         assert self.in_progress_idx is not None
         item = self.model[self.in_progress_idx]
-        self._start_export(item.orig_file, item.restored_file)
+        self._start_export(item.original_file, item.restored_file)
+
+    def on_show_error_requested(self, obj, idx):
+        model_item = self.model[idx]
+        export_utils.open_error_dialog(self, model_item.original_file.get_basename(), model_item.error_details)
+
+    def on_remove_item_requested(self, obj, idx):
+        self.model.remove(idx)
+        self.update_export_buttons()
 
     def on_config_changed(self, *args):
         if self._config.export_directory:
             for model_item in self.model:
-                restored_file = self.get_restored_file_path(model_item.orig_file, self._config.export_directory)
+                restored_file = self.get_restored_file_path(model_item.original_file, self._config.export_directory)
                 model_item.restored_file = restored_file
         self.set_restore_button_label()
 
     def set_restore_button_label(self):
-        label = _("Start Restoration") if self._config.export_directory else _("Start Restoration…")
+        label = _("Restore") if self._config.export_directory else _("Restore…")
         self.status_page.set_button_start_restore_label(label)
         self.button_start_export.set_label(label)
 
@@ -232,24 +245,6 @@ class ExportView(Gtk.Widget):
             if item.state == ExportItemState.QUEUED:
                 return idx
         return None
-
-    def on_video_export_finished(self, obj):
-        assert self.in_progress_idx is not None
-        current_idx = self.in_progress_idx
-
-        view_item = self.list_box.get_row_at_index(current_idx)
-        model_item = self.model[current_idx]
-
-        model_item.progress.complete()
-        model_item.state = ExportItemState.FINISHED
-
-        view_item.progress.complete()
-        view_item.state = ExportItemState.FINISHED
-
-        if self.single_file:
-            self.status_page.on_video_export_finished()
-
-        self.continue_next_file()
 
     def continue_next_file(self):
         next_idx = self.get_next_queued_item_idx()
@@ -261,7 +256,7 @@ class ExportView(Gtk.Widget):
             self.update_export_buttons()
         else:
             # continue, queued items remaining
-            self._start_export(self.model[next_idx].orig_file, self.model[next_idx].restored_file)
+            self._start_export(self.model[next_idx].original_file, self.model[next_idx].restored_file)
 
     def show_video_export_started(self, save_file: Gio.File):
         self.view_switcher.set_sensitive(False)
@@ -274,44 +269,47 @@ class ExportView(Gtk.Widget):
         self.in_progress_idx = idx
         self.update_export_buttons()
 
-        view_item = self.list_box.get_row_at_index(idx)
         model_item = self.model[idx]
-
         model_item.state = ExportItemState.PROCESSING
-        view_item.state = ExportItemState.PROCESSING
 
         if self.single_file:
             self.status_page.show_video_export_started(save_file)
+        self.multiple_files_page.show_video_export_started(idx)
+
+    def on_video_export_finished(self, obj):
+        assert self.in_progress_idx is not None
+
+        model_item = self.model[self.in_progress_idx]
+        model_item.progress.complete()
+        model_item.state = ExportItemState.FINISHED
+
+        if self.single_file:
+            self.status_page.on_video_export_finished()
+        self.multiple_files_page.on_video_export_finished(self.in_progress_idx)
+
+        self.continue_next_file()
 
     def on_video_export_progress(self, obj, progress: ExportItemDataProgress):
         if self.in_progress_idx is None:
             return
-        idx = self.in_progress_idx
 
-        view_item = self.list_box.get_row_at_index(idx)
-        model_item = self.model[idx]
-
+        model_item = self.model[self.in_progress_idx]
         model_item.progress = progress
-        view_item.progress = progress
 
         if self.single_file:
             self.status_page.on_video_export_progress(progress)
+        self.multiple_files_page.on_video_export_progress(self.in_progress_idx, progress)
 
     def on_video_export_stopped(self, obj):
         assert self.in_progress_idx is not None
 
-        idx = self.in_progress_idx
-
-        view_item = self.list_box.get_row_at_index(idx)
-        model_item = self.model[idx]
-
+        model_item = self.model[self.in_progress_idx]
         model_item.state = ExportItemState.QUEUED
         model_item.progress = ExportItemDataProgress()
-        view_item.state = ExportItemState.QUEUED
-        view_item.progress = ExportItemDataProgress()
 
         if self.single_file:
             self.status_page.on_video_export_stopped()
+        self.multiple_files_page.on_video_export_stopped(self.in_progress_idx)
 
         self.in_progress_idx = None
         self.update_export_buttons()
@@ -323,16 +321,12 @@ class ExportView(Gtk.Widget):
     def on_video_export_paused(self, obj):
         assert self.in_progress_idx is not None
 
-        idx = self.in_progress_idx
-
-        view_item = self.list_box.get_row_at_index(idx)
-        model_item = self.model[idx]
-
+        model_item = self.model[self.in_progress_idx]
         model_item.state = ExportItemState.PAUSED
-        view_item.state = ExportItemState.PAUSED
 
         if self.single_file:
             self.status_page.on_video_export_paused()
+        self.multiple_files_page.on_video_export_paused(self.in_progress_idx)
 
         self.update_export_buttons()
         self.button_pause_export.set_sensitive(True)
@@ -341,61 +335,54 @@ class ExportView(Gtk.Widget):
     def on_video_export_resumed(self, obj):
         assert self.in_progress_idx is not None
 
-        idx = self.in_progress_idx
-
-        view_item = self.list_box.get_row_at_index(idx)
-        model_item = self.model[idx]
-
+        model_item = self.model[self.in_progress_idx]
         assert model_item.state == ExportItemState.PAUSED
-
         model_item.state = ExportItemState.PROCESSING
-        view_item.state = ExportItemState.PROCESSING
 
         if self.single_file:
             self.status_page.on_video_export_resumed()
+        self.multiple_files_page.on_video_export_resumed(self.in_progress_idx)
 
         self.update_export_buttons()
         self.button_resume_export.set_sensitive(True)
+        self.button_cancel_export.set_sensitive(True)
 
     def on_video_export_failed(self, obj, error_message):
         assert self.in_progress_idx is not None
-        current_idx = self.in_progress_idx
 
-        view_item = self.list_box.get_row_at_index(current_idx)
-        model_item = self.model[current_idx]
-
+        model_item = self.model[self.in_progress_idx]
         model_item.state = ExportItemState.FAILED
         model_item.error_details = error_message
-        view_item.state = ExportItemState.FAILED
 
         if self.single_file:
             self.status_page.on_video_export_failed()
+        self.multiple_files_page.on_video_export_failed(self.in_progress_idx)
 
-        export_utils.open_error_dialog(self, model_item.orig_file.get_basename(), error_message)
+        export_utils.open_error_dialog(self, model_item.original_file.get_basename(), error_message)
 
         self.continue_next_file()
 
     def start_export(self, restore_directory_or_file: Gio.File):
         # Update initial guessed output restore directory/file now that the user has provided it via file/dir picker dialog
         if not self._config.export_directory:
+            restored_files: list[Gio.File] = []
             if self.single_file:
                 assert len(self.model) == 1
                 restored_file = restore_directory_or_file
                 model_item = self.model[0]
-                view_item = self.list_box.get_row_at_index(0)
                 model_item.restored_file = restored_file
-                view_item.restored_file = restored_file
+                restored_files.append(restored_file)
             else:
                 assert os.path.isdir(restore_directory_or_file.get_path())
                 restore_directory = restore_directory_or_file
                 for idx, model_item in enumerate(self.model):
-                    view_item = self.list_box.get_row_at_index(idx)
-                    restored_file = self.get_restored_file_path(model_item.orig_file, restore_directory.get_path())
+                    restored_file = self.get_restored_file_path(model_item.original_file, restore_directory.get_path())
                     model_item.restored_file = restored_file
-                    view_item.restored_file = restored_file
+                    restored_files.append(restored_file)
+            self.multiple_files_page.on_video_export_started(restored_files)
 
         item = self.model[self.get_next_queued_item_idx()]
-        self._start_export(item.orig_file, item.restored_file)
+        self._start_export(item.original_file, item.restored_file)
 
     def _start_export(self, source_file: Gio.File, restore_file: Gio.File):
         assert os.path.isfile(source_file.get_path())
@@ -491,30 +478,6 @@ class ExportView(Gtk.Widget):
         exporter_thread = threading.Thread(target=run_export)
         exporter_thread.start()
 
-    def create_item_for_list_box_fun(self):
-        def fun(obj: ExportItemData):
-            list_row = ExportItemRow(
-                original_file=obj.orig_file,
-                restored_file=obj.restored_file,
-            )
-            list_row.connect("remove-requested", lambda *args: self.on_export_item_remove_requested(list_row))
-            list_row.connect("show-error-requested", lambda *args: self.on_show_error_requested(list_row))
-            return list_row
-        return fun
-
-    def on_export_item_remove_requested(self, view_item: ExportItemRow):
-        for idx, model_item in enumerate(self.model):
-            if model_item.orig_file == view_item.original_file:
-                self.model.remove(idx)
-                self.update_export_buttons()
-                break
-
-    def on_show_error_requested(self, view_item: ExportItemRow):
-        for idx, model_item in enumerate(self.model):
-            if model_item.state == ExportItemState.FAILED and model_item.orig_file == view_item.original_file:
-                export_utils.open_error_dialog(self, model_item.orig_file.get_basename(), model_item.error_details)
-                break
-
     def show_export_dialog(self):
         def on_dialog_result(dialog, result):
             try:
@@ -544,8 +507,8 @@ class ExportView(Gtk.Widget):
         else:
             file_dialog = Gtk.FileDialog()
             file_dialog.set_title(_("Save restored video files"))
-            first_orig_file = self.model[0].orig_file
-            file_dialog.set_initial_folder(first_orig_file.get_parent())
+            first_original_file = self.model[0].original_file
+            file_dialog.set_initial_folder(first_original_file.get_parent())
             file_dialog.select_folder(callback=on_dialog_result)
 
     def get_restored_file_path(self, original_file: Gio.File, output_dir: str) -> Gio.File:

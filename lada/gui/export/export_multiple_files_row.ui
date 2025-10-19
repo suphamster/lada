@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
     <requires lib="gtk" version="4.0"/>
-    <template class="ExportItemRow" parent="AdwPreferencesRow">
+    <template class="ExportMultipleFilesRow" parent="AdwPreferencesRow">
         <property name="selectable">false</property>
         <property name="activatable">false</property>
         <property name="child">
@@ -18,9 +18,9 @@
                                 <property name="orientation">vertical</property>
                                 <child>
                                     <object class="GtkLabel" id="title">
-                                        <property name="label" bind-source="ExportItemRow" bind-property="title"
+                                        <property name="label" bind-source="ExportMultipleFilesRow" bind-property="title"
                                                   bind-flags="sync-create"/>
-                                        <property name="use-markup" bind-source="ExportItemRow" bind-property="use-markup"
+                                        <property name="use-markup" bind-source="ExportMultipleFilesRow" bind-property="use-markup"
                                                   bind-flags="sync-create"/>
                                         <property name="margin-start">9</property>
                                         <property name="margin-end">6</property>
@@ -35,9 +35,9 @@
                                 </child>
                                 <child>
                                     <object class="GtkLabel" id="subtitle">
-                                        <property name="label" bind-source="ExportItemRow" bind-property="subtitle"
+                                        <property name="label" bind-source="ExportMultipleFilesRow" bind-property="subtitle"
                                                   bind-flags="sync-create"/>
-                                        <property name="use-markup" bind-source="ExportItemRow" bind-property="use-markup"
+                                        <property name="use-markup" bind-source="ExportMultipleFilesRow" bind-property="use-markup"
                                                   bind-flags="sync-create"/>
                                         <property name="margin-start">9</property>
                                         <property name="margin-end">6</property>

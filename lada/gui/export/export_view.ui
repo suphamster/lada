@@ -64,7 +64,7 @@
                         </child>
                         <child type="end">
                             <object class="GtkButton" id="button_start_export">
-                                <property name="label" translatable="true">Start Restoration</property>
+                                <property name="label" translatable="true">Restore</property>
                                 <property name="visible">False</property>
                                 <signal name="clicked" handler="on_button_start_export_clicked"/>
                                 <style>
@@ -105,28 +105,7 @@
                                             <object class="GtkStackPage">
                                                 <property name="name">multiple-files</property>
                                                 <property name="child">
-                                                    <object class="GtkScrolledWindow">
-                                                        <property name="vexpand">True</property>
-                                                        <child>
-                                                            <object class="GtkBox">
-                                                                <property name="orientation">1</property>
-                                                                <child>
-                                                                    <object class="GtkListBox" id="list_box">
-                                                                        <property name="hexpand">true</property>
-                                                                        <property name="valign">1</property>
-                                                                        <property name="margin-start">18</property>
-                                                                        <property name="margin-end">18</property>
-                                                                        <property name="margin-top">12</property>
-                                                                        <property name="margin-bottom">12</property>
-                                                                        <property name="selection-mode">0</property>
-                                                                        <style>
-                                                                            <class name="boxed-list"/>
-                                                                        </style>
-                                                                    </object>
-                                                                </child>
-                                                            </object>
-                                                        </child>
-                                                    </object>
+                                                    <object class="ExportMultipleFilesPage" id="multiple_files_page"/>
                                                 </property>
                                             </object>
                                         </child>
@@ -134,8 +113,7 @@
                                             <object class="GtkStackPage">
                                                 <property name="name">single-file</property>
                                                 <property name="child">
-                                                    <object class="ExportSingleFileStatusPage" id="status_page">
-                                                    </object>
+                                                    <object class="ExportSingleFileStatusPage" id="status_page"/>
                                                 </property>
                                             </object>
                                         </child>

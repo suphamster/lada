@@ -7,6 +7,7 @@
             <object class="GtkBinLayout">
             </object>
         </property>
+        <property name="vexpand">true</property>
         <child>
             <object class="AdwStatusPage" id="status_page">
                 <property name="title" translatable="true">Export video</property>
@@ -61,7 +62,7 @@
                                 <property name="spacing">6</property>
                                 <child>
                                     <object class="GtkButton" id="button_start_export">
-                                        <property name="label" translatable="true">Start Restoration</property>
+                                        <property name="label" translatable="true">Restore</property>
                                         <property name="visible">false</property>
                                         <signal name="clicked" handler="on_button_start_export_clicked"/>
                                         <property name="halign">center</property>

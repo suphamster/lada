@@ -15,9 +15,9 @@ here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-@Gtk.Template(string=utils.translate_ui_xml(here / 'export_item_row.ui'))
-class ExportItemRow(Adw.PreferencesRow):
-    __gtype_name__ = "ExportItemRow"
+@Gtk.Template(string=utils.translate_ui_xml(here / 'export_multiple_files_row.ui'))
+class ExportMultipleFilesRow(Adw.PreferencesRow):
+    __gtype_name__ = "ExportMultipleFilesRow"
 
     progressbar: Gtk.ProgressBar = Gtk.Template.Child()
     button_open: Gtk.Button = Gtk.Template.Child()

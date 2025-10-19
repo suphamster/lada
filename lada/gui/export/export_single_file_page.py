@@ -13,7 +13,7 @@ here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL)
 
-@Gtk.Template(string=utils.translate_ui_xml(here / 'export_single_file_status_page.ui'))
+@Gtk.Template(string=utils.translate_ui_xml(here / 'export_single_file_page.ui'))
 class ExportSingleFileStatusPage(Gtk.Widget):
     __gtype_name__ = 'ExportSingleFileStatusPage'
 
@@ -79,7 +79,7 @@ class ExportSingleFileStatusPage(Gtk.Widget):
     def on_button_show_error_clicked(self, button_clicked):
         assert self.item.state == ExportItemState.FAILED
 
-        export_utils.open_error_dialog(self, self.item.orig_file.get_basename(), self.item.error_details)
+        export_utils.open_error_dialog(self, self.item.original_file.get_basename(), self.item.error_details)
 
     def show_video_export_started(self, save_file: Gio.File):
         self.status_page.set_title(_("Restoring video…"))
@@ -160,10 +160,10 @@ class ExportSingleFileStatusPage(Gtk.Widget):
         self.button_show_error.set_visible(False)
         self.button_open.set_visible(False)
         self.label_meta_data.set_visible(True)
-        self.label_file_name.set_label(self.item.orig_file.get_basename())
+        self.label_file_name.set_label(self.item.original_file.get_basename())
 
         def update_label_with_video_metadata():
-            label = export_utils.get_video_metadata_string(self.item.orig_file)
+            label = export_utils.get_video_metadata_string(self.item.original_file)
             GLib.idle_add(lambda: self.label_meta_data.set_label(label))
 
         threading.Thread(target=update_label_with_video_metadata).start()

@@ -7,11 +7,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lada\n"
 "Report-Msgid-Bugs-To: https://github.com/ladaapp/issues\n"
-"POT-Creation-Date: 2025-10-19 08:16+0000\n"
+"POT-Creation-Date: 2025-10-19 15:35+0000\n"
 "PO-Revision-Date: 2025-10-17 10:49+0000\n"
 "Last-Translator: i110077 <i110077@noreply.codeberg.org>\n"
-"Language-Team: Chinese (Simplified Han script) <https://"
-"translate.codeberg.org/projects/lada/lada/zh_Hans/>\n"
+"Language-Team: Chinese (Simplified Han script) <https://translate.codeberg.org/projects/lada/lada/zh_Hans/>\n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -19,85 +18,18 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 5.13.3\n"
 
-#: lada/gui/export/export_item_row.ui:61
-#: lada/gui/export/export_single_file_status_page.ui:71
-msgid "Open in External Program…"
-msgstr "在外部程序中打开…"
-
-#: lada/gui/export/export_item_row.ui:73
-#: lada/gui/export/export_single_file_status_page.ui:87
-msgid "Show Error"
-msgstr ""
-
-#: lada/gui/export/export_item_row.ui:86
-msgid "Remove"
-msgstr ""
-
-#: lada/gui/export/export_view.ui:30 lada/gui/preview/preview_view.ui:41
-msgid "Settings"
-msgstr "设置"
-
-#: lada/gui/export/export_view.ui:37
-msgid "Add Files…"
-msgstr "添加文件…"
-
-#: lada/gui/export/export_view.ui:43
-#: lada/gui/export/export_single_file_status_page.ui:57
-#: lada/gui/export/export_view.py:157
-msgid "Restore"
-msgstr "修复"
-
-#: lada/gui/export/export_view.ui:132 lada/gui/preview/preview_view.ui:214
-#: lada/gui/fileselection/file_selection_view.ui:54
-msgid "Keyboard Shortcuts"
-msgstr "键盘快捷键"
-
-#: lada/gui/export/export_view.ui:136 lada/gui/preview/preview_view.ui:218
-#: lada/gui/fileselection/file_selection_view.ui:58
-msgid "About Lada"
-msgstr "关于 Lada"
-
-#: lada/gui/export/export_single_file_status_page.py:49
-msgid "Restoring video…"
-msgstr "正在修复视频…"
-
-#: lada/gui/export/export_single_file_status_page.py:63
-msgid "Finished video restoration!"
-msgstr "视频修复已完成！"
-
-#: lada/gui/export/export_single_file_status_page.py:69
-#: lada/gui/export/export_utils.py:47
-#, fuzzy
-#| msgid "Restoration model"
-msgid "Restoration failed"
-msgstr "修复模型"
-
-#: lada/gui/export/export_single_file_status_page.py:80
-#: lada/gui/export/export_single_file_status_page.ui:12
-msgid "Export video"
-msgstr "导出视频"
-
-#: lada/gui/export/export_single_file_status_page.ui:75
-msgid "Open File"
-msgstr "打开文件"
-
-#: lada/gui/export/export_view.py:157
-msgid "Restore…"
-msgstr "修复…"
-
-#: lada/gui/export/export_view.py:379
-msgid "Save restored video file"
-msgstr "保存已修复的视频文件"
-
-#: lada/gui/export/export_view.py:386
-msgid "Save restored video files"
-msgstr "保存所有已修复的视频文件"
-
 #: lada/gui/export/export_utils.py:23
 #, fuzzy, python-brace-format
 #| msgid "Duration: {duration}, Resolution: {resolution}, FPS: {fps}"
 msgid "Duration: {duration}, Resolution: {resolution}, Frame rate: {fps} FPS"
 msgstr "持续时间：{duration}，分辨率：{resolution}，帧率： {fps}"
+
+#: lada/gui/export/export_utils.py:47
+#: lada/gui/export/export_single_file_page.py:109
+#, fuzzy
+#| msgid "Restoration model"
+msgid "Restoration failed"
+msgstr "修复模型"
 
 #: lada/gui/export/export_utils.py:48
 #, python-brace-format
@@ -126,6 +58,102 @@ msgstr ""
 #, python-brace-format
 msgid "Processing… {done_percent}%  |  Processed: {time_done} ({frames_done} frames)  |  Remaining: Estimating… |  Speed: Estimating…"
 msgstr ""
+
+#: lada/gui/export/export_utils.py:90
+#, python-brace-format
+msgid "Paused  |  Processed: {time_done} ({frames_done} frames)"
+msgstr ""
+
+#: lada/gui/export/export_multiple_files_row.ui:61
+#: lada/gui/export/export_single_file_page.ui:110
+msgid "Open in External Program…"
+msgstr "在外部程序中打开…"
+
+#: lada/gui/export/export_multiple_files_row.ui:73
+#: lada/gui/export/export_single_file_page.ui:126
+msgid "Show Error"
+msgstr ""
+
+#: lada/gui/export/export_multiple_files_row.ui:86
+msgid "Remove"
+msgstr ""
+
+#: lada/gui/export/export_single_file_page.py:85
+#: lada/gui/export/export_single_file_page.py:141
+msgid "Restoring video…"
+msgstr "正在修复视频…"
+
+#: lada/gui/export/export_single_file_page.py:101
+msgid "Finished video restoration!"
+msgstr "视频修复已完成！"
+
+#: lada/gui/export/export_single_file_page.py:118
+#: lada/gui/export/export_single_file_page.py:156
+#: lada/gui/export/export_single_file_page.ui:13
+msgid "Export video"
+msgstr "导出视频"
+
+#: lada/gui/export/export_single_file_page.py:131
+#, fuzzy
+#| msgid "Restoration model"
+msgid "Restoration paused"
+msgstr "修复模型"
+
+#: lada/gui/export/export_single_file_page.ui:65
+#: lada/gui/export/export_view.py:239 lada/gui/export/export_view.ui:67
+msgid "Restore"
+msgstr "修复"
+
+#: lada/gui/export/export_single_file_page.ui:77
+#: lada/gui/export/export_view.ui:60
+msgid "Resume"
+msgstr ""
+
+#: lada/gui/export/export_single_file_page.ui:87
+#: lada/gui/export/export_view.ui:53
+#, fuzzy
+#| msgid "Play/Pause"
+msgid "Pause"
+msgstr "播放/暂停"
+
+#: lada/gui/export/export_single_file_page.ui:97
+#: lada/gui/export/export_view.ui:43
+msgid "Cancel"
+msgstr ""
+
+#: lada/gui/export/export_single_file_page.ui:114
+msgid "Open File"
+msgstr "打开文件"
+
+#: lada/gui/export/export_view.py:239
+msgid "Restore…"
+msgstr "修复…"
+
+#: lada/gui/export/export_view.py:502
+msgid "Save restored video file"
+msgstr "保存已修复的视频文件"
+
+#: lada/gui/export/export_view.py:509
+msgid "Save restored video files"
+msgstr "保存所有已修复的视频文件"
+
+#: lada/gui/export/export_view.ui:30 lada/gui/preview/preview_view.ui:41
+msgid "Settings"
+msgstr "设置"
+
+#: lada/gui/export/export_view.ui:37
+msgid "Add Files…"
+msgstr "添加文件…"
+
+#: lada/gui/export/export_view.ui:134 lada/gui/preview/preview_view.ui:214
+#: lada/gui/fileselection/file_selection_view.ui:54
+msgid "Keyboard Shortcuts"
+msgstr "键盘快捷键"
+
+#: lada/gui/export/export_view.ui:138 lada/gui/preview/preview_view.ui:218
+#: lada/gui/fileselection/file_selection_view.ui:58
+msgid "About Lada"
+msgstr "关于 Lada"
 
 #: lada/gui/config/no_gpu_banner.ui:11
 msgid "No GPU detected! Running the app on CPU will be painfully slow."
