@@ -223,6 +223,9 @@ def setup_input_and_output_paths(input_arg, output_arg, output_file_pattern):
             input_file_path = input_files[0]
             output_dir_path = str(pathlib.Path(input_file_path).parent)
             output_files = [get_output_file_path(input_file_path, output_dir_path, output_file_pattern)]
+        elif os.path.isdir(output_arg):
+            input_file_path = input_files[0]
+            output_files = [get_output_file_path(input_file_path, output_arg, output_file_pattern)]
         else:
             output_files = [output_arg]
     else:
