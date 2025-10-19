@@ -3,6 +3,7 @@ import pathlib
 import threading
 
 from gi.repository import Gtk, Gio, GObject, GLib
+
 from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.export import export_utils
@@ -119,6 +120,7 @@ class ExportSingleFileStatusPage(Gtk.Widget):
         self.status_page.set_icon_name("arrow-pointing-away-from-line-right-symbolic")
 
         self.button_start_export.set_sensitive(True)
+        self.button_pause_export.set_sensitive(True)
         self.button_cancel_export.set_sensitive(True)
 
         self.button_start_export.set_visible(True)

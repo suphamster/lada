@@ -1,14 +1,12 @@
 import logging
 import pathlib
-import threading
 
-from gi.repository import Gtk, Gio, GObject, GLib
+from gi.repository import Gtk, Gio, GObject
+
 from lada import LOG_LEVEL
 from lada.gui import utils
-from lada.gui.export import export_utils
 from lada.gui.export.export_item_data import ExportItemData, ExportItemDataProgress, ExportItemState
 from lada.gui.export.export_multiple_files_row import ExportMultipleFilesRow
-from lada.gui.export.export_utils import MIN_VISIBLE_PROGRESS_FRACTION
 
 here = pathlib.Path(__file__).parent.resolve()
 logger = logging.getLogger(__name__)
