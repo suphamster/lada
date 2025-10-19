@@ -30,10 +30,10 @@ class ExportItemRow(Adw.PreferencesRow):
 
         self.original_file = original_file
         self._restored_file = None
-        self._open_handler_id = None                        # 👈 Track signal handler to remove old one
-        self._file_launcher = Gtk.FileLauncher(always_ask=False)  # 👈 Reuse launcher
+        self._open_handler_id = None
+        self._file_launcher = Gtk.FileLauncher(always_ask=False)
 
-        self.restored_file = restored_file  # uses setter below
+        self.restored_file = restored_file
 
         self.set_title(original_file.get_basename())
         self._progress: ExportItemDataProgress = ExportItemDataProgress()
@@ -107,11 +107,10 @@ class ExportItemRow(Adw.PreferencesRow):
     def restored_file(self, value: Gio.File):
         if not self._restored_file or self._restored_file.get_path() != value.get_path():
             self._restored_file = value
-            self._file_launcher.set_file(value)  # 👈 update launcher target file
+            self._file_launcher.set_file(value)
             self._attach_file_launcher_to_open_button()
 
     def _attach_file_launcher_to_open_button(self):
-        # 🎯 Disconnect old launcher if already connected
         if self._open_handler_id:
             try:
                 self.button_open.disconnect(self._open_handler_id)
@@ -119,7 +118,6 @@ class ExportItemRow(Adw.PreferencesRow):
                 logger.warning(f"Could not disconnect old Gtk signal: {e}")
             self._open_handler_id = None
 
-        # ✅ Safe handler — launches only latest file path if file exists
         self._open_handler_id = self.button_open.connect(
             "clicked",
             lambda *_: self._launch_safe()
