@@ -1,6 +1,7 @@
 import logging
 import pathlib
 import threading
+import os
 
 from gi.repository import Adw, Gtk, Gio, GObject, GLib
 
@@ -26,10 +27,14 @@ class ExportItemRow(Adw.PreferencesRow):
 
     def __init__(self, original_file: Gio.File, restored_file: Gio.File, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._restored_file = restored_file
-        self._attach_file_launcher_to_open_button()
 
         self.original_file = original_file
+        self._restored_file = None
+        self._open_handler_id = None                        # 👈 Track signal handler to remove old one
+        self._file_launcher = Gtk.FileLauncher(always_ask=False)  # 👈 Reuse launcher
+
+        self.restored_file = restored_file  # uses setter below
+
         self.set_title(original_file.get_basename())
         self._progress: ExportItemDataProgress = ExportItemDataProgress()
         self._state: ExportItemState = ExportItemState.QUEUED
@@ -100,17 +105,32 @@ class ExportItemRow(Adw.PreferencesRow):
 
     @restored_file.setter
     def restored_file(self, value: Gio.File):
-        if self._restored_file.get_path() != value.get_path():
+        if not self._restored_file or self._restored_file.get_path() != value.get_path():
             self._restored_file = value
+            self._file_launcher.set_file(value)  # 👈 update launcher target file
             self._attach_file_launcher_to_open_button()
 
     def _attach_file_launcher_to_open_button(self):
-        file_launcher = Gtk.FileLauncher(
-            always_ask=False,
-            file=self._restored_file,
+        # 🎯 Disconnect old launcher if already connected
+        if self._open_handler_id:
+            try:
+                self.button_open.disconnect(self._open_handler_id)
+            except Exception as e:
+                logger.warning(f"Could not disconnect old Gtk signal: {e}")
+            self._open_handler_id = None
+
+        # ✅ Safe handler — launches only latest file path if file exists
+        self._open_handler_id = self.button_open.connect(
+            "clicked",
+            lambda *_: self._launch_safe()
         )
 
-        self.button_open.connect("clicked", lambda _: file_launcher.launch())
+    def _launch_safe(self):
+        path = self._restored_file.get_path()
+        if os.path.exists(path):
+            self._file_launcher.launch()
+        else:
+            utils.show_error_snackbar(self, _("File not found: ") + os.path.basename(path))
 
     @Gtk.Template.Callback()
     def button_remove_callback(self, button):
