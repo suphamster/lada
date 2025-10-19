@@ -1,8 +1,11 @@
+import logging
 import pathlib
 import threading
+from math import sqrt
 
-from gi.repository import Adw, Gtk, Gio, GLib, GObject
+from gi.repository import Adw, Gtk, Gio, GLib, GObject, Gdk
 
+from lada import LOG_LEVEL
 from lada.gui import utils
 from lada.gui.config.config import Config
 from lada.gui.export.export_view import ExportView
@@ -11,6 +14,9 @@ from lada.gui.preview.preview_view import PreviewView
 from lada.gui.shortcuts import ShortcutsManager
 
 here = pathlib.Path(__file__).parent.resolve()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=LOG_LEVEL)
 
 @Gtk.Template(string=utils.translate_ui_xml(here / 'window.ui'))
 class MainWindow(Adw.ApplicationWindow):
@@ -51,6 +57,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.connect("close-request", self.close)
         self.file_selection_view.connect("files-selected", lambda obj, files: self.on_files_selected(files))
         self.preview_view.connect("toggle-fullscreen-requested", lambda *args: self.on_toggle_fullscreen())
+        self.preview_view.connect("window-resize-requested", self.on_window_resize_requested)
         self.connect("notify::fullscreened", lambda object, spec: self.on_fullscreened(object.get_property(spec.name)))
 
         self.export_view.props.view_stack = self.view_stack
@@ -83,6 +90,12 @@ class MainWindow(Adw.ApplicationWindow):
         else:
             self.fullscreen()
 
+    def on_window_resize_requested(self, obj, paintable: Gdk.Paintable, playback_controls: Gtk.Widget, header_bar: Gtk.Widget):
+        if self.is_visible():
+            self._resize_window(paintable, playback_controls, header_bar)
+        else:
+            self.connect("map", self._resize_window, paintable, playback_controls, header_bar, True)
+
     def _setup_shortcuts(self):
         self._shortcuts_manager.register_group("ui", "UI")
         def switch_views(child_name):
@@ -94,3 +107,114 @@ class MainWindow(Adw.ApplicationWindow):
     def close(self, *args):
         self.preview_view.close()
         self.export_view.close()
+
+    def _resize_window(self, paintable: Gdk.Paintable, playback_controls: Gtk.Widget, headerbar: Gtk.Widget, initial: bool | None = False) -> None:
+        # Copied from https://gitlab.gnome.org/GNOME/showtime/-/blob/3c940ff2a4128a50c559985a04fb6beb7e9292e6/showtime/widgets/window.py
+        # SPDX-License-Identifier: GPL-3.0-or-later
+        # SPDX-FileCopyrightText: Copyright 2024-2025 kramo
+
+        # For large enough monitors, occupy 40% of the screen area
+        # when opening a window with a video
+        DEFAULT_OCCUPY_SCREEN = 0.4
+
+        # Screens with this resolution or smaller are handled as small
+        SMALL_SCREEN_AREA = 1280 * 1024
+
+        # For small monitors, occupy 80% of the screen area
+        SMALL_OCCUPY_SCREEN = 0.8
+
+        SMALL_SIZE_CHANGE = 10
+
+        logger.debug("Resizing window…")
+
+        if initial:
+            self.disconnect_by_func(self._resize_window)
+
+        if not (video_width := paintable.get_intrinsic_width()) or not (
+                video_height := paintable.get_intrinsic_height()
+        ):
+            return
+
+        if not (surface := self.get_surface()):
+            logger.error("Could not get GdkSurface to resize window")
+            return
+
+        if not (monitor := self.props.display.get_monitor_at_surface(surface)):
+            logger.error("Could not get GdkMonitor to resize window")
+            return
+
+        video_area = video_width * video_height
+        init_width, init_height = self.get_default_size()
+
+        playback_controls_height, _natural, _minimum_baseline, _natural_baseline = playback_controls.measure(Gtk.Orientation.VERTICAL, video_height)
+        header_bar_height, _natural, _minimum_baseline, _natural_baseline = headerbar.measure(Gtk.Orientation.VERTICAL, video_height)
+        additional_height_needed_for_controls = playback_controls_height + header_bar_height
+
+        if initial:
+            # Algorithm copied from Loupe
+            # https://gitlab.gnome.org/GNOME/loupe/-/blob/4ca5f9e03d18667db5d72325597cebc02887777a/src/widgets/image/rendering.rs#L151
+
+            hidpi_scale = surface.props.scale_factor
+
+            monitor_rect = monitor.props.geometry
+
+            monitor_width = monitor_rect.width
+            monitor_height = monitor_rect.height
+
+            monitor_area = monitor_width * monitor_height
+            logical_monitor_area = monitor_area * pow(hidpi_scale, 2)
+
+            occupy_area_factor = (
+                SMALL_OCCUPY_SCREEN
+                if logical_monitor_area <= SMALL_SCREEN_AREA
+                else DEFAULT_OCCUPY_SCREEN
+            )
+
+            size_scale = sqrt(monitor_area / video_area * occupy_area_factor)
+
+            target_scale = min(1, size_scale)
+            nat_width = video_width * target_scale
+            nat_height = video_height * target_scale
+
+            # margin is estimated space for Dock or Taskbar. In some OS these can also be placed left/right of the monitor so use it for both width/height
+            margin = 100
+            max_width = monitor_width - margin * hidpi_scale
+            if nat_width > max_width:
+                nat_width = max_width
+                nat_height = video_height * nat_width / video_width
+
+            max_height = monitor_height - margin * hidpi_scale
+            if nat_height > max_height:
+                nat_height = max_height
+                nat_width = video_width * nat_height / video_height
+
+        else:
+            prev_area = init_width * init_height
+
+            if video_width > video_height:
+                ratio = video_width / video_height
+                nat_width = int(sqrt(prev_area * ratio))
+                nat_height = int(nat_width / ratio)
+            else:
+                ratio = video_height / video_width
+                nat_width = int(sqrt(prev_area / ratio))
+                nat_height = int(nat_width * ratio)
+
+            if (abs(init_width - nat_width) < SMALL_SIZE_CHANGE) and (
+                    abs(init_height - nat_height) < SMALL_SIZE_CHANGE
+            ):
+                return
+
+        nat_width = round(nat_width)
+        nat_height = round(nat_height) + additional_height_needed_for_controls
+
+        for prop, init, target in (
+                ("default-width", init_width, nat_width),
+                ("default-height", init_height, nat_height),
+        ):
+            anim = Adw.TimedAnimation.new(
+                self, init, target, 500, Adw.PropertyAnimationTarget.new(self, prop)
+            )
+            anim.props.easing = Adw.Easing.EASE_OUT_EXPO
+            (anim.skip if initial else anim.play)()
+            logger.debug("Resized window to %ix%i", nat_width, nat_height)

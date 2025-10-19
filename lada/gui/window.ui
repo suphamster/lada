@@ -4,8 +4,8 @@
     <requires lib="Adw" version="1.0"/>
     <template class="MainWindow" parent="AdwApplicationWindow">
         <property name="title">Lada</property>
-        <property name="default-width">1200</property>
-        <property name="default-height">800</property>
+        <property name="default-width">900</property>
+        <property name="default-height">550</property>
         <property name="resizable">true</property>
         <child>
             <object class='GtkShortcutController' id="shortcut_controller">
