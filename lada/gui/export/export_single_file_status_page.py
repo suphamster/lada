@@ -78,7 +78,12 @@ class ExportSingleFileStatusPage(Gtk.Widget):
 
     def on_add_file(self, item: ExportItemData):
         self.item = item
+        self.status_page.set_title(_("Export video"))
+        self.status_page.set_icon_name("arrow-pointing-away-from-line-right-symbolic")
+        self.progress_bar_file_export_status_page.set_visible(False)
         self.button_start_export.set_visible(True)
+        self.button_show_error.set_visible(False)
+        self.button_open.set_visible(False)
         self.label_meta_data.set_visible(True)
         self.label_file_name.set_label(self.item.orig_file.get_basename())
 

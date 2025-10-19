@@ -349,6 +349,7 @@ class ExportView(Gtk.Widget):
         for idx, model_item in enumerate(self.model):
             if model_item.orig_file == view_item.original_file:
                 self.model.remove(idx)
+                self.button_start_export.set_visible(self.is_should_show_start_button())
                 break
 
     def on_show_error_requested(self, view_item: ExportItemRow):
