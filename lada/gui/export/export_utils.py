@@ -1,8 +1,8 @@
-from gi.repository import Gtk, Adw, GObject, Gio
+from gi.repository import Gtk, Adw, Gio
 
 from lada.gui.export.export_item_data import ExportItemDataProgress, ExportItemState
-from lada.lib import video_utils
 from lada.lib import VideoMetadata
+from lada.lib import video_utils
 
 MIN_VISIBLE_PROGRESS_FRACTION = 0.01
 

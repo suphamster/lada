@@ -7,7 +7,6 @@ import time
 import traceback
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Any
 
 from gi.repository import Gtk, GObject, Gio, Adw, GLib
 
@@ -17,7 +16,6 @@ from lada.gui.config.config import Config
 from lada.gui.config.no_gpu_banner import NoGpuBanner
 from lada.gui.export import export_utils
 from lada.gui.export.export_item_data import ExportItemData, ExportItemDataProgress, ExportItemState
-from lada.gui.export.export_multiple_files_row import ExportMultipleFilesRow
 from lada.gui.export.export_multiple_files_page import ExportMultipleFilesPage
 from lada.gui.export.export_single_file_page import ExportSingleFileStatusPage
 from lada.gui.frame_restorer_provider import FrameRestorerOptions, FRAME_RESTORER_PROVIDER
@@ -312,11 +310,13 @@ class ExportView(Gtk.Widget):
         self.multiple_files_page.on_video_export_stopped(self.in_progress_idx)
 
         self.in_progress_idx = None
+        self.stop_requested = False
         self.update_export_buttons()
         self.view_switcher.set_sensitive(True)
         self.config_sidebar.set_property("disabled", False)
         self.button_start_export.set_sensitive(True)
         self.button_cancel_export.set_sensitive(True)
+        self.button_pause_export.set_sensitive(True)
 
     def on_video_export_paused(self, obj):
         assert self.in_progress_idx is not None
@@ -331,6 +331,7 @@ class ExportView(Gtk.Widget):
         self.update_export_buttons()
         self.button_pause_export.set_sensitive(True)
         self.button_cancel_export.set_sensitive(True)
+        self.pause_requested = False
 
     def on_video_export_resumed(self, obj):
         assert self.in_progress_idx is not None

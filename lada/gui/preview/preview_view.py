@@ -2,7 +2,7 @@ import logging
 import pathlib
 import threading
 
-from gi.repository import Gtk, GObject, GLib, Gio, Gst, Adw
+from gi.repository import Gtk, GObject, GLib, Gio, Gst, Adw, Gdk
 
 from lada import LOG_LEVEL
 from lada.gui import utils
@@ -34,7 +34,7 @@ class PreviewView(Gtk.Widget):
     button_image_mute_unmute = Gtk.Template.Child()
     label_current_time = Gtk.Template.Child()
     label_cursor_time = Gtk.Template.Child()
-    box_playback_controls = Gtk.Template.Child()
+    box_playback_controls: Gtk.Box = Gtk.Template.Child()
     box_video_preview = Gtk.Template.Child()
     drop_down_files: HeaderbarFilesDropDown = Gtk.Template.Child()
     spinner_overlay = Gtk.Template.Child()
@@ -155,6 +155,10 @@ class PreviewView(Gtk.Widget):
 
     @GObject.Signal(name="files-opened", arg_types=(GObject.TYPE_PYOBJECT,))
     def files_opened_signal(self, files: list[Gio.File]):
+        pass
+
+    @GObject.Signal(name="window-resize-requested", arg_types=(Gdk.Paintable, Gtk.Widget, Gtk.Widget))
+    def video_size_changed(self, paintable: Gdk.Paintable, playback_controls: Gtk.Widget, headerbar: Gtk.Widget):
         pass
 
     @Gtk.Template.Callback()
@@ -349,6 +353,7 @@ class PreviewView(Gtk.Widget):
             self.pipeline_manager = PipelineManager(self.frame_restorer_provider, buffer_queue_min_thresh_time, buffer_queue_max_thresh_time, self.config.mute_audio)
             self.pipeline_manager.init_pipeline(self.video_metadata)
             self.picture_video_preview.set_paintable(self.pipeline_manager.paintable)
+            self.pipeline_manager.paintable.connect("invalidate-size", lambda obj: self.emit("window-resize-requested", self.pipeline_manager.paintable, self.box_playback_controls, self.header_bar))
             self.pipeline_manager.connect("eos", self.on_eos)
             self.pipeline_manager.connect("waiting-for-data", lambda obj, waiting_for_data: self.on_waiting_for_data(waiting_for_data))
             self.pipeline_manager.connect("notify::state", lambda object, spec: self.on_pipeline_state(object.get_property(spec.name)))
