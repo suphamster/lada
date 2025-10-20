@@ -263,6 +263,10 @@ class VideoWriter:
         if custom_encoder_options:
             encoder_options.update(self.parse_custom_options(custom_encoder_options))
 
+        if time_base is None:
+            rounded = (fps.numerator * 1000 + fps.denominator // 2) // fps.denominator  # nearest int to fps*1000
+            time_base = Fraction(1000, rounded)
+
         output_container = av.open(output_path, "w", options=container_options)
         video_stream_out: av.VideoStream = output_container.add_stream(codec, fps)
 
@@ -282,6 +286,8 @@ class VideoWriter:
         video_stream_out.options = encoder_options
         self.output_container = output_container
         self.video_stream = video_stream_out
+        self.frame_number = 0
+        self.fps = fps
 
     def __enter__(self):
         return self
@@ -289,14 +295,25 @@ class VideoWriter:
     def __exit__(self, exc_type, exc_value, traceback):
         self.release()
 
-    def write(self, frame, frame_pts=None, bgr2rgb=False):
+    def calculate_pts(self, frame_number):
+        return round(frame_number * self.video_stream.time_base.denominator / self.fps)
+
+    def write(self, frame, pts=None, bgr2rgb=False):
+        """Write a frame to the output stream.
+
+        Backwards-compatible signature: callers may pass a pts as the second
+        positional argument (older code did this). The pts parameter is ignored
+        because this writer generates PTS internally (fixed by cherry-pick).
+        """
+        # Accept either (frame) or (frame, pts) calls; if pts passed ignore it
         if bgr2rgb:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         out_frame = av.VideoFrame.from_ndarray(frame, format='rgb24')
-        if frame_pts:
-            out_frame.pts = frame_pts
+        out_frame.pts = self.calculate_pts(self.frame_number)
+        out_frame.time_base = self.video_stream.time_base
         out_packet = self.video_stream.encode(out_frame)
         self.output_container.mux(out_packet)
+        self.frame_number += 1
 
     def release(self):
         out_packet = self.video_stream.encode(None)
