@@ -192,7 +192,15 @@ class PipelineManager(GObject.Object):
         self.audio_buffer_queue = audio_queue
 
     def pipeline_add_video(self):
-        self.frame_restorer_app_src = FrameRestorerAppSrc(self.video_metadata, self.frame_restorer_provider, lambda: self.emit("waiting-for-data", False))
+        # Create the FrameRestorer appsrc and add it to the pipeline. The
+        # FrameRestorerAppSrc may invoke its callbacks from non-main threads,
+        # so wrap its eos/waiting-for-data callback to schedule emission on the
+        # main loop.
+        self.frame_restorer_app_src = FrameRestorerAppSrc(
+            self.video_metadata,
+            self.frame_restorer_provider,
+            lambda: GLib.idle_add(lambda: self.emit("waiting-for-data", False)),
+        )
         appsrc = self.frame_restorer_app_src.appsrc
         self.pipeline.add(appsrc)
 
@@ -202,8 +210,11 @@ class PipelineManager(GObject.Object):
         buffer_queue.set_property('max-size-time', self.buffer_queue_max_thresh_time * Gst.SECOND)  # ns
         buffer_queue.set_property('min-threshold-time', self.buffer_queue_min_thresh_time * Gst.SECOND)
 
-        buffer_queue.connect("underrun", lambda queue: self.emit("waiting-for-data", True))
-        buffer_queue.connect("overrun", lambda queue: self.emit("waiting-for-data", False))
+        # underrun/overrun callbacks may be called from GStreamer threads; schedule
+        # the GObject signal emission on the main loop to avoid touching GObjects
+        # from non-main threads.
+        buffer_queue.connect("underrun", lambda queue: GLib.idle_add(lambda: self.emit("waiting-for-data", True)))
+        buffer_queue.connect("overrun", lambda queue: GLib.idle_add(lambda: self.emit("waiting-for-data", False)))
         self.pipeline.add(buffer_queue)
 
         gtksink = Gst.ElementFactory.make('gtk4paintablesink', None)
