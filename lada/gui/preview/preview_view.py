@@ -276,13 +276,15 @@ class PreviewView(Gtk.Widget):
         def seek():
             self.eos = False
             self.seek_in_progress = True
-            self.spinner_overlay.set_visible(True)
-            self.label_current_time.set_text(self.get_time_label_text(seek_position_ns))
-            self.widget_timeline.set_property("playhead-position", seek_position_ns)
+            # All widget updates must be run on the main loop thread
+            GLib.idle_add(lambda: self.spinner_overlay.set_visible(True))
+            GLib.idle_add(lambda: self.label_current_time.set_text(self.get_time_label_text(seek_position_ns)))
+            GLib.idle_add(lambda: self.widget_timeline.set_property("playhead-position", seek_position_ns))
+            # perform the potentially-blocking seek (non-UI)
             self.pipeline_manager.seek(seek_position_ns)
             self.seek_in_progress = False
             if not self.waiting_for_data:
-                self.spinner_overlay.set_visible(False)
+                GLib.idle_add(lambda: self.spinner_overlay.set_visible(False))
 
         seek_thread = threading.Thread(target=seek, daemon=True)
         seek_thread.start()
@@ -353,7 +355,9 @@ class PreviewView(Gtk.Widget):
             self.pipeline_manager = PipelineManager(self.frame_restorer_provider, buffer_queue_min_thresh_time, buffer_queue_max_thresh_time, self.config.mute_audio)
             self.pipeline_manager.init_pipeline(self.video_metadata)
             self.picture_video_preview.set_paintable(self.pipeline_manager.paintable)
-            self.pipeline_manager.paintable.connect("invalidate-size", lambda obj: self.emit("window-resize-requested", self.pipeline_manager.paintable, self.box_playback_controls, self.header_bar))
+            # Ensure we emit the GObject signal on the main loop (paintable callbacks
+            # may be triggered from other threads).
+            self.pipeline_manager.paintable.connect("invalidate-size", lambda obj: GLib.idle_add(lambda: self.emit("window-resize-requested", self.pipeline_manager.paintable, self.box_playback_controls, self.header_bar)))
             self.pipeline_manager.connect("eos", self.on_eos)
             self.pipeline_manager.connect("waiting-for-data", lambda obj, waiting_for_data: self.on_waiting_for_data(waiting_for_data))
             self.pipeline_manager.connect("notify::state", lambda object, spec: self.on_pipeline_state(object.get_property(spec.name)))
@@ -362,17 +366,22 @@ class PreviewView(Gtk.Widget):
         threading.Thread(target=self.pipeline_manager.play).start()
 
     def on_eos(self, *args):
-        self.eos = True
-        self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
+        # Ensure UI updates happen on the main loop
+        def _ui():
+            self.eos = True
+            self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
+        GLib.idle_add(_ui)
 
     def on_pipeline_state(self, state: PipelineState):
-        if state == PipelineState.PLAYING:
-            self.button_image_play_pause.set_property("icon-name", "media-playback-pause-symbolic")
-        elif state == PipelineState.PAUSED:
-            self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
-        if not self._video_preview_init_done and state == PipelineState.PLAYING:
-            self._video_preview_init_done = True
-            self._show_video_preview()
+        def _ui():
+            if state == PipelineState.PLAYING:
+                self.button_image_play_pause.set_property("icon-name", "media-playback-pause-symbolic")
+            elif state == PipelineState.PAUSED:
+                self.button_image_play_pause.set_property("icon-name", "media-playback-start-symbolic")
+            if not self._video_preview_init_done and state == PipelineState.PLAYING:
+                self._video_preview_init_done = True
+                self._show_video_preview()
+        GLib.idle_add(_ui)
 
     def pause_if_currently_playing(self):
         if not self._video_preview_init_done:
@@ -441,15 +450,20 @@ class PreviewView(Gtk.Widget):
             return time
 
     def on_fullscreen_activity(self, fullscreen_activity: bool):
-        if fullscreen_activity:
-            GLib.idle_add(lambda: self.header_bar.set_visible(True))
-            self.set_cursor_from_name("default")
-            self.box_playback_controls.set_visible(True)
-            self.button_play_pause.grab_focus()
-        else:
-            GLib.idle_add(lambda: self.header_bar.set_visible(False))
-            self.set_cursor_from_name("none")
-            self.box_playback_controls.set_visible(False)
+        def _ui():
+            if fullscreen_activity:
+                self.header_bar.set_visible(True)
+                self.set_cursor_from_name("default")
+                self.box_playback_controls.set_visible(True)
+                try:
+                    self.button_play_pause.grab_focus()
+                except Exception:
+                    pass
+            else:
+                self.header_bar.set_visible(False)
+                self.set_cursor_from_name("none")
+                self.box_playback_controls.set_visible(False)
+        GLib.idle_add(_ui)
 
     def on_fullscreened(self, fullscreened: bool):
         if fullscreened:
@@ -470,19 +484,26 @@ class PreviewView(Gtk.Widget):
         self.fullscreen_mouse_activity_controller.connect("notify::fullscreen-activity", lambda object, spec: self.on_fullscreen_activity(object.get_property(spec.name)))
 
     def _show_spinner(self, *args):
-        self.config_sidebar.set_property("disabled", True)
-        self.drop_down_files.set_sensitive(False)
-        self.view_switcher.set_sensitive(False)
-        self.button_open_files.set_sensitive(False)
-        self.stack_video_preview.set_visible_child_name("spinner")
+        def _ui():
+            self.config_sidebar.set_property("disabled", True)
+            self.drop_down_files.set_sensitive(False)
+            self.view_switcher.set_sensitive(False)
+            self.button_open_files.set_sensitive(False)
+            self.stack_video_preview.set_visible_child_name("spinner")
+        GLib.idle_add(_ui)
 
     def _show_video_preview(self, *args):
-        self.config_sidebar.set_property("disabled", False)
-        self.drop_down_files.set_sensitive(True)
-        self.view_switcher.set_sensitive(True)
-        self.button_open_files.set_sensitive(True)
-        self.stack_video_preview.set_visible_child_name("video-player")
-        self.grab_focus()
+        def _ui():
+            self.config_sidebar.set_property("disabled", False)
+            self.drop_down_files.set_sensitive(True)
+            self.view_switcher.set_sensitive(True)
+            self.button_open_files.set_sensitive(True)
+            self.stack_video_preview.set_visible_child_name("video-player")
+            try:
+                self.grab_focus()
+            except Exception:
+                pass
+        GLib.idle_add(_ui)
 
     def _setup_shortcuts(self):
         self._shortcuts_manager.register_group("preview", _("Watch"))
